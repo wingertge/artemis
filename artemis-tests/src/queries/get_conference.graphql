@@ -1,5 +1,5 @@
-query GetConference {
-    conference(id: "1") {
+query GetConference($id: Long!) {
+    conference(id: $id) {
         id
         name
         city

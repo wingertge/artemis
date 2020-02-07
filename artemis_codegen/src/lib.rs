@@ -131,7 +131,7 @@ pub(crate) fn generate_code(params: CliCodegenParams) -> Result<(), failure::Err
     let gen = generate_module_token_stream(query_path.clone(), &schema_path, options)?;
 
     let generated_code = gen.to_string();
-    let generated_code = generated_code.replace("graphql_client :: ", "artemis :: ");
+    let generated_code = generated_code.replace("graphql_client :: ", "artemis :: ").replace("super :: ", "crate ::");
     // TODO: Add formatting
     /*    let generated_code = if cfg!(feature = "rustfmt") && !no_formatting {
         format(&generated_code)
