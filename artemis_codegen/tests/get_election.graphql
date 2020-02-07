@@ -1,0 +1,9 @@
+query GetElection($id: Uuid!) {
+    election(id: $id) {
+        id
+        name
+        description
+        choices
+        __typename
+    }
+}

@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "artemis",
+    "artemis_codegen"
+]
