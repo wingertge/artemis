@@ -1,13 +1,9 @@
-use crate::{
-    types::{HeaderPair, Middleware, Operation},
-    Response
-};
+use crate::types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationResult};
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, fmt};
-use crate::types::{MiddlewareFactory, OperationResult};
 
 #[derive(Debug)]
-enum FetchError {
+pub enum FetchError {
     FetchError(Box<dyn Error + Send + Sync>),
     DecodeError(Box<dyn Error + Send + Sync>)
 }
@@ -22,25 +18,24 @@ impl fmt::Display for FetchError {
     }
 }
 
-struct FetchMiddleware<TNext: Middleware + Send + Sync> {
+pub struct FetchMiddleware<TNext: Middleware + Send + Sync> {
     next: TNext
 }
 
-impl <TNext: Middleware + Send + Sync> MiddlewareFactory<TNext> for FetchMiddleware<TNext> {
+impl<TNext: Middleware + Send + Sync> MiddlewareFactory<FetchMiddleware<TNext>, TNext>
+    for FetchMiddleware<TNext>
+{
     fn build(next: TNext) -> Self {
-        Self {
-            next
-        }
+        Self { next }
     }
 }
 
 #[async_trait]
 impl<TNext: Middleware + Send + Sync> Middleware for FetchMiddleware<TNext> {
-    async fn run<T, F>(&self, operation: Operation<T, F>) -> Result<OperationResult, Box<dyn Error>>
-    where
-        T: Serialize + DeserializeOwned + Send + Sync,
-        F: Fn() -> Vec<HeaderPair> + Send + Sync
-    {
+    async fn run<V: Serialize + Send + Sync>(
+        &self,
+        operation: Operation<V>
+    ) -> Result<OperationResult, Box<dyn Error>> {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()
         } else {

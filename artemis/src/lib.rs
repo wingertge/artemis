@@ -1,3 +1,4 @@
+#[warn(missing_docs)]
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -5,9 +6,21 @@ extern crate async_trait;
 
 use std::{collections::HashMap, fmt, fmt::Display};
 
+mod client;
 mod middlewares;
 mod types;
 mod utils;
+
+use serde::de::DeserializeOwned;
+pub use surf::url::Url;
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_artemis() {
+        artemis_tests::test_artemis()
+    }
+}
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,11 +75,11 @@ pub struct QueryBody<Variables> {
 ///     Ok(())
 /// }
 /// ```
-pub trait GraphQLQuery {
+pub trait GraphQLQuery: Send + Sync {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
-    type Variables: serde::Serialize;
+    type Variables: serde::Serialize + Send + Sync;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
-    type ResponseData: for<'de> serde::Deserialize<'de>;
+    type ResponseData: DeserializeOwned + Send + Sync;
 
     /// Produce a GraphQL query struct that can be JSON serialized and sent to a GraphQL API.
     fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables>;

@@ -1,0 +1,14 @@
+query GetConference {
+    conference(id: "1") {
+        id
+        name
+        city
+        talks {
+            id
+            title
+            speakers {
+                name
+            }
+        }
+    }
+}

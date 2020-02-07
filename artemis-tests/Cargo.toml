@@ -1,5 +1,5 @@
 [package]
-name = "artemis"
+name = "artemis-tests"
 version = "0.1.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
@@ -7,11 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-futures = "0.3"
-surf = "1"
-serde_json = "1"
-async-trait = "0.1"
+artemis = { path = "../artemis" }
+serde = "1"
 
-[dev-dependencies]
-artemis-tests = { path = "../artemis-tests" }
+[build-dependencies]
+artemis_codegen = { path = "../artemis_codegen" }
+rustversion = "1"
