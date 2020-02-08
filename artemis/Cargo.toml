@@ -15,3 +15,4 @@ async-trait = "0.1"
 
 [dev-dependencies]
 artemis-tests = { path = "../artemis-tests" }
+tokio-test = "0.2"

@@ -17,11 +17,8 @@ where
     request_policy: RequestPolicy
 }
 
-impl<T> ClientBuilder<T>
-where
-    T: Middleware + Send + Sync
-{
-    pub fn new<U: Into<String>>(url: U) -> ClientBuilder<DummyMiddleware> {
+impl ClientBuilder<DummyMiddleware> {
+    pub fn new<U: Into<String>>(url: U) -> Self {
         let url = url
             .into()
             .parse()
@@ -33,9 +30,14 @@ where
             request_policy: RequestPolicy::CacheFirst
         }
     }
+}
 
+impl<M> ClientBuilder<M>
+where
+    M: Middleware + Send + Sync
+{
     /// Add the default middlewares to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_default_middleware(self) -> ClientBuilder<FetchMiddleware<T>> {
+    pub fn with_default_middleware(self) -> ClientBuilder<FetchMiddleware<M>> {
         let middleware = self.middleware;
         let middleware = FetchMiddleware::build(middleware);
         ClientBuilder {
@@ -50,7 +52,7 @@ where
     pub fn with_middleware<TResult, F>(self, middleware_factory: F) -> ClientBuilder<TResult>
     where
         TResult: Middleware + Send + Sync,
-        F: MiddlewareFactory<TResult, T>
+        F: MiddlewareFactory<TResult, M>
     {
         let middleware = F::build(self.middleware);
         ClientBuilder {
@@ -72,6 +74,15 @@ where
     pub fn with_request_policy(mut self, request_policy: RequestPolicy) -> Self {
         self.request_policy = request_policy;
         self
+    }
+
+    pub fn build(self) -> Client<M> {
+        Client {
+            url: self.url,
+            middleware: self.middleware,
+            extra_headers: self.extra_headers,
+            request_policy: self.request_policy
+        }
     }
 }
 
