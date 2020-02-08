@@ -11,6 +11,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
     - name: Run Test Backend
       run: "docker run -d --name graphql-demo -p 8080:8080 npalm/graphql-java-demo"
     - name: Build
