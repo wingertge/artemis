@@ -40,19 +40,19 @@ pub struct QueryBody<Variables> {
 }
 
 /// A convenience trait that can be used to build a GraphQL request body.
-///
+/// TODO: Update docs
 /// This will be implemented for you by codegen in the normal case. It is implemented on the struct you place the derive on.
 ///
 /// Example:
 ///
-/// ```
+/// ```ignore
 /// use artemis::*;
 /// use serde_json::json;
 ///
 /// #[derive(GraphQLQuery)]
 /// #[graphql(
-///   query_path = "../graphql_client_codegen/src/tests/star_wars_query.graphql",
-///   schema_path = "../graphql_client_codegen/src/tests/star_wars_schema.graphql"
+///   query_path = "../artemis_codegen/src/tests/star_wars_query.graphql",
+///   schema_path = "../artemis_codegen/src/tests/star_wars_schema.graphql"
 /// )]
 /// struct StarWarsQuery;
 ///
