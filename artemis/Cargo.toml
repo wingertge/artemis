@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 futures = "0.3"
-surf = "1"
+surf = { git = "https://github.com/http-rs/surf.git" }
 serde_json = "1"
 async-trait = "0.1"
 
