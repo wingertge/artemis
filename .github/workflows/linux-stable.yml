@@ -1,4 +1,4 @@
-name: 'Linux (GNU)'
+name: 'Linux (Stable)'
 
 on:
   push:
