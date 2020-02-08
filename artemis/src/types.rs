@@ -1,5 +1,5 @@
 use crate::QueryBody;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
 

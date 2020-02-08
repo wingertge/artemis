@@ -7,10 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+graphql-parser = "0.2"
+lazy_static = "1.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+proc-macro2 = { version = "1", features = [] }
 syn = "1"
-graphql_client_codegen = { git = "https://github.com/graphql-rust/graphql-client.git" }
-failure = "0.1"
+quote = "1"
+heck = "0.3"
 
 [dev-dependencies]
 artemis = { path = "../artemis" }
-serde = "1"

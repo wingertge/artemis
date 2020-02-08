@@ -1,5 +1,5 @@
 use crate::types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationResult};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use std::{error::Error, fmt};
 
 #[derive(Debug)]
@@ -18,20 +18,18 @@ impl fmt::Display for FetchError {
     }
 }
 
-pub struct FetchMiddleware<TNext: Middleware + Send + Sync> {
-    next: TNext
-}
+pub struct FetchMiddleware;
 
-impl<TNext: Middleware + Send + Sync> MiddlewareFactory<FetchMiddleware<TNext>, TNext>
-    for FetchMiddleware<TNext>
+impl<TNext: Middleware + Send + Sync> MiddlewareFactory<FetchMiddleware, TNext>
+    for FetchMiddleware
 {
-    fn build(next: TNext) -> Self {
-        Self { next }
+    fn build(_next: TNext) -> Self {
+        Self {}
     }
 }
 
 #[async_trait]
-impl<TNext: Middleware + Send + Sync> Middleware for FetchMiddleware<TNext> {
+impl Middleware for FetchMiddleware {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         operation: Operation<V>

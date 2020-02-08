@@ -1,153 +1,257 @@
-use failure::format_err;
-use graphql_client_codegen::{
-    deprecation::DeprecationStrategy, generate_module_token_stream, CodegenMode,
-    GraphQLClientCodegenOptions
-};
-use std::{
-    env,
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf}
-};
-use syn::Token;
+#![recursion_limit = "128"]
+#![deny(missing_docs)]
+#![deny(rust_2018_idioms)]
+#![deny(warnings)]
 
-#[derive(Debug, Default)]
-pub struct CodegenBuilder {
-    query_paths: Vec<PathBuf>,
-    variable_derives: Option<String>,
-    response_derives: Option<String>,
-    deprecation_strategy: Option<DeprecationStrategy>,
-    output_directory: Option<PathBuf>
+//! Crate for internal use by other graphql-client crates, for code generation.
+//!
+//! It is not meant to be used directly by users of the library.
+
+use lazy_static::*; // TODO: Need to use later
+use proc_macro2::TokenStream;
+use quote::*;
+
+mod codegen;
+mod codegen_options;
+/// Deprecation-related code
+pub mod deprecation;
+mod query;
+/// Contains the [Schema] type and its implementation.
+pub mod schema;
+
+mod constants;
+mod enums;
+mod field_type;
+mod fragments;
+mod generated_module;
+mod inputs;
+mod interfaces;
+mod introspection_response;
+/// Normalization-related code
+pub mod normalization;
+mod objects;
+mod operations;
+mod scalars;
+mod selection;
+mod shared;
+mod unions;
+mod variables;
+
+#[cfg(test)]
+mod tests;
+
+pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
+
+use crate::unions::UnionError;
+use std::{collections::HashMap, error::Error, fmt, io::Read};
+
+type CacheMap<T> = std::sync::Mutex<HashMap<std::path::PathBuf, T>>;
+
+/*// TODO: Replace with lazy_static once done, just for code completion
+static SCHEMA_CACHE: CacheMap<String> = CacheMap::default();
+static QUERY_CACHE: CacheMap<(String, graphql_parser::query::Document)> =
+    CacheMap::default();*/
+lazy_static! {
+    static ref SCHEMA_CACHE: CacheMap<String> = CacheMap::default();
+    static ref QUERY_CACHE: CacheMap<(String, graphql_parser::query::Document)> =
+        CacheMap::default();
 }
 
-impl CodegenBuilder {
-    pub fn new() -> Self {
-        Self {
-            query_paths: Vec::new(),
-            variable_derives: None,
-            response_derives: None,
-            deprecation_strategy: None,
-            output_directory: None
-        }
-    }
-
-    pub fn add_query<T: AsRef<Path>>(mut self, query_path: T) -> Self {
-        self.query_paths.push(query_path.as_ref().to_path_buf());
-        self
-    }
-
-    pub fn with_derives_on_variables<T: Into<String>>(mut self, derives: T) -> Self {
-        self.variable_derives = Some(derives.into());
-        self
-    }
-
-    pub fn with_derives_on_response<T: Into<String>>(mut self, derives: T) -> Self {
-        self.response_derives = Some(derives.into());
-        self
-    }
-
-    pub fn with_deprecation_strategy(mut self, strategy: DeprecationStrategy) -> Self {
-        self.deprecation_strategy = Some(strategy);
-        self
-    }
-
-    pub fn with_out_dir<T: AsRef<Path>>(mut self, out_dir: T) -> Self {
-        self.output_directory = Some(out_dir.as_ref().to_path_buf());
-        self
-    }
-
-    pub fn build<T: AsRef<Path>>(self, schema_path: T) -> Result<(), failure::Error> {
-        let schema_path = schema_path.as_ref().to_path_buf();
-        let output_directory: PathBuf = self
-            .output_directory
-            .map(Ok)
-            .unwrap_or_else(|| env::var("OUT_DIR").map(Into::into))?;
-
-        for query_path in self.query_paths {
-            let schema_path = schema_path.clone();
-            let params = CliCodegenParams {
-                query_path,
-                schema_path,
-                selected_operation: None,
-                variables_derives: self.variable_derives.clone(),
-                response_derives: self.response_derives.clone(),
-                deprecation_strategy: self.deprecation_strategy.clone(),
-                output_directory: output_directory.clone()
-            };
-            println!("{:#?}", params);
-            generate_code(params)?;
-        }
-        Ok(())
-    }
-}
-
+/// Global error type for codegen crate
 #[derive(Debug)]
-pub(crate) struct CliCodegenParams {
-    pub query_path: PathBuf,
-    pub schema_path: PathBuf,
-    pub selected_operation: Option<String>,
-    pub variables_derives: Option<String>,
-    pub response_derives: Option<String>,
-    pub deprecation_strategy: Option<DeprecationStrategy>,
-    pub output_directory: PathBuf
+pub enum CodegenError {
+    /// An IO Error
+    IoError(String, std::io::Error),
+    /// An error that occurred while parsing a query
+    QueryParsingError(graphql_parser::query::ParseError),
+    /// An error that occurred while parsing the schema
+    SchemaParsingError(graphql_parser::schema::ParseError),
+    /// An error that occured during serialization
+    SerializationError(serde_json::Error),
+    /// An internal error while parsing union types
+    UnionError(unions::UnionError),
+    /// A syntax error in the query
+    SyntaxError(String),
+    /// A type error in the query
+    TypeError(String),
+    /// An internal error, should not be returned in normal usage
+    InternalError(String),
+    /// An unimplemented feature
+    UnimplementedError(String),
+    /// Invalid inputs were passed
+    InputError(String)
+}
+impl Error for CodegenError {}
+
+impl fmt::Display for CodegenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CodegenError::IoError(msg, inner) => write!(f, "io error: {}\n{}", msg, inner),
+            CodegenError::QueryParsingError(inner) => write!(f, "parsing error: {}", inner),
+            CodegenError::SchemaParsingError(inner) => write!(f, "parsing error: {}", inner),
+            CodegenError::SerializationError(inner) => write!(f, "serialization error: {}", inner),
+            CodegenError::UnionError(inner) => write!(f, "{}", inner),
+            CodegenError::SyntaxError(msg) => write!(f, "syntax error: {}", msg),
+            CodegenError::TypeError(msg) => write!(f, "type error: {}", msg),
+            CodegenError::InternalError(msg) => write!(f, "internal error: {}", msg),
+            CodegenError::UnimplementedError(msg) => write!(f, "unimplemented: {}", msg),
+            CodegenError::InputError(msg) => write!(f, "invalid input: {}", msg)
+        }
+    }
 }
 
-pub(crate) fn generate_code(params: CliCodegenParams) -> Result<(), failure::Error> {
-    let CliCodegenParams {
-        variables_derives,
-        response_derives,
-        deprecation_strategy,
-        output_directory,
-        query_path,
-        schema_path,
-        selected_operation
-    } = params;
+impl From<UnionError> for CodegenError {
+    fn from(e: UnionError) -> Self {
+        CodegenError::UnionError(e)
+    }
+}
 
-    let mut options = GraphQLClientCodegenOptions::new(CodegenMode::Cli);
-
-    options.set_module_visibility(
-        syn::VisPublic {
-            pub_token: <Token![pub]>::default()
+/// Generates Rust code given a query document, a schema and options.
+pub fn generate_module_token_stream(
+    query_path: std::path::PathBuf,
+    schema_path: &std::path::Path,
+    options: GraphQLClientCodegenOptions
+) -> Result<TokenStream, CodegenError> {
+    use std::collections::hash_map;
+    // We need to qualify the query with the path to the crate it is part of
+    let (query_string, query) = {
+        let mut lock = QUERY_CACHE.lock().expect("query cache is poisoned");
+        match lock.entry(query_path) {
+            hash_map::Entry::Occupied(o) => o.get().clone(),
+            hash_map::Entry::Vacant(v) => {
+                let query_string = read_file(v.key())?;
+                let query = graphql_parser::parse_query(&query_string)
+                    .map_err(CodegenError::QueryParsingError)?;
+                v.insert((query_string, query)).clone()
+            }
         }
-        .into()
-    );
+    };
 
-    if let Some(selected_operation) = selected_operation {
-        options.set_operation_name(selected_operation);
+    // Determine which operation we are generating code for. This will be used in operationName.
+    let operations = options
+        .operation_name
+        .as_ref()
+        .and_then(|operation_name| {
+            codegen::select_operation(&query, &operation_name, options.normalization())
+        })
+        .map(|op| vec![op]);
+
+    let operations = match (operations, &options.mode) {
+        (Some(ops), _) => ops,
+        (None, &CodegenMode::Cli) => codegen::all_operations(&query),
+        (None, &CodegenMode::Derive) => {
+            return Err(derive_operation_not_found_error(
+                options.struct_ident(),
+                &query
+            ));
+        }
+    };
+
+    let schema_extension = schema_path
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("INVALID");
+
+    // Check the schema cache.
+    let schema_string: String = {
+        let mut lock = SCHEMA_CACHE.lock().expect("schema cache is poisoned");
+        match lock.entry(schema_path.to_path_buf()) {
+            hash_map::Entry::Occupied(o) => o.get().clone(),
+            hash_map::Entry::Vacant(v) => {
+                let schema_string = read_file(v.key())?;
+                (*v.insert(schema_string)).to_string()
+            }
+        }
+    };
+
+    let parsed_schema = match schema_extension {
+                        "graphql" | "gql" => {
+                            let s = graphql_parser::schema::parse_schema(&schema_string).map_err(CodegenError::SchemaParsingError)?;
+                            schema::ParsedSchema::GraphQLParser(s)
+                        }
+                        "json" => {
+                            let parsed: crate::introspection_response::IntrospectionResponse = serde_json::from_str(&schema_string).map_err(CodegenError::SerializationError)?;
+                            schema::ParsedSchema::Json(parsed)
+                        }
+                        extension => panic!("Unsupported extension for the GraphQL schema: {} (only .json and .graphql are supported)", extension)
+                    };
+
+    let schema = schema::Schema::from(&parsed_schema);
+
+    // The generated modules.
+    let mut modules = Vec::with_capacity(operations.len());
+
+    for operation in &operations {
+        let generated = generated_module::GeneratedModule {
+            query_string: query_string.as_str(),
+            schema: &schema,
+            query_document: &query,
+            operation,
+            options: &options
+        }
+        .to_token_stream()?;
+        modules.push(generated);
     }
 
-    if let Some(variables_derives) = variables_derives {
-        options.set_variables_derives(variables_derives);
-    }
+    let modules = quote! { #(#modules)* };
 
-    if let Some(response_derives) = response_derives {
-        options.set_response_derives(response_derives);
-    }
+    Ok(modules)
+}
 
-    if let Some(deprecation_strategy) = deprecation_strategy {
-        options.set_deprecation_strategy(deprecation_strategy);
-    }
+fn read_file(path: &std::path::Path) -> Result<String, CodegenError> {
+    use std::fs;
 
-    let gen = generate_module_token_stream(query_path.clone(), &schema_path, options)?;
+    let mut out = String::new();
+    let mut file = fs::File::open(path).map_err(|io_err| {
+        let msg = format!(
+            r#"
+            Could not find file with path: {}
+            Hint: file paths in the GraphQLQuery attribute are relative to the project root (location of the Cargo.toml). Example: query_path = "src/my_query.graphql".
+            "#,
+            path.display()
+        );
+        CodegenError::IoError(msg, io_err)
+    })?;
+    file.read_to_string(&mut out)
+        .map_err(|e| CodegenError::IoError("".to_string(), e))?;
+    Ok(out)
+}
 
-    let generated_code = gen.to_string();
-    let generated_code = generated_code.replace("graphql_client :: ", "artemis :: ").replace("super :: ", "crate ::");
-    // TODO: Add formatting
-    /*    let generated_code = if cfg!(feature = "rustfmt") && !no_formatting {
-        format(&generated_code)
-    } else {
-        generated_code
-    };*/
+/// In derive mode, build an error when the operation with the same name as the struct is not found.
+fn derive_operation_not_found_error(
+    ident: Option<&proc_macro2::Ident>,
+    query: &graphql_parser::query::Document
+) -> CodegenError {
+    use graphql_parser::query::*;
 
-    let query_file_name: ::std::ffi::OsString = query_path
-        .file_name()
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| format_err!("Failed to find a file name in the provided query path."))?;
+    let operation_name = ident.map(ToString::to_string);
+    let struct_ident = operation_name.as_ref().map(String::as_str).unwrap_or("");
 
-    let dest_file_path: PathBuf = output_directory.join(query_file_name).with_extension("rs");
+    let available_operations = query
+        .definitions
+        .iter()
+        .filter_map(|definition| match definition {
+            Definition::Operation(op) => match op {
+                OperationDefinition::Mutation(m) => Some(m.name.as_ref().unwrap()),
+                OperationDefinition::Query(m) => Some(m.name.as_ref().unwrap()),
+                OperationDefinition::Subscription(m) => Some(m.name.as_ref().unwrap()),
+                OperationDefinition::SelectionSet(_) => {
+                    unreachable!("Bare selection sets are not supported.")
+                }
+            },
+            _ => None
+        })
+        .fold(String::new(), |mut acc, item| {
+            acc.push_str(&item);
+            acc.push_str(", ");
+            acc
+        });
 
-    let mut file = File::create(dest_file_path)?;
-    write!(file, "{}", generated_code)?;
+    let available_operations = available_operations.trim_end_matches(", ");
 
-    Ok(())
+    return CodegenError::TypeError(format!(
+        "The struct name does not match any defined operation in the query file.\nStruct name: {}\nDefined operations: {}",
+        struct_ident,
+        available_operations,
+    ));
 }

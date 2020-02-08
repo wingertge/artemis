@@ -41,7 +41,7 @@ fn check_code_gen() {
         city: Some("test_city".to_string()),
         talks: Some(vec![talks])
     };
-    let response_data = ResponseData {
+    let _response_data = ResponseData {
         conference: Some(conference)
     };
 

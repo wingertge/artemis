@@ -3,5 +3,6 @@
 members = [
     "artemis",
     "artemis_codegen",
-    "artemis-tests"
+    "artemis-tests",
+    "artemis-build"
 ]

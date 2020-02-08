@@ -1,0 +1,13 @@
+[package]
+name = "artemis-build"
+version = "0.1.0"
+authors = ["Genna Wingert <wingertge@gmail.com>"]
+edition = "2018"
+
+[features]
+rustfmt = ["rustfmt-nightly"]
+
+[dependencies]
+artemis_codegen = { path = "../artemis_codegen" }
+rustfmt-nightly = { version = "1.4", optional = true }
+syn = "1"

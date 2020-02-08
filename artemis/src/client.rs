@@ -3,7 +3,7 @@ use crate::{
     types::{HeaderPair, Middleware, MiddlewareFactory, Operation, RequestPolicy},
     GraphQLQuery, Response
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
 
@@ -37,7 +37,7 @@ where
     M: Middleware + Send + Sync
 {
     /// Add the default middlewares to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_default_middleware(self) -> ClientBuilder<FetchMiddleware<M>> {
+    pub fn with_default_middleware(self) -> ClientBuilder<FetchMiddleware> {
         let middleware = self.middleware;
         let middleware = FetchMiddleware::build(middleware);
         ClientBuilder {
@@ -49,7 +49,7 @@ where
     }
 
     /// Add a middleware to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_middleware<TResult, F>(self, middleware_factory: F) -> ClientBuilder<TResult>
+    pub fn with_middleware<TResult, F>(self, _middleware_factory: F) -> ClientBuilder<TResult>
     where
         TResult: Middleware + Send + Sync,
         F: MiddlewareFactory<TResult, M>

@@ -1,5 +1,4 @@
 #[warn(missing_docs)]
-
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -12,11 +11,11 @@ mod middlewares;
 mod types;
 mod utils;
 
-use serde::de::DeserializeOwned;
-pub use surf::url::Url;
 pub use client::{Client, ClientBuilder, QueryOptions};
 pub use middlewares::FetchMiddleware;
-pub use types::{Middleware, MiddlewareFactory, RequestPolicy, HeaderPair};
+use serde::de::DeserializeOwned;
+pub use surf::url::Url;
+pub use types::{HeaderPair, Middleware, MiddlewareFactory, RequestPolicy};
 
 #[cfg(test)]
 mod test {
@@ -24,9 +23,7 @@ mod test {
 
     #[test]
     fn test_artemis() {
-        block_on(async {
-            artemis_tests::test_artemis().await
-        })
+        block_on(async { artemis_tests::test_artemis().await })
     }
 }
 

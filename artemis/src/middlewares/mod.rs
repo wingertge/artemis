@@ -1,5 +1,5 @@
-use crate::types::{HeaderPair, Middleware, Operation, OperationResult};
-use serde::{de::DeserializeOwned, Serialize};
+use crate::types::{Middleware, Operation, OperationResult};
+use serde::Serialize;
 use std::{error::Error, fmt};
 
 pub mod fetch;
@@ -25,7 +25,7 @@ pub struct DummyMiddleware;
 impl Middleware for DummyMiddleware {
     async fn run<V: Serialize + Send + Sync>(
         &self,
-        operation: Operation<V>
+        _operation: Operation<V>
     ) -> Result<OperationResult, Box<dyn Error>> {
         Err(MiddlewareError::UnexpectedEndOfChain.into())
     }
