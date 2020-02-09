@@ -1,4 +1,3 @@
-use crate::introspect::IntrospectionError;
 use artemis_codegen::{
     deprecation::DeprecationStrategy, generate_module_token_stream, CodegenError, CodegenMode,
     GraphQLClientCodegenOptions
@@ -15,6 +14,8 @@ use syn::Token;
 
 #[cfg(feature = "introspect")]
 mod introspect;
+#[cfg(feature = "introspect")]
+pub use introspect::IntrospectionError;
 
 #[derive(Debug)]
 pub enum BuildError {

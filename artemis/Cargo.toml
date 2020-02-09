@@ -4,10 +4,6 @@ version = "0.1.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[features]
-debug = []
-
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 futures = "0.3"
@@ -17,5 +13,5 @@ async-trait = "0.1"
 bincode = "1"
 
 [dev-dependencies]
-artemis-tests = { path = "../artemis-tests" }
-tokio-test = "0.2"
+artemis-test = { path = "../artemis-test" }
+tokio = { version = "0.2", features = ["full"] }

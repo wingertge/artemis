@@ -1,62 +1,6 @@
-use crate::queries::add_conference::AddConference;
-use artemis::{Client, ClientBuilder, GraphQLQuery, Middleware, ResultSource};
-
-mod queries;
+use artemis::{Client, ClientBuilder, Middleware, ResultSource};
 
 const URL: &str = "http://localhost:8080/graphql";
-
-pub(crate) type Long = String;
-
-pub async fn test_artemis() {
-    print!("-- check code generated properly    ");
-    check_code_gen();
-    print!("✔️\n");
-    print!("-- build client                     ");
-    build_client();
-    print!("✔️\n");
-    print!("-- test query                       ");
-    test_query().await;
-    print!("✔️\n");
-    print!("-- test cache                       ");
-    test_cache().await;
-    print!("✔️\n");
-    print!("-- test cache invalidation          ");
-    test_cache_invalidation().await;
-    print!("✔️\n");
-}
-
-fn check_code_gen() {
-    use queries::get_conference::get_conference::{
-        GetConferenceConference, GetConferenceConferenceTalks,
-        GetConferenceConferenceTalksSpeakers, ResponseData, Variables
-    };
-    let variables = Variables {
-        id: "1".to_string()
-    };
-    let speakers = GetConferenceConferenceTalksSpeakers {
-        name: "test_name".to_string()
-    };
-    let talks = GetConferenceConferenceTalks {
-        id: "2".to_string(),
-        title: "test_title".to_string(),
-        speakers: Some(vec![speakers])
-    };
-    let conference = GetConferenceConference {
-        id: "3".to_string(),
-        name: "test_conf_name".to_string(),
-        city: Some("test_city".to_string()),
-        talks: Some(vec![talks])
-    };
-    let _response_data = ResponseData {
-        conference: Some(conference)
-    };
-
-    let (query, _) = queries::get_conference::GetConference::build_query(variables);
-
-    assert_eq!(query.variables.id, "1".to_string());
-    assert_eq!(query.operation_name, "GetConference");
-    // assert_eq!(meta.key, 1354603040u32); Apparently this is OS specific
-}
 
 fn build_client() -> Client<impl Middleware> {
     let builder = ClientBuilder::new(URL).with_default_middleware();
@@ -64,10 +8,11 @@ fn build_client() -> Client<impl Middleware> {
     builder.build()
 }
 
+#[tokio::test]
 async fn test_query() {
     let client = build_client();
 
-    use queries::get_conference::{get_conference::*, GetConference};
+    use artemis_test::get_conference::{get_conference::*, GetConference};
     let variables = Variables {
         id: "1".to_string()
     };
@@ -104,10 +49,11 @@ async fn test_query() {
     assert_eq!(speaker.name, "Simon", "Returned wrong speaker name");
 }
 
+#[tokio::test]
 async fn test_cache() {
     let client = build_client();
 
-    use queries::get_conference::{get_conference::*, GetConference};
+    use artemis_test::get_conference::{get_conference::*, GetConference};
     let variables = Variables {
         id: "1".to_string()
     };
@@ -157,10 +103,11 @@ async fn test_cache() {
     );
 }
 
+#[tokio::test]
 async fn test_cache_invalidation() {
     let client = build_client();
 
-    use queries::get_conference::{get_conference::*, GetConference};
+    use artemis_test::get_conference::{get_conference::*, GetConference};
     let variables = Variables {
         id: "1".to_string()
     };
@@ -187,8 +134,9 @@ async fn test_cache_invalidation() {
         "Response didn't come from the server"
     );
 
+    use artemis_test::add_conference::AddConference;
     // INVALIDATE CACHE
-    let mutation_variables = queries::add_conference::add_conference::Variables {
+    let mutation_variables = artemis_test::add_conference::add_conference::Variables {
         name: "test_name".to_string(),
         city: "test_city".to_string()
     };

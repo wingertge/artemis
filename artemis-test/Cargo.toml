@@ -1,0 +1,13 @@
+[package]
+name = "artemis-test"
+version = "0.1.0"
+authors = ["Genna Wingert <wingertge@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+artemis = { path = "../artemis" }
+serde = { version = "1", features = ["derive"] }
+
+[build-dependencies]
+rustversion = "1"
+artemis-build = { path = "../artemis-build", features = ["introspect"] }

@@ -19,16 +19,6 @@ pub use types::{
     HeaderPair, Middleware, MiddlewareFactory, OperationMeta, OperationType, RequestPolicy, DebugInfo, ResultSource
 };
 
-#[cfg(test)]
-mod test {
-    use tokio_test::block_on;
-
-    #[test]
-    fn test_artemis() {
-        block_on(async { artemis_tests::test_artemis().await })
-    }
-}
-
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize)]
 pub struct QueryBody<Variables> {
