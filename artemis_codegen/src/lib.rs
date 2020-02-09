@@ -35,6 +35,7 @@ mod scalars;
 mod selection;
 mod shared;
 mod unions;
+mod utils;
 mod variables;
 
 #[cfg(test)]

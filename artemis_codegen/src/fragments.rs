@@ -40,12 +40,12 @@ impl<'query> GqlFragment<'query> {
         context: &QueryContext<'_, '_>
     ) -> Result<TokenStream, CodegenError> {
         match self.on {
-            FragmentTarget::Object(obj) => {
-                obj.response_for_selection(context, &self.selection, &self.name)
-            }
-            FragmentTarget::Interface(iface) => {
-                iface.response_for_selection(context, &self.selection, &self.name)
-            }
+            FragmentTarget::Object(obj) => obj
+                .response_for_selection(context, &self.selection, &self.name)
+                .map(|(tokens, _)| tokens),
+            FragmentTarget::Interface(iface) => iface
+                .response_for_selection(context, &self.selection, &self.name)
+                .map(|(tokens, _)| tokens),
             FragmentTarget::Union(_) => {
                 unreachable!("Wrong code path. Fragment on unions are treated differently.")
             }

@@ -1,3 +1,4 @@
+use crate::introspect::IntrospectionError;
 use artemis_codegen::{
     deprecation::DeprecationStrategy, generate_module_token_stream, CodegenError, CodegenMode,
     GraphQLClientCodegenOptions
@@ -11,6 +12,9 @@ use std::{
     path::{Path, PathBuf}
 };
 use syn::Token;
+
+#[cfg(feature = "introspect")]
+mod introspect;
 
 #[derive(Debug)]
 pub enum BuildError {
@@ -47,7 +51,8 @@ pub struct CodegenBuilder {
     variable_derives: Option<String>,
     response_derives: Option<String>,
     deprecation_strategy: Option<DeprecationStrategy>,
-    output_directory: Option<PathBuf>
+    output_directory: Option<PathBuf>,
+    schema_path: Option<PathBuf>
 }
 
 impl CodegenBuilder {
@@ -57,7 +62,8 @@ impl CodegenBuilder {
             variable_derives: None,
             response_derives: None,
             deprecation_strategy: None,
-            output_directory: None
+            output_directory: None,
+            schema_path: None
         }
     }
 
@@ -86,8 +92,38 @@ impl CodegenBuilder {
         self
     }
 
-    pub fn build<T: AsRef<Path>>(self, schema_path: T) -> Result<(), BuildError> {
-        let schema_path = schema_path.as_ref().to_path_buf();
+    pub fn with_schema<T: AsRef<Path>>(mut self, schema_path: T) -> Self {
+        self.schema_path = Some(schema_path.as_ref().to_path_buf());
+        self
+    }
+
+    #[cfg(feature = "introspect")]
+    pub fn introspect_schema<T: AsRef<str>>(
+        mut self,
+        schema_url: T,
+        authorization: Option<String>,
+        extra_headers: Vec<introspect::Header>
+    ) -> Result<Self, IntrospectionError> {
+        let schema_path =
+            introspect::introspect(schema_url.as_ref(), authorization, extra_headers)?;
+        self.schema_path = Some(schema_path);
+        Ok(self)
+    }
+
+    pub fn build(self) -> Result<(), BuildError> {
+        if self.schema_path.is_none() {
+            let msg = if cfg!(feature = "introspect") {
+                "Missing schema path. Either use 'with_schema' to specify a file or 'introspect schema' to introspect a remote server."
+            } else {
+                r#"
+                Missing schema path. Please use 'with_schema' to specify a file.
+                Alternatively, enable the 'introspect' feature and use 'introspect_schema' to automatically introspect the schema from a remote server.
+                "#
+            };
+            return Err(BuildError::ArgumentError(msg.to_string()));
+        }
+
+        let schema_path = self.schema_path.unwrap();
         let output_directory: PathBuf = self
             .output_directory
             .map(Ok)

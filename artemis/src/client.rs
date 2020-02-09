@@ -1,7 +1,8 @@
 use crate::{
     middlewares::{DummyMiddleware, FetchMiddleware},
-    types::{HeaderPair, Middleware, MiddlewareFactory, Operation, RequestPolicy},
-    GraphQLQuery, Response
+    types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationMeta, RequestPolicy},
+    utils::progressive_hash,
+    GraphQLQuery, QueryBody, Response
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
@@ -126,20 +127,8 @@ where
         _query: Q,
         variables: Q::Variables
     ) -> Result<Response<Q::ResponseData>, Box<dyn Error>> {
-        let query = Q::build_query(variables);
-        let extra_headers = if let Some(ref extra_headers) = self.extra_headers {
-            Some(extra_headers.clone())
-        } else {
-            None
-        };
-
-        let operation = Operation {
-            url: self.url.clone(),
-            extra_headers,
-            request_policy: self.request_policy.clone(),
-            query
-        };
-
+        let (query, meta) = Q::build_query(variables);
+        let operation = self.create_request_operation(query, meta, QueryOptions::default());
         self.execute_request_operation(operation).await
     }
 
@@ -149,7 +138,17 @@ where
         variables: Q::Variables,
         options: QueryOptions
     ) -> Result<Response<Q::ResponseData>, Box<dyn Error>> {
-        let query = Q::build_query(variables);
+        let (query, meta) = Q::build_query(variables);
+        let operation = self.create_request_operation(query, meta, options);
+        self.execute_request_operation(operation).await
+    }
+
+    fn create_request_operation<V: Serialize + Send + Sync>(
+        &self,
+        query: QueryBody<V>,
+        meta: OperationMeta,
+        options: QueryOptions
+    ) -> Operation<V> {
         let extra_headers = if let Some(extra_headers) = options.extra_headers {
             Some(extra_headers.clone())
         } else if let Some(ref extra_headers) = self.extra_headers {
@@ -158,7 +157,11 @@ where
             None
         };
 
+        let key = progressive_hash(&meta.key, &query.variables);
+        let meta = OperationMeta { key, ..meta };
+
         let operation = Operation {
+            meta,
             url: options.url.unwrap_or_else(|| self.url.clone()),
             extra_headers,
             request_policy: options
@@ -166,7 +169,6 @@ where
                 .unwrap_or_else(|| self.request_policy.clone()),
             query
         };
-
-        self.execute_request_operation(operation).await
+        operation
     }
 }

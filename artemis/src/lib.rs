@@ -15,7 +15,9 @@ pub use client::{Client, ClientBuilder, QueryOptions};
 pub use middlewares::FetchMiddleware;
 use serde::de::DeserializeOwned;
 pub use surf::url::Url;
-pub use types::{HeaderPair, Middleware, MiddlewareFactory, RequestPolicy};
+pub use types::{
+    HeaderPair, Middleware, MiddlewareFactory, OperationMeta, OperationType, RequestPolicy
+};
 
 #[cfg(test)]
 mod test {
@@ -28,7 +30,7 @@ mod test {
 }
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub struct QueryBody<Variables> {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
     pub variables: Variables,
@@ -87,7 +89,7 @@ pub trait GraphQLQuery: Send + Sync {
     type ResponseData: DeserializeOwned + Send + Sync;
 
     /// Produce a GraphQL query struct that can be JSON serialized and sent to a GraphQL API.
-    fn build_query(variables: Self::Variables) -> QueryBody<Self::Variables>;
+    fn build_query(variables: Self::Variables) -> (QueryBody<Self::Variables>, OperationMeta);
 }
 
 /// The generic shape taken by the responses of GraphQL APIs.

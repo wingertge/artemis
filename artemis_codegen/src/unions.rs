@@ -1,7 +1,12 @@
 use crate::{query::QueryContext, selection::Selection, CodegenError};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::{cell::Cell, collections::BTreeSet, error::Error, fmt};
+use std::{
+    cell::Cell,
+    collections::{BTreeSet, HashSet},
+    error::Error,
+    fmt
+};
 
 /// A GraphQL union (simplified schema representation).
 ///
@@ -36,8 +41,15 @@ impl fmt::Display for UnionError {
     }
 }
 
-type UnionVariantResult<'selection> =
-    Result<(Vec<TokenStream>, Vec<TokenStream>, Vec<&'selection str>), CodegenError>;
+type UnionVariantResult<'selection> = Result<
+    (
+        Vec<TokenStream>,
+        Vec<TokenStream>,
+        Vec<&'selection str>,
+        HashSet<String>
+    ),
+    CodegenError
+>;
 
 /// Returns a triple.
 ///
@@ -54,6 +66,7 @@ pub(crate) fn union_variants<'selection>(
     let mut used_variants: Vec<&str> = selection.keys().cloned().collect();
     let mut children_definitions = Vec::with_capacity(selection.len());
     let mut variants = Vec::with_capacity(selection.len());
+    let mut used_types = HashSet::new();
 
     for (on, fields) in selection.iter() {
         let variant_name = Ident::new(&on, Span::call_site());
@@ -80,7 +93,10 @@ pub(crate) fn union_variants<'selection>(
             .map(|_f| context.maybe_expand_field(&on, fields, &new_prefix));
 
         match field_object_type.or(field_interface).or(field_union_type) {
-            Some(Ok(Some(tokens))) => children_definitions.push(tokens),
+            Some(Ok(Some((tokens, types)))) => {
+                children_definitions.push(tokens);
+                used_types.extend(types)
+            }
             Some(Err(err)) => return Err(err),
             Some(Ok(None)) => (),
             None => {
@@ -96,7 +112,7 @@ pub(crate) fn union_variants<'selection>(
         })
     }
 
-    Ok((variants, children_definitions, used_variants))
+    Ok((variants, children_definitions, used_variants, used_types))
 }
 
 impl<'schema> GqlUnion<'schema> {
@@ -106,7 +122,7 @@ impl<'schema> GqlUnion<'schema> {
         query_context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<TokenStream, CodegenError> {
+    ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let typename_field = selection.extract_typename(query_context);
 
         if typename_field.is_none() {
@@ -119,7 +135,7 @@ impl<'schema> GqlUnion<'schema> {
         let struct_name = Ident::new(prefix, Span::call_site());
         let derives = query_context.response_derives();
 
-        let (mut variants, children_definitions, used_variants) =
+        let (mut variants, children_definitions, used_variants, types) =
             union_variants(selection, query_context, prefix, &self.name)?;
 
         for used_variant in used_variants.iter() {
@@ -142,7 +158,7 @@ impl<'schema> GqlUnion<'schema> {
                 })
         );
 
-        Ok(quote! {
+        let tokens = quote! {
             #(#children_definitions)*
 
             #derives
@@ -150,7 +166,9 @@ impl<'schema> GqlUnion<'schema> {
             pub enum #struct_name {
                 #(#variants),*
             }
-        })
+        };
+
+        Ok((tokens, types))
     }
 }
 
@@ -376,8 +394,10 @@ mod tests {
 
         assert!(result.is_ok());
 
+        let (tokens, _) = result.unwrap();
+
         assert_eq!(
-            result.unwrap().to_string(),
+            tokens.to_string(),
             vec![
                 "# [ derive ( Deserialize ) ] ",
                 "pub struct MeowOnOrganization { pub title : String , } ",

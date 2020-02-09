@@ -5,6 +5,7 @@ use crate::{
 use graphql_parser::query;
 use proc_macro2::TokenStream;
 use quote::*;
+use std::collections::HashSet;
 
 /// Selects the first operation matching `struct_name`. Returns `None` when the query document defines no operation, or when the selected operation does not match any defined operation.
 pub(crate) fn select_operation<'query>(
@@ -37,7 +38,7 @@ pub(crate) fn response_for_query(
     query: &query::Document,
     operation: &Operation<'_>,
     options: &crate::GraphQLClientCodegenOptions
-) -> Result<TokenStream, CodegenError> {
+) -> Result<(TokenStream, HashSet<String>), CodegenError> {
     let mut context = QueryContext::new(
         schema,
         options.deprecation_strategy(),
@@ -52,7 +53,8 @@ pub(crate) fn response_for_query(
         context.ingest_response_derives(&derives)?;
     }
 
-    let mut definitions = Vec::new();
+    let mut definitions: Vec<TokenStream> = Vec::new();
+    let mut types: HashSet<String> = HashSet::new();
 
     for definition in &query.definitions {
         match definition {
@@ -100,7 +102,10 @@ pub(crate) fn response_for_query(
             )));
         }
 
-        definitions.extend(definition.field_impls_for_selection(&context, &selection, &prefix)?);
+        let (tokens, used_types) =
+            definition.field_impls_for_selection(&context, &selection, &prefix)?;
+        definitions.extend(tokens);
+        types.extend(used_types);
         definition.response_fields_for_selection(&context, &selection, &prefix)?
     };
 
@@ -154,7 +159,7 @@ pub(crate) fn response_for_query(
 
     let response_derives = context.response_derives();
 
-    Ok(quote! {
+    let tokens = quote! {
         use serde::{Serialize, Deserialize};
 
         #[allow(dead_code)]
@@ -184,5 +189,7 @@ pub(crate) fn response_for_query(
             #(#response_data_fields,)*
         }
 
-    })
+    };
+
+    Ok((tokens, types))
 }

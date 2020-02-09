@@ -109,7 +109,7 @@ impl<'schema> GqlInterface<'schema> {
         context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<Vec<TokenStream>, CodegenError> {
+    ) -> Result<(Vec<TokenStream>, HashSet<String>), CodegenError> {
         crate::shared::field_impls_for_selection(
             &self.fields,
             context,
@@ -140,7 +140,7 @@ impl<'schema> GqlInterface<'schema> {
         query_context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<TokenStream, CodegenError> {
+    ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let name = Ident::new(&prefix, Span::call_site());
         let derives = query_context.response_derives();
 
@@ -154,11 +154,12 @@ impl<'schema> GqlInterface<'schema> {
         let object_fields =
             self.response_fields_for_selection(query_context, &selection, prefix)?;
 
-        let object_children = self.field_impls_for_selection(query_context, &selection, prefix)?;
+        let (object_children, _) =
+            self.field_impls_for_selection(query_context, &selection, prefix)?;
 
         let union_selection = self.union_selection(&selection, &query_context);
 
-        let (mut union_variants, union_children, used_variants) =
+        let (mut union_variants, union_children, used_variants, types) =
             union_variants(&union_selection, query_context, prefix, &self.name)?;
 
         for used_variant in used_variants.iter() {
@@ -197,7 +198,7 @@ impl<'schema> GqlInterface<'schema> {
                 (None, None)
             };
 
-        Ok(quote! {
+        let tokens = quote! {
 
             #(#object_children)*
 
@@ -210,7 +211,9 @@ impl<'schema> GqlInterface<'schema> {
                 #(#object_fields,)*
                 #last_object_field
             }
-        })
+        };
+
+        Ok((tokens, types))
     }
 }
 

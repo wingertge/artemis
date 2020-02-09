@@ -1,7 +1,8 @@
-use crate::{codegen_options::*, CodegenError};
+use crate::{codegen_options::*, operations::OperationType, utils::hash, CodegenError};
 use heck::*;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use std::collections::HashSet;
 
 /// This struct contains the parameters necessary to generate code for a given operation.
 pub(crate) struct GeneratedModule<'a> {
@@ -14,7 +15,7 @@ pub(crate) struct GeneratedModule<'a> {
 
 impl<'a> GeneratedModule<'a> {
     /// Generate the items for the variables and the response that will go inside the module.
-    fn build_impls(&self) -> Result<TokenStream, CodegenError> {
+    fn build_impls(&self) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         Ok(crate::codegen::response_for_query(
             &self.schema,
             &self.query_document,
@@ -47,12 +48,26 @@ impl<'a> GeneratedModule<'a> {
             .unwrap_or_else(|| quote! {});
 
         let query_string = &self.query_string;
-        let impls = self.build_impls()?;
+        let query_string_hash = hash(query_string);
+        let (impls, types) = self.build_impls()?;
+        let operation_type = match &self.operation.operation_type {
+            OperationType::Query => quote!(Query),
+            OperationType::Mutation => quote!(Mutation),
+            OperationType::Subscription => quote!(Subscription)
+        };
+        let operation_type = quote!(::artemis::OperationType::#operation_type);
 
         let struct_declaration: Option<_> = match self.options.mode {
             CodegenMode::Cli => Some(quote!(#module_visibility struct #operation_name_ident;)),
             // The struct is already present in derive mode.
             CodegenMode::Derive => None
+        };
+
+        let types: Vec<_> = types.into_iter().collect();
+        let involved_types = if &self.operation.operation_type == &OperationType::Mutation {
+            quote!(Some(vec![#(#types,)*]))
+        } else {
+            quote!(None)
         };
 
         Ok(quote!(
@@ -63,6 +78,8 @@ impl<'a> GeneratedModule<'a> {
 
                 pub const OPERATION_NAME: &'static str = #operation_name_literal;
                 pub const QUERY: &'static str = #query_string;
+                pub const KEY: u32 = #query_string_hash;
+                pub const OPERATION_TYPE: ::artemis::OperationType = #operation_type;
 
                 #query_include
 
@@ -73,13 +90,20 @@ impl<'a> GeneratedModule<'a> {
                 type Variables = #module_name::Variables;
                 type ResponseData = #module_name::ResponseData;
 
-                fn build_query(variables: Self::Variables) -> ::artemis::QueryBody<Self::Variables> {
-                    ::artemis::QueryBody {
+                fn build_query(variables: Self::Variables) -> (::artemis::QueryBody<Self::Variables>, ::artemis::OperationMeta) {
+                    let meta = ::artemis::OperationMeta {
+                        key: #query_string_hash,
+                        operation_type: #operation_type,
+                        involved_types: #involved_types
+                    };
+
+                    let body = ::artemis::QueryBody {
                         variables,
                         query: #module_name::QUERY,
                         operation_name: #module_name::OPERATION_NAME,
-                    }
+                    };
 
+                    (body, meta)
                 }
             }
         ))

@@ -4,7 +4,7 @@ use crate::{
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use syn::Ident;
 
 /// This holds all the information we need during the code generation phase.
@@ -60,7 +60,7 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         ty: &str,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<Option<TokenStream>, CodegenError> {
+    ) -> Result<Option<(TokenStream, HashSet<String>)>, CodegenError> {
         if self.schema.contains_scalar(ty) {
             Ok(None)
         } else if let Some(enm) = self.schema.enums.get(ty) {
@@ -69,18 +69,27 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         } else if let Some(obj) = self.schema.objects.get(ty) {
             obj.is_required.set(true);
             obj.response_for_selection(self, &selection, prefix)
-                .map(Some)
+                .map(|(tokens, mut types)| {
+                    types.insert(ty.to_string());
+                    Some((tokens, types))
+                })
                 .map_err(Into::into)
         } else if let Some(iface) = self.schema.interfaces.get(ty) {
             iface.is_required.set(true);
             iface
                 .response_for_selection(self, &selection, prefix)
-                .map(Some)
+                .map(|(tokens, mut types)| {
+                    types.insert(ty.to_string());
+                    Some((tokens, types))
+                })
                 .map_err(Into::into)
         } else if let Some(unn) = self.schema.unions.get(ty) {
             unn.is_required.set(true);
             unn.response_for_selection(self, &selection, prefix)
-                .map(Some)
+                .map(|(tokens, mut types)| {
+                    types.insert(ty.to_string());
+                    Some((tokens, types))
+                })
                 .map_err(Into::into)
         } else {
             Err(CodegenError::TypeError(format!("Unknown type: {}", ty)))

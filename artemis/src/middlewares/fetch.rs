@@ -57,6 +57,7 @@ impl Middleware for FetchMiddleware {
             .map_err(FetchError::DecodeError)?;
 
         Ok(OperationResult {
+            meta: operation.meta,
             response_string: response
         })
     }

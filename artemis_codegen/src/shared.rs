@@ -8,6 +8,7 @@ use crate::{
 use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use std::collections::HashSet;
 
 // List of keywords based on https://doc.rust-lang.org/grammar.html#keywords
 const RUST_KEYWORDS: &[&str] = &[
@@ -119,8 +120,8 @@ pub(crate) fn field_impls_for_selection(
     context: &QueryContext<'_, '_>,
     selection: &Selection<'_>,
     prefix: &str
-) -> Result<Vec<TokenStream>, CodegenError> {
-    (&selection)
+) -> Result<(Vec<TokenStream>, HashSet<String>), CodegenError> {
+    let results: Vec<(TokenStream, HashSet<String>)> = (&selection)
         .into_iter()
         .map(|selected| {
             if let SelectionItem::Field(selected) = selected {
@@ -142,7 +143,17 @@ pub(crate) fn field_impls_for_selection(
             }
         })
         .filter_map(|i| i.transpose())
-        .collect()
+        .collect::<Result<Vec<(TokenStream, HashSet<String>)>, CodegenError>>()?;
+
+    let types: HashSet<String> = results
+        .iter()
+        .map(|(_, types)| types.clone())
+        .flatten()
+        .collect();
+
+    let tokens = results.into_iter().map(|(tokens, _)| tokens).collect();
+
+    Ok((tokens, types))
 }
 
 pub(crate) fn response_fields_for_selection(

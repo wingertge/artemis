@@ -11,5 +11,5 @@ artemis = { path = "../artemis" }
 serde = "1"
 
 [build-dependencies]
-artemis-build = { path = "../artemis-build" }
+artemis-build = { path = "../artemis-build", features = ["introspect"] }
 rustversion = "1"

@@ -11,7 +11,7 @@ use crate::{
 use graphql_parser::schema;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::cell::Cell;
+use std::{cell::Cell, collections::HashSet};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GqlObject<'schema> {
@@ -125,13 +125,14 @@ impl<'schema> GqlObject<'schema> {
         query_context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<TokenStream, CodegenError> {
+    ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let derives = query_context.response_derives();
         let name = Ident::new(prefix, Span::call_site());
         let fields = self.response_fields_for_selection(query_context, selection, prefix)?;
-        let field_impls = self.field_impls_for_selection(query_context, selection, &prefix)?;
+        let (field_impls, types) =
+            self.field_impls_for_selection(query_context, selection, &prefix)?;
         let description = self.description.as_ref().map(|desc| quote!(#[doc = #desc]));
-        Ok(quote! {
+        let tokens = quote! {
             #(#field_impls)*
 
             #derives
@@ -139,7 +140,8 @@ impl<'schema> GqlObject<'schema> {
             pub struct #name {
                 #(#fields,)*
             }
-        })
+        };
+        Ok((tokens, types))
     }
 
     pub(crate) fn field_impls_for_selection(
@@ -147,7 +149,7 @@ impl<'schema> GqlObject<'schema> {
         query_context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<Vec<TokenStream>, CodegenError> {
+    ) -> Result<(Vec<TokenStream>, HashSet<String>), CodegenError> {
         field_impls_for_selection(&self.fields, query_context, selection, prefix)
     }
 

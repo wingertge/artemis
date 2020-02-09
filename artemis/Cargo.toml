@@ -12,6 +12,7 @@ futures = "0.3"
 surf = { git = "https://github.com/http-rs/surf.git" }
 serde_json = "1"
 async-trait = "0.1"
+bincode = "1"
 
 [dev-dependencies]
 artemis-tests = { path = "../artemis-tests" }

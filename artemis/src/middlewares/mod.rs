@@ -2,8 +2,8 @@ use crate::types::{Middleware, Operation, OperationResult};
 use serde::Serialize;
 use std::{error::Error, fmt};
 
+mod cache;
 pub mod fetch;
-//mod cache;
 
 pub use fetch::FetchMiddleware;
 

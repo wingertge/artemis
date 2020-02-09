@@ -1,1 +1,2 @@
-src/queries/get_conference.rs
+src/queries/*.rs
+!src/queries/mod.rs
