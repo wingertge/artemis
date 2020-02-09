@@ -16,7 +16,7 @@ pub use middlewares::FetchMiddleware;
 use serde::de::DeserializeOwned;
 pub use surf::url::Url;
 pub use types::{
-    HeaderPair, Middleware, MiddlewareFactory, OperationMeta, OperationType, RequestPolicy
+    HeaderPair, Middleware, MiddlewareFactory, OperationMeta, OperationType, RequestPolicy, DebugInfo, ResultSource
 };
 
 #[cfg(test)]
@@ -136,6 +136,7 @@ pub trait GraphQLQuery: Send + Sync {
 ///         dogs: vec![Dog { name: "Strelka".to_owned() }],
 ///     }),
 ///     errors: Some(vec![]),
+///     debug_info: None
 /// };
 ///
 /// assert_eq!(body, expected);
@@ -145,6 +146,9 @@ pub trait GraphQLQuery: Send + Sync {
 /// ```
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Response<Data> {
+    /// The debug info if in test config, an empty struct otherwise
+    #[serde(skip)]
+    pub debug_info: Option<DebugInfo>,
     /// The absent, partial or complete response data.
     pub data: Option<Data>,
     /// The top-level errors returned by the server.
@@ -209,6 +213,7 @@ pub struct Response<Data> {
 ///             extensions: None,
 ///         },
 ///     ]),
+///     debug_info: None
 /// };
 ///
 /// assert_eq!(body, expected);

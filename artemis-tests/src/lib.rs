@@ -1,5 +1,5 @@
-use artemis::{Client, ClientBuilder, GraphQLQuery, Middleware};
-use std::sync::Arc;
+use crate::queries::add_conference::AddConference;
+use artemis::{Client, ClientBuilder, GraphQLQuery, Middleware, ResultSource};
 
 mod queries;
 
@@ -12,11 +12,17 @@ pub async fn test_artemis() {
     check_code_gen();
     print!("✔️\n");
     print!("-- build client                     ");
-    let client = build_client();
+    build_client();
     print!("✔️\n");
     print!("-- test query                       ");
-    test_query(client).await;
-    print!("✔️\n")
+    test_query().await;
+    print!("✔️\n");
+    print!("-- test cache                       ");
+    test_cache().await;
+    print!("✔️\n");
+    print!("-- test cache invalidation          ");
+    test_cache_invalidation().await;
+    print!("✔️\n");
 }
 
 fn check_code_gen() {
@@ -52,13 +58,15 @@ fn check_code_gen() {
     // assert_eq!(meta.key, 1354603040u32); Apparently this is OS specific
 }
 
-fn build_client() -> Arc<Client<impl Middleware>> {
+fn build_client() -> Client<impl Middleware> {
     let builder = ClientBuilder::new(URL).with_default_middleware();
 
-    Arc::new(builder.build())
+    builder.build()
 }
 
-async fn test_query<M: Middleware + Sync + Send>(client: Arc<Client<M>>) {
+async fn test_query() {
+    let client = build_client();
+
     use queries::get_conference::{get_conference::*, GetConference};
     let variables = Variables {
         id: "1".to_string()
@@ -94,4 +102,122 @@ async fn test_query<M: Middleware + Sync + Send>(client: Arc<Client<M>>) {
     assert_eq!(speakers.len(), 1, "Speakers list isn't of length 1");
     let speaker = speakers.pop().unwrap();
     assert_eq!(speaker.name, "Simon", "Returned wrong speaker name");
+}
+
+async fn test_cache() {
+    let client = build_client();
+
+    use queries::get_conference::{get_conference::*, GetConference};
+    let variables = Variables {
+        id: "1".to_string()
+    };
+
+    // NOT CACHED
+    let result = client.query(GetConference, variables.clone()).await;
+
+    assert!(result.is_ok(), "Query returned an error");
+
+    let response = result.unwrap();
+    assert!(response.errors.is_none(), "Query returned errors");
+    assert!(response.data.is_some(), "Query didn't return any data");
+    let data = response.data.unwrap().conference;
+    assert!(data.is_some(), "Conference was not set");
+    let conf = data.unwrap();
+    assert_eq!(conf.id, "1", "Returned the wrong conference");
+    assert_eq!(
+        conf.name, "Nextbuild 2018",
+        "Returned the wrong conference name"
+    );
+    assert_eq!(
+        response.debug_info.unwrap().source,
+        ResultSource::Network,
+        "Response didn't come from the server"
+    );
+
+    let result = client.query(GetConference, variables.clone()).await;
+
+    assert!(result.is_ok(), "Query returned an error");
+
+    // CACHED
+    let response = result.unwrap();
+    assert!(response.errors.is_none(), "Query returned errors");
+    assert!(response.data.is_some(), "Query didn't return any data");
+    let data = response.data.unwrap().conference;
+    assert!(data.is_some(), "Conference was not set");
+    let conf = data.unwrap();
+    assert_eq!(conf.id, "1", "Returned the wrong conference");
+    assert_eq!(
+        conf.name, "Nextbuild 2018",
+        "Returned the wrong conference name"
+    );
+    assert_eq!(
+        response.debug_info.unwrap().source,
+        ResultSource::Cache,
+        "Response didn't come from the cache"
+    );
+}
+
+async fn test_cache_invalidation() {
+    let client = build_client();
+
+    use queries::get_conference::{get_conference::*, GetConference};
+    let variables = Variables {
+        id: "1".to_string()
+    };
+
+    // NOT CACHED
+    let result = client.query(GetConference, variables.clone()).await;
+
+    assert!(result.is_ok(), "Query returned an error");
+
+    let response = result.unwrap();
+    assert!(response.errors.is_none(), "Query returned errors");
+    assert!(response.data.is_some(), "Query didn't return any data");
+    let data = response.data.unwrap().conference;
+    assert!(data.is_some(), "Conference was not set");
+    let conf = data.unwrap();
+    assert_eq!(conf.id, "1", "Returned the wrong conference");
+    assert_eq!(
+        conf.name, "Nextbuild 2018",
+        "Returned the wrong conference name"
+    );
+    assert_eq!(
+        response.debug_info.unwrap().source,
+        ResultSource::Network,
+        "Response didn't come from the server"
+    );
+
+    // INVALIDATE CACHE
+    let mutation_variables = queries::add_conference::add_conference::Variables {
+        name: "test_name".to_string(),
+        city: "test_city".to_string()
+    };
+    let result = client.query(AddConference, mutation_variables).await;
+    assert!(result.is_ok());
+    assert_eq!(
+        result.unwrap().debug_info.unwrap().source,
+        ResultSource::Network
+    );
+
+    // CACHE SHOULD'VE BEEN INVALIDATED
+    let result = client.query(GetConference, variables.clone()).await;
+
+    assert!(result.is_ok(), "Query returned an error");
+
+    let response = result.unwrap();
+    assert!(response.errors.is_none(), "Query returned errors");
+    assert!(response.data.is_some(), "Query didn't return any data");
+    let data = response.data.unwrap().conference;
+    assert!(data.is_some(), "Conference was not set");
+    let conf = data.unwrap();
+    assert_eq!(conf.id, "1", "Returned the wrong conference");
+    assert_eq!(
+        conf.name, "Nextbuild 2018",
+        "Returned the wrong conference name"
+    );
+    assert_eq!(
+        response.debug_info.unwrap().source,
+        ResultSource::Network,
+        "Response came from the cache"
+    );
 }

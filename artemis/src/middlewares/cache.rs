@@ -1,10 +1,11 @@
-use crate::types::{Middleware, MiddlewareFactory, Operation, OperationMeta, OperationResult, OperationType, RequestPolicy, ResultSource};
+use crate::types::{Operation, OperationResult};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
     sync::{Arc, Mutex}
 };
+use crate::{ResultSource, MiddlewareFactory, Middleware, OperationMeta, OperationType, RequestPolicy, DebugInfo, Response};
 
 type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
@@ -134,10 +135,18 @@ impl<TNext: Middleware + Send + Sync> Middleware for CacheMiddleware<TNext> {
             let cached_result = {
                 let cache = self.result_cache.lock().unwrap();
                 let cached_result = cache.get(key);
+                let debug_info = Some(DebugInfo { // TODO: Make this conditional
+                    source: ResultSource::Cache
+                });
+
                 cached_result.cloned().map(|cached_result| {
+                    let OperationResult { meta, response } = cached_result.clone();
                     OperationResult {
-                        source: ResultSource::Cache,
-                        ..cached_result.to_owned()
+                        meta,
+                        response: Response {
+                            debug_info,
+                            ..response
+                        }
                     }
                 })
             };

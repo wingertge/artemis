@@ -63,9 +63,13 @@ pub enum ResultSource {
     Network
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct DebugInfo {
+    pub source: ResultSource,
+}
+
 #[derive(Clone, Debug)]
 pub struct OperationResult {
     pub meta: OperationMeta,
-    pub source: ResultSource,
     pub response: Response<serde_json::Value>
 }

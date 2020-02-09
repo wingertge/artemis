@@ -119,13 +119,14 @@ where
         TResult: DeserializeOwned + Send + Sync
     {
         let operation_result = self.middleware.run(operation).await?;
-        let Response { data, errors } = operation_result.response;
+        let Response { data, errors, debug_info } = operation_result.response;
         let data = data
             .map(|val| serde_json::from_value(val))
             .transpose()?;
         Ok(Response {
             data,
-            errors
+            errors,
+            debug_info
         })
     }
 

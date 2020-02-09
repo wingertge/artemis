@@ -1,6 +1,7 @@
-use crate::types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationResult, ResultSource};
+use crate::types::{Operation, OperationResult};
 use serde::Serialize;
 use std::{error::Error, fmt};
+use crate::{ResultSource, HeaderPair, Middleware, MiddlewareFactory, DebugInfo, Response};
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -56,10 +57,16 @@ impl Middleware for FetchMiddleware {
             .await
             .map_err(FetchError::DecodeError)?;
 
+        let debug_info = Some(DebugInfo { // TODO: Make this conditional
+            source: ResultSource::Network
+        });
+
         Ok(OperationResult {
             meta: operation.meta,
-            source: ResultSource::Network,
-            response
+            response: Response {
+                debug_info,
+                ..response
+            }
         })
     }
 }
