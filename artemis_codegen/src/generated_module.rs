@@ -64,11 +64,7 @@ impl<'a> GeneratedModule<'a> {
         };
 
         let types: Vec<_> = types.into_iter().collect();
-        let involved_types = if &self.operation.operation_type == &OperationType::Mutation {
-            quote!(Some(vec![#(#types,)*]))
-        } else {
-            quote!(None)
-        };
+        let involved_types = quote!(vec![#(#types,)*]);
 
         Ok(quote!(
             #struct_declaration

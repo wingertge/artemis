@@ -1,4 +1,4 @@
-use crate::types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationResult};
+use crate::types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationResult, ResultSource};
 use serde::Serialize;
 use std::{error::Error, fmt};
 
@@ -58,6 +58,7 @@ impl Middleware for FetchMiddleware {
 
         Ok(OperationResult {
             meta: operation.meta,
+            source: ResultSource::Network,
             response_string: response
         })
     }

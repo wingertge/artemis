@@ -7,6 +7,7 @@ use crate::{
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
+use crate::middlewares::CacheMiddleware;
 
 pub struct ClientBuilder<M>
 where
@@ -38,9 +39,10 @@ where
     M: Middleware + Send + Sync
 {
     /// Add the default middlewares to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_default_middleware(self) -> ClientBuilder<FetchMiddleware> {
+    pub fn with_default_middleware(self) -> ClientBuilder<CacheMiddleware<FetchMiddleware>> {
         let middleware = self.middleware;
         let middleware = FetchMiddleware::build(middleware);
+        let middleware = CacheMiddleware::build(middleware);
         ClientBuilder {
             middleware,
             url: self.url,

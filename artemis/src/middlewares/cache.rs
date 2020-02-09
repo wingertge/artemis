@@ -1,7 +1,4 @@
-use crate::types::{
-    Middleware, MiddlewareFactory, Operation, OperationMeta, OperationResult, OperationType,
-    RequestPolicy
-};
+use crate::types::{Middleware, MiddlewareFactory, Operation, OperationMeta, OperationResult, OperationType, RequestPolicy, ResultSource};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
@@ -10,33 +7,85 @@ use std::{
 };
 
 type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
-type OperationCache = Arc<Mutex<HashMap<String, HashSet<u32>>>>;
+type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
 
-#[derive(Default)]
-struct CacheMiddleware<TNext: Middleware + Send + Sync> {
+pub struct CacheMiddleware<TNext: Middleware + Send + Sync> {
     result_cache: ResultCache,
     operation_cache: OperationCache,
 
     next: TNext
 }
 
-impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
-    fn after_mutation(&self, response: OperationResult) {}
+fn should_skip<T: Serialize + Send + Sync>(operation: &Operation<T>) -> bool {
+    let operation_type = &operation.meta.operation_type;
+    operation_type != &OperationType::Query && operation_type != &OperationType::Mutation
+}
 
-    async fn is_operation_cached<T: Serialize + Send + Sync>(
+impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
+    fn is_operation_cached<T: Serialize + Send + Sync>(
         &self,
-        operation: Operation<T>
+        operation: &Operation<T>
     ) -> bool {
         let OperationMeta {
             key,
             operation_type,
             ..
-        } = operation.meta;
+        } = &operation.meta;
 
-        operation_type == OperationType::Query
+        operation_type == &OperationType::Query
             && operation.request_policy != RequestPolicy::NetworkOnly
             && (operation.request_policy == RequestPolicy::CacheOnly
                 || self.result_cache.lock().unwrap().contains_key(&key))
+    }
+
+    fn after_query(&self, operation_result: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+        let OperationMeta { key, involved_types, .. } = &operation_result.meta;
+
+        {
+            let mut result_cache = self.result_cache.lock().unwrap();
+            result_cache.insert(key.clone(), operation_result.clone());
+        }
+        {
+            let mut operation_cache = self.operation_cache.lock().unwrap();
+            for involved_type in involved_types {
+                let involved_type = involved_type.clone();
+                operation_cache.entry(involved_type)
+                    .and_modify(|entry| {
+                        entry.insert(key.clone());
+                    })
+                    .or_insert_with(|| {
+                        let mut set = HashSet::with_capacity(1);
+                        set.insert(key.clone());
+                        set
+                    });
+            }
+        }
+
+        Ok(operation_result)
+    }
+
+    fn after_mutation(&self, response: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+        let OperationMeta {key, involved_types, ..} = &response.meta;
+
+        let ops_to_remove: HashSet<u32> = {
+            let cache = self.operation_cache.lock().unwrap();
+            let mut ops = HashSet::new();
+            for involved_type in involved_types {
+                let ops_for_type = cache.get(involved_type);
+                if let Some(ops_for_type) = ops_for_type {
+                    ops.extend(ops_for_type)
+                }
+            }
+            ops.insert(key.clone());
+            ops
+        };
+        {
+            let mut cache = self.result_cache.lock().unwrap();
+            for op in ops_to_remove {
+                cache.remove(&op);
+            }
+        }
+        Ok(response)
     }
 }
 
@@ -58,7 +107,38 @@ impl<TNext: Middleware + Send + Sync> Middleware for CacheMiddleware<TNext> {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error>> {
-        self.next.run(operation).await
+    ) -> Result<OperationResult, Box<dyn Error + 'static>> {
+        if should_skip(&operation) {
+            return self.next.run(operation).await;
+        }
+
+        if !self.is_operation_cached(&operation) {
+            let res = self.next.run(operation).await?;
+
+            match &res.meta.operation_type {
+                &OperationType::Query => self.after_query(res),
+                &OperationType::Mutation => self.after_mutation(res),
+                _ => Ok(res)
+            }
+        } else {
+            let OperationMeta { key, .. } = &operation.meta;
+
+            let cached_result = {
+                let cache = self.result_cache.lock().unwrap();
+                let cached_result = cache.get(key);
+                cached_result.cloned().map(|cached_result| {
+                    OperationResult {
+                        source: ResultSource::Cache,
+                        ..cached_result.to_owned()
+                    }
+                })
+            };
+
+            if let Some(cached) = cached_result {
+                Ok(cached)
+            } else {
+                self.next.run(operation).await
+            }
+        }
     }
 }

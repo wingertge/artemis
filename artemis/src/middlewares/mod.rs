@@ -6,6 +6,7 @@ mod cache;
 pub mod fetch;
 
 pub use fetch::FetchMiddleware;
+pub use cache::CacheMiddleware;
 
 #[derive(Debug)]
 enum MiddlewareError {

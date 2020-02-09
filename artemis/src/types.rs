@@ -42,10 +42,11 @@ pub enum RequestPolicy {
 
 pub struct HeaderPair(pub &'static str, pub &'static str);
 
+#[derive(Clone, Debug)]
 pub struct OperationMeta {
     pub key: u32,
     pub operation_type: OperationType,
-    pub involved_types: Option<Vec<&'static str>>
+    pub involved_types: Vec<&'static str>
 }
 
 pub struct Operation<V: Serialize> {
@@ -56,7 +57,15 @@ pub struct Operation<V: Serialize> {
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ResultSource {
+    Cache,
+    Network
+}
+
+#[derive(Clone, Debug)]
 pub struct OperationResult {
     pub meta: OperationMeta,
+    pub source: ResultSource,
     pub response_string: String
 }
