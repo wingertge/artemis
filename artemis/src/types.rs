@@ -1,4 +1,4 @@
-use crate::QueryBody;
+use crate::{QueryBody, Response};
 use serde::Serialize;
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
@@ -67,5 +67,5 @@ pub enum ResultSource {
 pub struct OperationResult {
     pub meta: OperationMeta,
     pub source: ResultSource,
-    pub response_string: String
+    pub response: Response<serde_json::Value>
 }

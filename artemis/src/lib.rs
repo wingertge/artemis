@@ -143,7 +143,7 @@ pub trait GraphQLQuery: Send + Sync {
 /// #     Ok(())
 /// # }
 /// ```
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Response<Data> {
     /// The absent, partial or complete response data.
     pub data: Option<Data>,

@@ -119,9 +119,14 @@ where
         TResult: DeserializeOwned + Send + Sync
     {
         let operation_result = self.middleware.run(operation).await?;
-        Ok(serde_json::from_str(
-            operation_result.response_string.as_str()
-        )?)
+        let Response { data, errors } = operation_result.response;
+        let data = data
+            .map(|val| serde_json::from_value(val))
+            .transpose()?;
+        Ok(Response {
+            data,
+            errors
+        })
     }
 
     pub async fn query<Q: GraphQLQuery>(

@@ -39,6 +39,10 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
     }
 
     fn after_query(&self, operation_result: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+        if operation_result.response.data.is_none() {
+            return Ok(operation_result);
+        }
+
         let OperationMeta { key, involved_types, .. } = &operation_result.meta;
 
         {
@@ -64,8 +68,12 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
         Ok(operation_result)
     }
 
-    fn after_mutation(&self, response: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
-        let OperationMeta {key, involved_types, ..} = &response.meta;
+    fn after_mutation(&self, operation_result: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+        if operation_result.response.data.is_none() {
+            return Ok(operation_result);
+        }
+
+        let OperationMeta {key, involved_types, ..} = &operation_result.meta;
 
         let ops_to_remove: HashSet<u32> = {
             let cache = self.operation_cache.lock().unwrap();
@@ -85,7 +93,7 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
                 cache.remove(&op);
             }
         }
-        Ok(response)
+        Ok(operation_result)
     }
 }
 

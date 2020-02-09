@@ -5,7 +5,7 @@ use std::{error::Error, fmt};
 #[derive(Debug)]
 pub enum FetchError {
     FetchError(Box<dyn Error + Send + Sync>),
-    DecodeError(Box<dyn Error + Send + Sync>)
+    DecodeError(std::io::Error)
 }
 impl Error for FetchError {}
 
@@ -52,14 +52,14 @@ impl Middleware for FetchMiddleware {
         let response = request
             .await
             .map_err(FetchError::FetchError)?
-            .body_string()
+            .body_json()
             .await
             .map_err(FetchError::DecodeError)?;
 
         Ok(OperationResult {
             meta: operation.meta,
             source: ResultSource::Network,
-            response_string: response
+            response
         })
     }
 }
