@@ -24,9 +24,9 @@ impl fmt::Display for FetchError {
 
 pub struct FetchExchange;
 
-impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
-    fn build(_next: TNext) -> Self {
-        Self {}
+impl <TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
+    fn build(_next: TNext) -> FetchExchange {
+        FetchExchange
     }
 }
 

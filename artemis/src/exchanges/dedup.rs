@@ -6,14 +6,15 @@ use std::error::Error;
 
 type InFlightCache = Arc<Mutex<HashMap<u32, Vec<Sender<Result<OperationResult, DedupError>>>>>>;
 
-pub struct DedupExchange<TNext: Exchange> {
+pub struct DedupExchange; // Factory
+pub struct DedupExchangeImpl<TNext: Exchange> {
     next: TNext,
     in_flight_operations: InFlightCache
 }
 
-impl<TNext: Exchange> ExchangeFactory<DedupExchange<TNext>, TNext> for DedupExchange<TNext> {
-    fn build(next: TNext) -> DedupExchange<TNext> {
-        DedupExchange {
+impl<TNext: Exchange> ExchangeFactory<DedupExchangeImpl<TNext>, TNext> for DedupExchange {
+    fn build(next: TNext) -> DedupExchangeImpl<TNext> {
+        DedupExchangeImpl {
             next,
             in_flight_operations: InFlightCache::default()
         }
@@ -35,7 +36,7 @@ fn should_skip<V: Serialize + Send + Sync>(operation: &Operation<V>) -> bool {
 }
 
 #[async_trait]
-impl<TNext: Exchange> Exchange for DedupExchange<TNext> {
+impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
     async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
         if should_skip(&operation) {
             return self.next.run(operation).await;
@@ -108,12 +109,13 @@ mod test {
     use serde::Serialize;
     use tokio::time::delay_for;
     use std::time::Duration;
-    use crate::exchanges::DedupExchange;
+    use crate::exchanges::{DedupExchange};
+    use super::DedupExchangeImpl;
     use lazy_static::lazy_static;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables { id: "1".to_string() };
-        static ref EXCHANGE: DedupExchange<FakeFetchExchange> = DedupExchange::build(FakeFetchExchange);
+        static ref EXCHANGE: DedupExchangeImpl<FakeFetchExchange> = DedupExchange::build(FakeFetchExchange);
     }
 
     fn url() -> Url {

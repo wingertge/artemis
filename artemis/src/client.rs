@@ -1,5 +1,5 @@
 use crate::{
-    exchanges::{CacheExchange, DummyExchange, FetchExchange},
+    exchanges::{CacheExchange, DummyExchange, FetchExchange, DedupExchange},
     types::{Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, RequestPolicy},
     utils::progressive_hash,
     GraphQLQuery, QueryBody, Response
@@ -7,7 +7,6 @@ use crate::{
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
-use crate::exchanges::DedupExchange;
 
 pub struct ClientBuilder<M: Exchange> {
     exchange: M,
@@ -34,16 +33,10 @@ impl ClientBuilder<DummyExchange> {
 impl<M: Exchange> ClientBuilder<M> {
     /// Add the default exchanges to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
     pub fn with_default_exchanges(self) -> ClientBuilder<impl Exchange> {
-        let exchange = self.exchange;
-        let exchange = FetchExchange::build(exchange);
-        let exchange = CacheExchange::build(exchange);
-        let exchange = DedupExchange::build(exchange);
-        ClientBuilder {
-            exchange,
-            url: self.url,
-            extra_headers: self.extra_headers,
-            request_policy: self.request_policy
-        }
+        self
+            .with_exchange(FetchExchange)
+            .with_exchange(CacheExchange)
+            .with_exchange(DedupExchange)
     }
 
     /// Add a middleware to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
@@ -108,6 +101,7 @@ impl<M: Exchange> Client<M> {
         TResult: DeserializeOwned + Send + Sync
     {
         let operation_result = self.exchange.run(operation).await?;
+
         let Response {
             data,
             errors,

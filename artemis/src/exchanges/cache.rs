@@ -14,7 +14,19 @@ use crate::types::ExchangeResult;
 type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
 
-pub struct CacheExchange<TNext: Exchange> {
+pub struct CacheExchange;
+impl <TNext: Exchange> ExchangeFactory<CacheExchangeImpl<TNext>, TNext> for CacheExchange {
+    fn build(next: TNext) -> CacheExchangeImpl<TNext> {
+        CacheExchangeImpl {
+            result_cache: Arc::new(Mutex::new(HashMap::new())),
+            operation_cache: Arc::new(Mutex::new(HashMap::new())),
+
+            next
+        }
+    }
+}
+
+pub struct CacheExchangeImpl<TNext: Exchange> {
     result_cache: ResultCache,
     operation_cache: OperationCache,
 
@@ -26,7 +38,7 @@ fn should_skip<T: Serialize + Send + Sync>(operation: &Operation<T>) -> bool {
     operation_type != &OperationType::Query && operation_type != &OperationType::Mutation
 }
 
-impl<TNext: Exchange> CacheExchange<TNext> {
+impl<TNext: Exchange> CacheExchangeImpl<TNext> {
     fn is_operation_cached<T: Serialize + Send + Sync>(&self, operation: &Operation<T>) -> bool {
         let OperationMeta {
             key,
@@ -114,19 +126,8 @@ impl<TNext: Exchange> CacheExchange<TNext> {
     }
 }
 
-impl<TNext: Exchange> ExchangeFactory<CacheExchange<TNext>, TNext> for CacheExchange<TNext> {
-    fn build(next: TNext) -> CacheExchange<TNext> {
-        Self {
-            result_cache: Arc::new(Mutex::new(HashMap::new())),
-            operation_cache: Arc::new(Mutex::new(HashMap::new())),
-
-            next
-        }
-    }
-}
-
 #[async_trait]
-impl<TNext: Exchange> Exchange for CacheExchange<TNext> {
+impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         operation: Operation<V>

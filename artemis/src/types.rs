@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
 
-pub type ExchangeResult = Result<OperationResult, Box<dyn Error + 'static>>;
+pub type ExchangeResult = Result<OperationResult, Box<dyn Error>>;
 
 #[async_trait]
 pub trait Exchange: Send + Sync {

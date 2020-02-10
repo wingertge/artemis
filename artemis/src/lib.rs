@@ -7,7 +7,7 @@ extern crate async_trait;
 use std::{collections::HashMap, fmt, fmt::Display};
 
 mod client;
-mod exchanges;
+pub mod exchanges;
 mod types;
 mod utils;
 
@@ -17,7 +17,7 @@ use serde::de::DeserializeOwned;
 pub use surf::url::Url;
 pub use types::{
     DebugInfo, Exchange, ExchangeFactory, HeaderPair, OperationMeta, OperationType, RequestPolicy,
-    ResultSource
+    ResultSource, Operation, OperationResult
 };
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.

@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 
+[[bench]]
+name = "integration_bench"
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 futures = "0.3"
@@ -16,3 +19,7 @@ bincode = "1"
 artemis-test = { path = "../artemis-test" }
 tokio = { version = "0.2", features = ["full"] }
 lazy_static = "1"
+criterion = "0.3"
+criterion-macro = "0.3"
+rand = "0.7"
+tokio-test = "0.2"
