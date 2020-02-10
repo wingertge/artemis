@@ -31,13 +31,13 @@ impl ClientBuilder<DummyExchange> {
     }
 }
 
-impl <M: Exchange> ClientBuilder<M>
-{
-    /// Add the default middlewares to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_default_middleware(self) -> ClientBuilder<CacheExchange<FetchExchange>> {
-        let middleware = self.middleware;
-        let middleware = FetchExchange::build(middleware);
-        let middleware = CacheExchange::build(middleware);
+impl<M: Exchange> ClientBuilder<M> {
+    /// Add the default exchanges to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
+    pub fn with_default_exchanges(self) -> ClientBuilder<impl Exchange> {
+        let exchange = self.exchange;
+        let exchange = FetchExchange::build(exchange);
+        let exchange = CacheExchange::build(exchange);
+        let exchange = DedupExchange::build(exchange);
         ClientBuilder {
             exchange,
             url: self.url,

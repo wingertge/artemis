@@ -3,7 +3,8 @@ use serde::Serialize;
 use std::{error::Error, fmt};
 
 mod cache;
-pub mod fetch;
+mod dedup;
+mod fetch;
 
 pub use cache::CacheExchange;
 pub use dedup::DedupExchange;

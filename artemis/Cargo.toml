@@ -15,3 +15,4 @@ bincode = "1"
 [dev-dependencies]
 artemis-test = { path = "../artemis-test" }
 tokio = { version = "0.2", features = ["full"] }
+lazy_static = "1"
