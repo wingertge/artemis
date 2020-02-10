@@ -7,20 +7,21 @@ extern crate async_trait;
 use std::{collections::HashMap, fmt, fmt::Display};
 
 mod client;
-mod middlewares;
+mod exchanges;
 mod types;
 mod utils;
 
 pub use client::{Client, ClientBuilder, QueryOptions};
-pub use middlewares::FetchMiddleware;
+pub use exchanges::FetchExchange;
 use serde::de::DeserializeOwned;
 pub use surf::url::Url;
 pub use types::{
-    HeaderPair, Middleware, MiddlewareFactory, OperationMeta, OperationType, RequestPolicy, DebugInfo, ResultSource
+    DebugInfo, Exchange, ExchangeFactory, HeaderPair, OperationMeta, OperationType, RequestPolicy,
+    ResultSource
 };
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct QueryBody<Variables> {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
     pub variables: Variables,

@@ -3,15 +3,14 @@ use serde::Serialize;
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
 
+pub type ExchangeResult = Result<OperationResult, Box<dyn Error + 'static>>;
+
 #[async_trait]
-pub trait Middleware {
-    async fn run<V: Serialize + Send + Sync>(
-        &self,
-        operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error>>;
+pub trait Exchange: Send + Sync {
+    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult;
 }
 
-pub trait MiddlewareFactory<T: Middleware + Send + Sync, TNext: Middleware + Send + Sync> {
+pub trait ExchangeFactory<T: Exchange, TNext: Exchange> {
     fn build(next: TNext) -> T;
 }
 
@@ -66,6 +65,7 @@ pub enum ResultSource {
 #[derive(Clone, Debug, PartialEq)]
 pub struct DebugInfo {
     pub source: ResultSource,
+    pub did_dedup: bool
 }
 
 #[derive(Clone, Debug)]

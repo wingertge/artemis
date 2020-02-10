@@ -1,16 +1,20 @@
-use crate::types::{Operation, OperationResult};
+use crate::{
+    types::{Operation, OperationResult},
+    Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response,
+    ResultSource
+};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
     sync::{Arc, Mutex}
 };
-use crate::{ResultSource, MiddlewareFactory, Middleware, OperationMeta, OperationType, RequestPolicy, DebugInfo, Response};
+use crate::types::ExchangeResult;
 
 type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
 
-pub struct CacheMiddleware<TNext: Middleware + Send + Sync> {
+pub struct CacheExchange<TNext: Exchange> {
     result_cache: ResultCache,
     operation_cache: OperationCache,
 
@@ -22,11 +26,8 @@ fn should_skip<T: Serialize + Send + Sync>(operation: &Operation<T>) -> bool {
     operation_type != &OperationType::Query && operation_type != &OperationType::Mutation
 }
 
-impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
-    fn is_operation_cached<T: Serialize + Send + Sync>(
-        &self,
-        operation: &Operation<T>
-    ) -> bool {
+impl<TNext: Exchange> CacheExchange<TNext> {
+    fn is_operation_cached<T: Serialize + Send + Sync>(&self, operation: &Operation<T>) -> bool {
         let OperationMeta {
             key,
             operation_type,
@@ -39,12 +40,19 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
                 || self.result_cache.lock().unwrap().contains_key(&key))
     }
 
-    fn after_query(&self, operation_result: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+    fn after_query(
+        &self,
+        operation_result: OperationResult
+    ) -> Result<OperationResult, Box<dyn Error>> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }
 
-        let OperationMeta { key, involved_types, .. } = &operation_result.meta;
+        let OperationMeta {
+            key,
+            involved_types,
+            ..
+        } = &operation_result.meta;
 
         {
             let mut result_cache = self.result_cache.lock().unwrap();
@@ -54,7 +62,8 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
             let mut operation_cache = self.operation_cache.lock().unwrap();
             for involved_type in involved_types {
                 let involved_type = involved_type.clone();
-                operation_cache.entry(involved_type)
+                operation_cache
+                    .entry(involved_type)
                     .and_modify(|entry| {
                         entry.insert(key.clone());
                     })
@@ -69,12 +78,19 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
         Ok(operation_result)
     }
 
-    fn after_mutation(&self, operation_result: OperationResult) -> Result<OperationResult, Box<dyn Error>> {
+    fn after_mutation(
+        &self,
+        operation_result: OperationResult
+    ) -> Result<OperationResult, Box<dyn Error>> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }
 
-        let OperationMeta {key, involved_types, ..} = &operation_result.meta;
+        let OperationMeta {
+            key,
+            involved_types,
+            ..
+        } = &operation_result.meta;
 
         let ops_to_remove: HashSet<u32> = {
             let cache = self.operation_cache.lock().unwrap();
@@ -98,10 +114,8 @@ impl<TNext: Middleware + Send + Sync> CacheMiddleware<TNext> {
     }
 }
 
-impl<TNext: Middleware + Send + Sync> MiddlewareFactory<CacheMiddleware<TNext>, TNext>
-    for CacheMiddleware<TNext>
-{
-    fn build(next: TNext) -> CacheMiddleware<TNext> {
+impl<TNext: Exchange> ExchangeFactory<CacheExchange<TNext>, TNext> for CacheExchange<TNext> {
+    fn build(next: TNext) -> CacheExchange<TNext> {
         Self {
             result_cache: Arc::new(Mutex::new(HashMap::new())),
             operation_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -112,11 +126,11 @@ impl<TNext: Middleware + Send + Sync> MiddlewareFactory<CacheMiddleware<TNext>, 
 }
 
 #[async_trait]
-impl<TNext: Middleware + Send + Sync> Middleware for CacheMiddleware<TNext> {
+impl<TNext: Exchange> Exchange for CacheExchange<TNext> {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error + 'static>> {
+    ) -> ExchangeResult {
         if should_skip(&operation) {
             return self.next.run(operation).await;
         }
@@ -132,24 +146,22 @@ impl<TNext: Middleware + Send + Sync> Middleware for CacheMiddleware<TNext> {
         } else {
             let OperationMeta { key, .. } = &operation.meta;
 
-            let cached_result = {
+            let mut cached_result = {
                 let cache = self.result_cache.lock().unwrap();
-                let cached_result = cache.get(key);
-                let debug_info = Some(DebugInfo { // TODO: Make this conditional
-                    source: ResultSource::Cache
-                });
-
-                cached_result.cloned().map(|cached_result| {
-                    let OperationResult { meta, response } = cached_result.clone();
-                    OperationResult {
-                        meta,
-                        response: Response {
-                            debug_info,
-                            ..response
-                        }
-                    }
-                })
+                cache.get(key).cloned()
             };
+
+            if let Some(OperationResult {
+                response:
+                    Response {
+                        debug_info: Some(ref mut debug_info),
+                        ..
+                    },
+                ..
+            }) = cached_result
+            {
+                debug_info.source = ResultSource::Cache;
+            }
 
             if let Some(cached) = cached_result {
                 Ok(cached)

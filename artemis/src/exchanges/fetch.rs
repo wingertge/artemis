@@ -1,7 +1,10 @@
-use crate::types::{Operation, OperationResult};
+use crate::{
+    types::{Operation, OperationResult},
+    DebugInfo, Exchange, ExchangeFactory, HeaderPair, Response, ResultSource
+};
 use serde::Serialize;
 use std::{error::Error, fmt};
-use crate::{ResultSource, HeaderPair, Middleware, MiddlewareFactory, DebugInfo, Response};
+use crate::types::ExchangeResult;
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -19,22 +22,20 @@ impl fmt::Display for FetchError {
     }
 }
 
-pub struct FetchMiddleware;
+pub struct FetchExchange;
 
-impl<TNext: Middleware + Send + Sync> MiddlewareFactory<FetchMiddleware, TNext>
-    for FetchMiddleware
-{
+impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
     fn build(_next: TNext) -> Self {
         Self {}
     }
 }
 
 #[async_trait]
-impl Middleware for FetchMiddleware {
+impl Exchange for FetchExchange {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error>> {
+    ) -> ExchangeResult {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()
         } else {
@@ -50,23 +51,24 @@ impl Middleware for FetchMiddleware {
             request = request.set_header(key, value)
         }
 
-        let response = request
+        let mut response: Response<serde_json::Value> = request
             .await
             .map_err(FetchError::FetchError)?
             .body_json()
             .await
             .map_err(FetchError::DecodeError)?;
 
-        let debug_info = Some(DebugInfo { // TODO: Make this conditional
-            source: ResultSource::Network
+        let debug_info = Some(DebugInfo {
+            // TODO: Make this conditional
+            source: ResultSource::Network,
+            did_dedup: false
         });
+
+        response.debug_info = debug_info;
 
         Ok(OperationResult {
             meta: operation.meta,
-            response: Response {
-                debug_info,
-                ..response
-            }
+            response
         })
     }
 }

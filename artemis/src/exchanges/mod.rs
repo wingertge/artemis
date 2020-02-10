@@ -1,12 +1,13 @@
-use crate::types::{Middleware, Operation, OperationResult};
+use crate::types::{Exchange, Operation, OperationResult};
 use serde::Serialize;
 use std::{error::Error, fmt};
 
 mod cache;
 pub mod fetch;
 
-pub use fetch::FetchMiddleware;
-pub use cache::CacheMiddleware;
+pub use cache::CacheExchange;
+pub use dedup::DedupExchange;
+pub use fetch::FetchExchange;
 
 #[derive(Debug)]
 enum MiddlewareError {
@@ -20,10 +21,10 @@ impl fmt::Display for MiddlewareError {
     }
 }
 
-pub struct DummyMiddleware;
+pub struct DummyExchange;
 
 #[async_trait]
-impl Middleware for DummyMiddleware {
+impl Exchange for DummyExchange {
     async fn run<V: Serialize + Send + Sync>(
         &self,
         _operation: Operation<V>

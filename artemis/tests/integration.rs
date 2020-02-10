@@ -1,9 +1,9 @@
-use artemis::{Client, ClientBuilder, Middleware, ResultSource};
+use artemis::{Client, ClientBuilder, Exchange, ResultSource};
 
 const URL: &str = "http://localhost:8080/graphql";
 
-fn build_client() -> Client<impl Middleware> {
-    let builder = ClientBuilder::new(URL).with_default_middleware();
+fn build_client() -> Client<impl Exchange> {
+    let builder = ClientBuilder::new(URL).with_default_exchanges();
 
     builder.build()
 }

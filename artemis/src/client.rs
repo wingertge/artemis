@@ -1,32 +1,29 @@
 use crate::{
-    middlewares::{DummyMiddleware, FetchMiddleware},
-    types::{HeaderPair, Middleware, MiddlewareFactory, Operation, OperationMeta, RequestPolicy},
+    exchanges::{CacheExchange, DummyExchange, FetchExchange},
+    types::{Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, RequestPolicy},
     utils::progressive_hash,
     GraphQLQuery, QueryBody, Response
 };
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
-use crate::middlewares::CacheMiddleware;
+use crate::exchanges::DedupExchange;
 
-pub struct ClientBuilder<M>
-where
-    M: Middleware + Send + Sync
-{
-    middleware: M,
+pub struct ClientBuilder<M: Exchange> {
+    exchange: M,
     url: Url,
     extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     request_policy: RequestPolicy
 }
 
-impl ClientBuilder<DummyMiddleware> {
+impl ClientBuilder<DummyExchange> {
     pub fn new<U: Into<String>>(url: U) -> Self {
         let url = url
             .into()
             .parse()
             .expect("Failed to parse url for Artemis client");
         ClientBuilder {
-            middleware: DummyMiddleware,
+            exchange: DummyExchange,
             url,
             extra_headers: None,
             request_policy: RequestPolicy::CacheFirst
@@ -34,32 +31,30 @@ impl ClientBuilder<DummyMiddleware> {
     }
 }
 
-impl<M> ClientBuilder<M>
-where
-    M: Middleware + Send + Sync
+impl <M: Exchange> ClientBuilder<M>
 {
     /// Add the default middlewares to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_default_middleware(self) -> ClientBuilder<CacheMiddleware<FetchMiddleware>> {
+    pub fn with_default_middleware(self) -> ClientBuilder<CacheExchange<FetchExchange>> {
         let middleware = self.middleware;
-        let middleware = FetchMiddleware::build(middleware);
-        let middleware = CacheMiddleware::build(middleware);
+        let middleware = FetchExchange::build(middleware);
+        let middleware = CacheExchange::build(middleware);
         ClientBuilder {
-            middleware,
+            exchange,
             url: self.url,
             extra_headers: self.extra_headers,
             request_policy: self.request_policy
         }
     }
 
-    /// Add a middleware to the chain. Keep in mind that middlewares are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_middleware<TResult, F>(self, _middleware_factory: F) -> ClientBuilder<TResult>
+    /// Add a middleware to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
+    pub fn with_exchange<TResult, F>(self, _exchange_factory: F) -> ClientBuilder<TResult>
     where
-        TResult: Middleware + Send + Sync,
-        F: MiddlewareFactory<TResult, M>
+        TResult: Exchange + Send + Sync,
+        F: ExchangeFactory<TResult, M>
     {
-        let middleware = F::build(self.middleware);
+        let exchange = F::build(self.exchange);
         ClientBuilder {
-            middleware,
+            exchange,
             url: self.url,
             extra_headers: self.extra_headers,
             request_policy: self.request_policy
@@ -82,7 +77,7 @@ where
     pub fn build(self) -> Client<M> {
         Client {
             url: self.url,
-            middleware: self.middleware,
+            exchange: self.exchange,
             extra_headers: self.extra_headers,
             request_policy: self.request_policy
         }
@@ -96,20 +91,14 @@ pub struct QueryOptions {
     request_policy: Option<RequestPolicy>
 }
 
-pub struct Client<M>
-where
-    M: Middleware + Send + Sync
-{
+pub struct Client<M: Exchange> {
     url: Url,
-    middleware: M,
+    exchange: M,
     extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     request_policy: RequestPolicy
 }
 
-impl<M> Client<M>
-where
-    M: Middleware + Send + Sync
-{
+impl<M: Exchange> Client<M> {
     async fn execute_request_operation<TVariables, TResult>(
         &self,
         operation: Operation<TVariables>
@@ -118,11 +107,13 @@ where
         TVariables: Serialize + Send + Sync,
         TResult: DeserializeOwned + Send + Sync
     {
-        let operation_result = self.middleware.run(operation).await?;
-        let Response { data, errors, debug_info } = operation_result.response;
-        let data = data
-            .map(|val| serde_json::from_value(val))
-            .transpose()?;
+        let operation_result = self.exchange.run(operation).await?;
+        let Response {
+            data,
+            errors,
+            debug_info
+        } = operation_result.response;
+        let data = data.map(|val| serde_json::from_value(val)).transpose()?;
         Ok(Response {
             data,
             errors,
