@@ -1,4 +1,4 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, Response, OperationType};
+use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationType};
 use futures::channel::oneshot::{self, Sender};
 use serde::Serialize;
 use std::{collections::HashMap, sync::{Arc, Mutex}, fmt};
@@ -35,6 +35,30 @@ fn should_skip<V: Serialize + Send + Sync>(operation: &Operation<V>) -> bool {
     op_type != &OperationType::Query && op_type != &OperationType::Mutation
 }
 
+fn make_deduped_result(res: &ExchangeResult) -> Result<OperationResult, DedupError> {
+    match res {
+        Ok(ref res) => {
+            let mut res = res.clone();
+            if let Some(ref mut debug_info) = res.response.debug_info {
+                debug_info.did_dedup = true;
+            }
+            Ok(res)
+        },
+        Err(_) => Err(DedupError)
+    }
+}
+
+impl <TNext: Exchange> DedupExchangeImpl<TNext> {
+    fn notify_listeners(&self, key: &u32, res: &ExchangeResult) {
+        let mut cache = self.in_flight_operations.lock().unwrap();
+        let to_be_notified = cache.remove(key).unwrap();
+        for sender in to_be_notified {
+            let res = make_deduped_result(res);
+            sender.send(res).unwrap();
+        }
+    }
+}
+
 #[async_trait]
 impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
     async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
@@ -43,58 +67,24 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
         }
 
         let key = operation.meta.key.clone();
-        let contains = {
-            let cache = self.in_flight_operations.lock().unwrap();
-            cache.contains_key(&key)
+        let rcv = {
+            let mut cache = self.in_flight_operations.lock().unwrap();
+            if let Some(listeners) = cache.get_mut(&key) {
+                let (sender, receiver) = oneshot::channel();
+                listeners.push(sender);
+                Some(receiver)
+            } else {
+                cache.insert(key.clone(), Vec::new());
+                None
+            }
         };
 
-        if contains {
-            let (sender, receiver) = oneshot::channel();
-            let retry = {
-                let mut cache = self.in_flight_operations.lock().unwrap();
-                let in_flight = cache.get_mut(&key);
-                if let Some(in_flight) = in_flight {
-                    in_flight.push(sender);
-                    false
-                } else {
-                    true // The response arrived while the cache was unlocked, retry
-                }
-            };
-            if retry {
-                return self.run(operation).await;
-            }
-            Ok(receiver.await.unwrap()?)
+        if let Some(rcv) = rcv {
+            let res = rcv.await.unwrap();
+            Ok(res?)
         } else {
-            {
-                let mut cache = self.in_flight_operations.lock().unwrap();
-                cache.insert(key.clone(), Vec::new());
-            }
-
             let res = self.next.run(operation).await;
-            let to_be_notified = {
-                let mut cache = self.in_flight_operations.lock().unwrap();
-                cache.remove(&key).unwrap()
-            };
-
-            for sender in to_be_notified {
-                let mut res = match res {
-                    Ok(ref res) => Ok(res.clone()),
-                    Err(_) => Err(DedupError)
-                };
-
-                if let Ok(OperationResult {
-                              response:
-                              Response {
-                                  debug_info: Some(ref mut debug_info),
-                                  ..
-                              },
-                              ..
-                          }) = res
-                {
-                    debug_info.did_dedup = true;
-                }
-                sender.send(res).unwrap();
-            }
+            self.notify_listeners(&key, &res);
             res
         }
     }
