@@ -1,15 +1,58 @@
+#[macro_use] extern crate async_trait;
+
 use crate::queries::get_conference::get_conference::Variables;
 use crate::queries::get_conference::GetConference;
 use rayon::iter;
 use rand::Rng;
 use std::sync::Arc;
-use artemis::{ClientBuilder, FetchExchange};
+use artemis::{ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, Response};
 use rayon::iter::ParallelIterator;
-use artemis::exchanges::CacheExchange;
+use artemis::exchanges::{CacheExchange, DedupExchange};
+use std::time::Duration;
+use serde::Serialize;
+use std::error::Error;
 
 mod queries;
 
 pub(crate) type Long = String;
+
+struct DummyFetchExchange;
+
+impl <TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchExchange {
+    fn build(_next: TNext) -> DummyFetchExchange {
+        Self
+    }
+}
+
+#[async_trait]
+impl Exchange for DummyFetchExchange {
+    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> Result<OperationResult, Box<dyn Error>> {
+        use crate::queries::get_conference::get_conference::{ResponseData, GetConferenceConference};
+
+        let delay = Duration::from_millis(50);
+        tokio::time::delay_for(delay).await;
+        let data = Some(ResponseData {
+            conference: Some(GetConferenceConference {
+                id: "1".to_string(),
+                city: Some("Test City".to_string()),
+                name: "Test Conference".to_string(),
+                talks: Some(Vec::new())
+            })
+        });
+
+        let result = OperationResult {
+            meta: operation.meta,
+            response: Response {
+                data: Some(serde_json::to_value(data).unwrap()),
+                debug_info: None,
+                errors: None
+            }
+        };
+
+        Ok(result)
+    }
+}
+
 
 #[cfg(target_os = "linux")]
 fn begin() {
@@ -34,9 +77,12 @@ fn end() {
 fn main() {
     let url = "http://localhost:8080/graphql";
     let builder = ClientBuilder::new(url)
-        .with_exchange(FetchExchange)
-        .with_exchange(CacheExchange);
+        .with_exchange(DummyFetchExchange)
+        .with_exchange(CacheExchange)
+        .with_exchange(DedupExchange);
     let client = Arc::new(builder.build());
+
+    println!("Started");
 
     let n = 25;
     let variable_set: Vec<Variables> = (0..n)

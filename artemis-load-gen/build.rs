@@ -18,7 +18,7 @@ fn generate_code() -> Result<(), Box<dyn Error>> {
         .with_derives_on_response("Debug,PartialEq,Clone,Serialize")
         .add_query(query("get_conference.graphql"))
         .add_query(query("add_conference.graphql"))
-        .introspect_schema("http://localhost:8080/graphql", None, Vec::new())?
+        .with_schema("src/api-schema.json")
         .build()?;
 
     Ok(())
