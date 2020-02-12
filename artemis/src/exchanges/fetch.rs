@@ -1,10 +1,9 @@
 use crate::{
-    types::{Operation, OperationResult},
+    types::{ExchangeResult, Operation, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, HeaderPair, Response, ResultSource
 };
 use serde::Serialize;
 use std::{error::Error, fmt};
-use crate::types::ExchangeResult;
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -24,18 +23,15 @@ impl fmt::Display for FetchError {
 
 pub struct FetchExchange;
 
-impl <TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
-    fn build(_next: TNext) -> FetchExchange {
+impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
+    fn build(self, _next: TNext) -> FetchExchange {
         FetchExchange
     }
 }
 
 #[async_trait]
 impl Exchange for FetchExchange {
-    async fn run<V: Serialize + Send + Sync>(
-        &self,
-        operation: Operation<V>
-    ) -> ExchangeResult {
+    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()
         } else {

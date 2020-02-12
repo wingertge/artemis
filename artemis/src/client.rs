@@ -1,5 +1,5 @@
 use crate::{
-    exchanges::{CacheExchange, DummyExchange, FetchExchange, DedupExchange},
+    exchanges::{CacheExchange, DedupExchange, DummyExchange, FetchExchange},
     types::{Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, RequestPolicy},
     utils::progressive_hash,
     GraphQLQuery, QueryBody, Response
@@ -33,8 +33,7 @@ impl ClientBuilder<DummyExchange> {
 impl<M: Exchange> ClientBuilder<M> {
     /// Add the default exchanges to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
     pub fn with_default_exchanges(self) -> ClientBuilder<impl Exchange> {
-        self
-            .with_exchange(FetchExchange)
+        self.with_exchange(FetchExchange)
             .with_exchange(CacheExchange)
             .with_exchange(DedupExchange)
     }

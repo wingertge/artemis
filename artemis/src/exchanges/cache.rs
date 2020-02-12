@@ -1,7 +1,6 @@
 use crate::{
-    types::{Operation, OperationResult},
-    Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response,
-    ResultSource
+    types::{ExchangeResult, Operation, OperationResult},
+    Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response, ResultSource
 };
 use serde::Serialize;
 use std::{
@@ -9,14 +8,13 @@ use std::{
     error::Error,
     sync::{Arc, Mutex}
 };
-use crate::types::ExchangeResult;
 
 type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
 
 pub struct CacheExchange;
-impl <TNext: Exchange> ExchangeFactory<CacheExchangeImpl<TNext>, TNext> for CacheExchange {
-    fn build(next: TNext) -> CacheExchangeImpl<TNext> {
+impl<TNext: Exchange> ExchangeFactory<CacheExchangeImpl<TNext>, TNext> for CacheExchange {
+    fn build(self, next: TNext) -> CacheExchangeImpl<TNext> {
         CacheExchangeImpl {
             result_cache: Arc::new(Mutex::new(HashMap::new())),
             operation_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -128,10 +126,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
-    async fn run<V: Serialize + Send + Sync>(
-        &self,
-        operation: Operation<V>
-    ) -> ExchangeResult {
+    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
         if should_skip(&operation) {
             return self.next.run(operation).await;
         }

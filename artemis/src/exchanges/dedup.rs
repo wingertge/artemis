@@ -1,8 +1,15 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationType};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    Exchange, ExchangeFactory, OperationType
+};
 use futures::channel::oneshot::{self, Sender};
 use serde::Serialize;
-use std::{collections::HashMap, sync::{Arc, Mutex}, fmt};
-use std::error::Error;
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt,
+    sync::{Arc, Mutex}
+};
 
 type InFlightCache = Arc<Mutex<HashMap<u32, Vec<Sender<Result<OperationResult, DedupError>>>>>>;
 
@@ -13,7 +20,7 @@ pub struct DedupExchangeImpl<TNext: Exchange> {
 }
 
 impl<TNext: Exchange> ExchangeFactory<DedupExchangeImpl<TNext>, TNext> for DedupExchange {
-    fn build(next: TNext) -> DedupExchangeImpl<TNext> {
+    fn build(self, next: TNext) -> DedupExchangeImpl<TNext> {
         DedupExchangeImpl {
             next,
             in_flight_operations: InFlightCache::default()
@@ -43,12 +50,12 @@ fn make_deduped_result(res: &ExchangeResult) -> Result<OperationResult, DedupErr
                 debug_info.did_dedup = true;
             }
             Ok(res)
-        },
+        }
         Err(_) => Err(DedupError)
     }
 }
 
-impl <TNext: Exchange> DedupExchangeImpl<TNext> {
+impl<TNext: Exchange> DedupExchangeImpl<TNext> {
     fn notify_listeners(&self, key: &u32, res: &ExchangeResult) {
         let mut cache = self.in_flight_operations.lock().unwrap();
         let to_be_notified = cache.remove(key).unwrap();
@@ -92,20 +99,25 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 
 #[cfg(test)]
 mod test {
-    use artemis_test::get_conference::{get_conference::{Variables, QUERY, OPERATION_NAME}};
-    use crate::{ExchangeFactory, Exchange, OperationMeta, QueryBody, Response, DebugInfo, ResultSource, RequestPolicy, Url, OperationType};
-    use std::error::Error;
-    use crate::types::{OperationResult, Operation};
-    use serde::Serialize;
-    use tokio::time::delay_for;
-    use std::time::Duration;
-    use crate::exchanges::{DedupExchange};
     use super::DedupExchangeImpl;
+    use crate::{
+        exchanges::DedupExchange,
+        types::{Operation, OperationResult},
+        DebugInfo, Exchange, ExchangeFactory, OperationMeta, OperationType, QueryBody,
+        RequestPolicy, Response, ResultSource, Url
+    };
+    use artemis_test::get_conference::get_conference::{Variables, OPERATION_NAME, QUERY};
     use lazy_static::lazy_static;
+    use serde::Serialize;
+    use std::{error::Error, time::Duration};
+    use tokio::time::delay_for;
 
     lazy_static! {
-        static ref VARIABLES: Variables = Variables { id: "1".to_string() };
-        static ref EXCHANGE: DedupExchangeImpl<FakeFetchExchange> = DedupExchange::build(FakeFetchExchange);
+        static ref VARIABLES: Variables = Variables {
+            id: "1".to_string()
+        };
+        static ref EXCHANGE: DedupExchangeImpl<FakeFetchExchange> =
+            DedupExchange::build(FakeFetchExchange);
     }
 
     fn url() -> Url {
@@ -114,7 +126,7 @@ mod test {
 
     struct FakeFetchExchange;
 
-    impl <TNext: Exchange> ExchangeFactory<FakeFetchExchange, TNext> for FakeFetchExchange {
+    impl<TNext: Exchange> ExchangeFactory<FakeFetchExchange, TNext> for FakeFetchExchange {
         fn build(_next: TNext) -> FakeFetchExchange {
             Self
         }
@@ -122,7 +134,10 @@ mod test {
 
     #[async_trait]
     impl Exchange for FakeFetchExchange {
-        async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> Result<OperationResult, Box<dyn Error>> {
+        async fn run<V: Serialize + Send + Sync>(
+            &self,
+            operation: Operation<V>
+        ) -> Result<OperationResult, Box<dyn Error>> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
                 meta: operation.meta,
@@ -149,12 +164,7 @@ mod test {
         }
     }
 
-    fn build_query(
-        variables: Variables
-    ) -> (
-        QueryBody<Variables>,
-        OperationMeta
-    ) {
+    fn build_query(variables: Variables) -> (QueryBody<Variables>, OperationMeta) {
         let meta = OperationMeta {
             key: 1354603040u32,
             operation_type: OperationType::Query,
@@ -174,9 +184,7 @@ mod test {
 
         let fut1 = EXCHANGE.run(make_operation(query.clone(), meta.clone()));
         let fut2 = EXCHANGE.run(make_operation(query.clone(), meta.clone()));
-        let join = tokio::spawn(async {
-            fut1.await.unwrap()
-        });
+        let join = tokio::spawn(async { fut1.await.unwrap() });
         let res2 = fut2.await.unwrap();
         let res1 = join.await.unwrap();
 

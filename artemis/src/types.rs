@@ -11,7 +11,7 @@ pub trait Exchange: Send + Sync {
 }
 
 pub trait ExchangeFactory<T: Exchange, TNext: Exchange> {
-    fn build(next: TNext) -> T;
+    fn build(self, next: TNext) -> T;
 }
 
 #[derive(PartialEq, Debug, Clone)]

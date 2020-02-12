@@ -16,8 +16,8 @@ pub use exchanges::FetchExchange;
 use serde::de::DeserializeOwned;
 pub use surf::url::Url;
 pub use types::{
-    DebugInfo, Exchange, ExchangeFactory, HeaderPair, OperationMeta, OperationType, RequestPolicy,
-    ResultSource, Operation, OperationResult
+    DebugInfo, Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, OperationResult,
+    OperationType, RequestPolicy, ResultSource
 };
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
