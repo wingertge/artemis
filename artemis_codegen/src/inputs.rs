@@ -122,7 +122,7 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::InputObjectTyp
                         description: None,
                         name: &field.name,
                         type_: crate::field_type::FieldType::from(&field.value_type),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     };
                     (name, field)
                 })
@@ -163,7 +163,7 @@ impl<'schema> std::convert::From<&'schema introspection_response::FullType> for 
                             .as_ref()
                             .map(|s| s.into())
                             .expect("type on input object field"),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     };
                     (name, field)
                 })
@@ -190,7 +190,7 @@ mod tests {
                         description: None,
                         name: "pawsCount",
                         type_: FieldType::new(float_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     }
                 ),
                 (
@@ -199,7 +199,7 @@ mod tests {
                         description: None,
                         name: "offsprings",
                         type_: FieldType::new("Cat").nonnull().list().nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     }
                 ),
                 (
@@ -208,7 +208,7 @@ mod tests {
                         description: None,
                         name: "requirements",
                         type_: FieldType::new("CatRequirements"),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     }
                 ),
             ]

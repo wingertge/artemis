@@ -1,14 +1,16 @@
-use crate::{QueryBody, Response, GraphQLQuery};
+use crate::{GraphQLQuery, QueryBody, Response};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, Box<dyn Error>>;
 
 #[async_trait]
 pub trait Exchange: Send + Sync {
-    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData>;
+    async fn run<Q: GraphQLQuery>(
+        &self,
+        operation: Operation<Q::Variables>
+    ) -> ExchangeResult<Q::ResponseData>;
 }
 
 pub trait ExchangeFactory<T: Exchange, TNext: Exchange> {
@@ -57,7 +59,7 @@ pub enum FieldSelector {
 pub struct OperationMeta {
     pub key: u64,
     pub operation_type: OperationType,
-    pub involved_types: Vec<&'static str>,
+    pub involved_types: Vec<&'static str>
     //pub selection: Vec<FieldSelector>
 }
 

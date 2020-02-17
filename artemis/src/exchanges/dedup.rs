@@ -1,12 +1,15 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationType, GraphQLQuery};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    Exchange, ExchangeFactory, GraphQLQuery, OperationType
+};
 use futures::channel::oneshot::{self, Sender};
 use std::{
+    any::Any,
     collections::HashMap,
     error::Error,
     fmt,
     sync::{Arc, Mutex}
 };
-use std::any::Any;
 
 type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, DedupError>>>>>>;
 
@@ -39,7 +42,9 @@ fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
     op_type != &OperationType::Query && op_type != &OperationType::Mutation
 }
 
-fn make_deduped_result<Q: GraphQLQuery>(res: &ExchangeResult<Q::ResponseData>) -> Result<Box<dyn Any + Send>, DedupError> {
+fn make_deduped_result<Q: GraphQLQuery>(
+    res: &ExchangeResult<Q::ResponseData>
+) -> Result<Box<dyn Any + Send>, DedupError> {
     match res {
         Ok(ref res) => {
             let mut res = res.clone();
@@ -65,7 +70,10 @@ impl<TNext: Exchange> DedupExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
+    async fn run<Q: GraphQLQuery>(
+        &self,
+        operation: Operation<Q::Variables>
+    ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
             return self.next.run::<Q>(operation).await;
         }
@@ -98,12 +106,19 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, OperationMeta, OperationType, QueryBody, RequestPolicy, Response, ResultSource, Url, GraphQLQuery, QueryInfo, FieldSelector};
-    use artemis_test::get_conference::get_conference::{Variables, OPERATION_NAME, QUERY, ResponseData};
+    use crate::{
+        exchanges::DedupExchange,
+        types::{Operation, OperationResult},
+        DebugInfo, Exchange, ExchangeFactory, FieldSelector, GraphQLQuery, OperationMeta,
+        OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url
+    };
+    use artemis_test::get_conference::{
+        get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
+        GetConference
+    };
     use lazy_static::lazy_static;
     use std::{error::Error, time::Duration};
     use tokio::time::delay_for;
-    use artemis_test::get_conference::GetConference;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables {

@@ -15,7 +15,7 @@ pub(crate) struct QueryContext<'query, 'schema: 'query> {
     pub normalization: Normalization,
     pub include_query_info: bool,
     variables_derives: Vec<Ident>,
-    response_derives: Vec<Ident>,
+    response_derives: Vec<Ident>
 }
 
 impl<'query, 'schema> QueryContext<'query, 'schema> {

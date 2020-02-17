@@ -77,7 +77,9 @@ impl<'schema> GqlEnum<'schema> {
                     }
                 }
             }
-        } else { quote!() };
+        } else {
+            quote!()
+        };
 
         quote! {
             #derives

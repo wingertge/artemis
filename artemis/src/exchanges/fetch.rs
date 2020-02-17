@@ -1,4 +1,7 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, HeaderPair, Response, ResultSource, GraphQLQuery};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, Response, ResultSource
+};
 use std::{error::Error, fmt};
 
 #[derive(Debug)]
@@ -27,7 +30,10 @@ impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
 
 #[async_trait]
 impl Exchange for FetchExchange {
-    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
+    async fn run<Q: GraphQLQuery>(
+        &self,
+        operation: Operation<Q::Variables>
+    ) -> ExchangeResult<Q::ResponseData> {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()
         } else {

@@ -1,7 +1,6 @@
-use crate::{constants::*, CodegenError};
+use crate::{constants::*, shared::ArgumentValue, CodegenError};
 use graphql_parser::query::SelectionSet;
 use std::collections::BTreeMap;
-use crate::shared::ArgumentValue;
 
 /// A single object field as part of a selection.
 #[derive(Clone, Debug, PartialEq)]
@@ -189,7 +188,12 @@ impl<'query> std::convert::From<&'query SelectionSet> for Selection<'query> {
                     alias: f.alias.as_ref().map(String::as_str),
                     name: &f.name,
                     fields: (&f.selection_set).into(),
-                    arguments: f.arguments.iter().cloned().map(|(key, value)| (key, value.into())).collect()
+                    arguments: f
+                        .arguments
+                        .iter()
+                        .cloned()
+                        .map(|(key, value)| (key, value.into()))
+                        .collect()
                 }),
                 Selection::FragmentSpread(spread) => {
                     SelectionItem::FragmentSpread(SelectionFragmentSpread {

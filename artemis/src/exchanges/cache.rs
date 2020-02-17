@@ -1,10 +1,14 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response, ResultSource, DebugInfo, GraphQLQuery};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType,
+    RequestPolicy, Response, ResultSource
+};
 use std::{
+    any::Any,
     collections::{HashMap, HashSet},
     error::Error,
     sync::{Arc, Mutex}
 };
-use std::any::Any;
 
 type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
@@ -125,7 +129,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
+    async fn run<Q: GraphQLQuery>(
+        &self,
+        operation: Operation<Q::Variables>
+    ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
             return self.next.run::<Q>(operation).await;
         }
@@ -144,9 +151,7 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
             let cached_result = {
                 let cache = self.result_cache.lock().unwrap();
                 cache.get(key).map(|res| {
-                    let res: &Q::ResponseData = (&**res)
-                        .downcast_ref::<Q::ResponseData>()
-                        .unwrap();
+                    let res: &Q::ResponseData = (&**res).downcast_ref::<Q::ResponseData>().unwrap();
                     res.clone()
                 })
             };

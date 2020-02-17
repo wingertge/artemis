@@ -176,7 +176,9 @@ pub(crate) fn response_for_query(
                 }
             }
         }
-    } else { quote!() };
+    } else {
+        quote!()
+    };
 
     let tokens = quote! {
         use serde::{Serialize, Deserialize};

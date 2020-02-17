@@ -214,7 +214,9 @@ impl<'schema> GqlInterface<'schema> {
                     }
                 }
             }
-        } else { quote!() };
+        } else {
+            quote!()
+        };
 
         let tokens = quote! {
 

@@ -18,7 +18,7 @@ pub(crate) fn typename_field() -> GqlObjectField<'static> {
         /// Non-nullable, see spec:
         /// https://github.com/facebook/graphql/blob/master/spec/Section%204%20--%20Introspection.md
         type_: FieldType::new(string_type()),
-        deprecation: DeprecationStatus::Current,
+        deprecation: DeprecationStatus::Current
     }
 }
 

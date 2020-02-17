@@ -1,9 +1,12 @@
 use crate::{
-    enums::ENUMS_PREFIX, introspection_response, query::QueryContext, schema::DEFAULT_SCALARS
+    enums::ENUMS_PREFIX,
+    introspection_response,
+    query::QueryContext,
+    schema::DEFAULT_SCALARS,
+    shared::{ArgumentValue, ToRust}
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use crate::shared::{ArgumentValue, ToRust};
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 enum GraphqlTypeQualifier {
@@ -45,7 +48,13 @@ impl<'a> FieldType<'a> {
     }
 
     /// Takes a field type with its name.
-    pub(crate) fn to_rust(&self, context: &QueryContext<'_, '_>, prefix: &str, field_name: &str, arguments: Vec<(String, ArgumentValue)>) -> (TokenStream, TokenStream) {
+    pub(crate) fn to_rust(
+        &self,
+        context: &QueryContext<'_, '_>,
+        prefix: &str,
+        field_name: &str,
+        arguments: Vec<(String, ArgumentValue)>
+    ) -> (TokenStream, TokenStream) {
         let prefix: &str = if prefix.is_empty() {
             self.inner_name_str()
         } else {
@@ -91,7 +100,7 @@ impl<'a> FieldType<'a> {
                 }
                 let name = format!("{}{{}}", self.name.to_string());
                 let arguments = arguments.to_rust();
-                let type_ident = Ident::new(prefix,  Span::call_site());
+                let type_ident = Ident::new(prefix, Span::call_site());
                 field_selector = quote! {
                     ::artemis::FieldSelector::Object(format!(#name, #arguments), #type_ident::selection(variables))
                 };

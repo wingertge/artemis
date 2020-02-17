@@ -18,8 +18,8 @@ pub use exchanges::FetchExchange;
 use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
 pub use types::{
-    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, HeaderPair, Operation, OperationMeta,
-    OperationResult, OperationType, RequestPolicy, ResultSource, QueryInfo, FieldSelector
+    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, HeaderPair, Operation,
+    OperationMeta, OperationResult, OperationType, QueryInfo, RequestPolicy, ResultSource
 };
 pub use utils::progressive_hash;
 

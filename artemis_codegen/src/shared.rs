@@ -5,11 +5,11 @@ use crate::{
     selection::*,
     CodegenError
 };
+use graphql_parser::schema::Value;
 use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::collections::{HashSet, BTreeMap};
-use graphql_parser::schema::Value;
+use std::collections::{BTreeMap, HashSet};
 
 // List of keywords based on https://doc.rust-lang.org/grammar.html#keywords
 const RUST_KEYWORDS: &[&str] = &[
@@ -167,7 +167,7 @@ pub enum ArgumentValue {
     Null,
     Enum(String),
     List(Vec<ArgumentValue>),
-    Object(BTreeMap<String, ArgumentValue>),
+    Object(BTreeMap<String, ArgumentValue>)
 }
 
 pub trait ToRust {
@@ -181,17 +181,22 @@ impl ToRust for Vec<(String, ArgumentValue)> {
         }
 
         let mut placeholder_idents = Vec::new();
-        let fields: Vec<String> = self.iter().map(|(name, value)| {
-            let (formatted, idents) = value.format(name);
-            placeholder_idents.extend(idents);
-            formatted
-        }).collect();
+        let fields: Vec<String> = self
+            .iter()
+            .map(|(name, value)| {
+                let (formatted, idents) = value.format(name);
+                placeholder_idents.extend(idents);
+                formatted
+            })
+            .collect();
         let fields = fields.join(",");
         let formatted_vars = format!("({})", fields);
 
         let idents = if placeholder_idents.len() > 0 {
             quote!(,#(&variables.#placeholder_idents),*)
-        } else { quote!() };
+        } else {
+            quote!()
+        };
 
         Some(quote! {
             format!(#formatted_vars #idents)
@@ -210,7 +215,8 @@ impl ArgumentValue {
             ArgumentValue::Null => format!("{}:null", name),
             ArgumentValue::Enum(i) => format!("{}:{}", name, i),
             ArgumentValue::List(list) => {
-                let entries: Vec<String> = list.iter()
+                let entries: Vec<String> = list
+                    .iter()
                     .map(|entry| {
                         let key = String::new();
                         let (formatted, idents) = entry.format(&key);
@@ -221,9 +227,10 @@ impl ArgumentValue {
                     .collect();
                 let entries = entries.join(",");
                 format!("[{}]", entries)
-            },
+            }
             ArgumentValue::Object(map) => {
-                let entries: Vec<String> = map.iter()
+                let entries: Vec<String> = map
+                    .iter()
                     .map(|(key, value)| {
                         let (formatted, idents) = value.format(key);
                         placeholder_idents.extend(idents);
@@ -255,11 +262,12 @@ impl From<Value> for ArgumentValue {
             Value::Enum(x) => ArgumentValue::Enum(x),
             Value::List(list) => ArgumentValue::List(list.into_iter().map(Into::into).collect()),
             Value::Object(object) => {
-                let map = object.into_iter()
+                let map = object
+                    .into_iter()
                     .map(|(key, value)| (key, value.into()))
                     .collect();
                 ArgumentValue::Object(map)
-            },
+            }
         }
     }
 }

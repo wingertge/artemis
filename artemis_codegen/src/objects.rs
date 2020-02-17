@@ -78,7 +78,7 @@ impl<'schema> GqlObject<'schema> {
                 description: f.description.as_ref().map(String::as_str),
                 name: &f.name,
                 type_: FieldType::from(&f.field_type),
-                deprecation,
+                deprecation
             }
         }));
         item
@@ -100,7 +100,7 @@ impl<'schema> GqlObject<'schema> {
                     description: t.description.as_ref().map(String::as_str),
                     name: t.name.as_ref().expect("field name"),
                     type_: FieldType::from(t.type_.as_ref().expect("field type")),
-                    deprecation,
+                    deprecation
                 }
             })
         });
@@ -128,7 +128,8 @@ impl<'schema> GqlObject<'schema> {
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let derives = query_context.response_derives();
         let name = Ident::new(prefix, Span::call_site());
-        let (field_infos, fields) = self.response_fields_for_selection(query_context, selection, prefix)?;
+        let (field_infos, fields) =
+            self.response_fields_for_selection(query_context, selection, prefix)?;
         let (field_impls, types) =
             self.field_impls_for_selection(query_context, selection, &prefix)?;
         let description = self.description.as_ref().map(|desc| quote!(#[doc = #desc]));
@@ -149,7 +150,9 @@ impl<'schema> GqlObject<'schema> {
                     }
                 }
             }
-        } else { quote!() };
+        } else {
+            quote!()
+        };
 
         let tokens = quote! {
             #(#field_impls)*

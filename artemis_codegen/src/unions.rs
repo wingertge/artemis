@@ -166,8 +166,8 @@ impl<'schema> GqlUnion<'schema> {
                 .map(|variant| {
                     let ident = Ident::new(variant, Span::call_site());
                     quote! {
-                    #struct_name::#ident(inner) => inner.typename()
-                }
+                        #struct_name::#ident(inner) => inner.typename()
+                    }
                 })
                 .collect();
             // TODO: Unions are tricky, have to look into it later
@@ -186,7 +186,9 @@ impl<'schema> GqlUnion<'schema> {
                     }
                 }
             }
-        } else { quote!() };
+        } else {
+            quote!()
+        };
 
         let tokens = quote! {
             #(#children_definitions)*
@@ -258,20 +260,20 @@ mod tests {
                         description: None,
                         name: "firstName",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "lastName",
                         type_: FieldType::new("String").nonnull(),
 
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                 ],
                 is_required: false.into()
@@ -288,13 +290,13 @@ mod tests {
                         description: None,
                         name: "title",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "created_at",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                 ],
                 is_required: false.into()
@@ -369,25 +371,25 @@ mod tests {
                         description: None,
                         name: "__typename",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "firstName",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "lastName",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                 ],
                 is_required: false.into()
@@ -404,19 +406,19 @@ mod tests {
                         description: None,
                         name: "__typename",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "title",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current,
+                        deprecation: DeprecationStatus::Current
                     },
                 ],
                 is_required: false.into()
@@ -493,10 +495,7 @@ mod tests {
             }
         };
 
-        assert_eq!(
-            tokens.to_string(),
-            expected.to_string(),
-        );
+        assert_eq!(tokens.to_string(), expected.to_string(),);
     }
 
     #[test]
@@ -547,7 +546,7 @@ mod tests {
                     description: None,
                     name: "field",
                     type_: FieldType::new(string_type()),
-                    deprecation: DeprecationStatus::Current,
+                    deprecation: DeprecationStatus::Current
                 }],
                 is_required: false.into()
             }
