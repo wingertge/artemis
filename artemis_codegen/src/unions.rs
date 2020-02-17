@@ -449,7 +449,7 @@ mod tests {
                 #[allow(unused_variables)]
                 fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar("title")
+                        ::artemis::FieldSelector::Scalar(format!("title"))
                     ]
                 }
             }
@@ -468,7 +468,7 @@ mod tests {
                 #[allow(unused_variables)]
                 fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar("firstName")
+                        ::artemis::FieldSelector::Scalar(format!("firstName"))
                     ]
                 }
             }
