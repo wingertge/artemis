@@ -76,7 +76,7 @@ impl<'a> FieldType<'a> {
                     let format_string = format!("{}{{}}", field_name);
                     quote!(format!(#format_string, #arguments))
                 } else {
-                    quote!(#field_name)
+                    quote!(format!(#field_name))
                 };
                 field_selector = quote! {
                     ::artemis::FieldSelector::Scalar(#field_name)
@@ -98,11 +98,15 @@ impl<'a> FieldType<'a> {
                 if prefix.is_empty() {
                     panic!("Empty prefix for {:?}", self);
                 }
-                let name = format!("{}{{}}", self.name.to_string());
-                let arguments = arguments.to_rust();
+                let field_name = if let Some(arguments) = arguments.to_rust() {
+                    let format_string = format!("{}{{}}", field_name);
+                    quote!(format!(#format_string, #arguments))
+                } else {
+                    quote!(format!(#field_name))
+                };
                 let type_ident = Ident::new(prefix, Span::call_site());
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Object(format!(#name, #arguments), #type_ident::selection(variables))
+                    ::artemis::FieldSelector::Object(#field_name, #type_ident::selection(variables))
                 };
                 prefix.to_string()
             }

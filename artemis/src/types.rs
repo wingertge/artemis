@@ -59,8 +59,7 @@ pub enum FieldSelector {
 pub struct OperationMeta {
     pub key: u64,
     pub operation_type: OperationType,
-    pub involved_types: Vec<&'static str>
-    //pub selection: Vec<FieldSelector>
+    pub involved_types: Vec<&'static str> //pub selection: Vec<FieldSelector>
 }
 
 #[derive(Clone)]

@@ -2,13 +2,11 @@
 extern crate async_trait;
 
 use crate::queries::get_conference::{get_conference::Variables, GetConference};
-use artemis::{
-    exchanges::{CacheExchange, DedupExchange},
-    ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, QueryVariables, Response
-};
+use artemis::{exchanges::{CacheExchange, DedupExchange}, ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, Response, GraphQLQuery};
 use rand::Rng;
 use rayon::{iter, iter::ParallelIterator};
 use std::{error::Error, sync::Arc, time::Duration};
+use std::any::Any;
 
 mod queries;
 
@@ -24,10 +22,10 @@ impl<TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchE
 
 #[async_trait]
 impl Exchange for DummyFetchExchange {
-    async fn run<V: QueryVariables>(
+    async fn run<Q: GraphQLQuery>(
         &self,
-        operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error>> {
+        operation: Operation<Q::Variables>
+    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
         use crate::queries::get_conference::get_conference::{
             GetConferenceConference, ResponseData
         };
@@ -43,10 +41,13 @@ impl Exchange for DummyFetchExchange {
             })
         });
 
+        let data: Box<dyn Any> = Box::new(data);
+        let data = *data.downcast::<Q::ResponseData>().unwrap();
+
         let result = OperationResult {
             meta: operation.meta,
             response: Response {
-                data: Some(serde_json::to_value(data).unwrap()),
+                data: Some(data),
                 debug_info: None,
                 errors: None
             }
