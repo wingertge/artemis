@@ -74,8 +74,6 @@ impl<'a> GeneratedModule<'a> {
 
                 pub const OPERATION_NAME: &'static str = #operation_name_literal;
                 pub const QUERY: &'static str = #query_string;
-                pub const KEY: u32 = #query_string_hash;
-                pub const OPERATION_TYPE: ::artemis::OperationType = #operation_type;
 
                 #query_include
 
@@ -88,7 +86,7 @@ impl<'a> GeneratedModule<'a> {
 
                 fn build_query(variables: Self::Variables) -> (::artemis::QueryBody<Self::Variables>, ::artemis::OperationMeta) {
                     let meta = ::artemis::OperationMeta {
-                        key: #query_string_hash,
+                        key: ::artemis::progressive_hash(#query_string_hash, &variables),
                         operation_type: #operation_type,
                         involved_types: #involved_types
                     };

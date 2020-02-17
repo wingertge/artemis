@@ -42,7 +42,8 @@ pub(crate) fn response_for_query(
     let mut context = QueryContext::new(
         schema,
         options.deprecation_strategy(),
-        options.normalization()
+        options.normalization(),
+        options.include_query_info
     );
 
     if let Some(derives) = options.variables_derives() {
@@ -81,10 +82,12 @@ pub(crate) fn response_for_query(
         }
     }
 
-    let response_data_fields = {
+    let response_type_name;
+    let (response_data_selection, response_data_fields) = {
         let root_name = operation.root_name(&context.schema);
         let opt_definition = context.schema.objects.get(&root_name);
         let definition = if let Some(definition) = opt_definition {
+            response_type_name = definition.name;
             definition
         } else {
             panic!(
@@ -159,6 +162,22 @@ pub(crate) fn response_for_query(
 
     let response_derives = context.response_derives();
 
+    let query_info = if context.include_query_info {
+        quote! {
+            impl ::artemis::QueryInfo<Variables> for ResponseData {
+                fn typename(&self) -> &'static str {
+                    #response_type_name
+                }
+
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![
+                        #(#response_data_selection,)*
+                    ]
+                }
+            }
+        }
+    } else { quote!() };
+
     let tokens = quote! {
         use serde::{Serialize, Deserialize};
 
@@ -189,6 +208,7 @@ pub(crate) fn response_for_query(
             #(#response_data_fields,)*
         }
 
+        #query_info
     };
 
     Ok((tokens, types))

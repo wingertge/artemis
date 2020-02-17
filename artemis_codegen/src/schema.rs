@@ -183,7 +183,7 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::Document> for 
                                 description: f.description.as_ref().map(String::as_str),
                                 name: f.name.as_str(),
                                 type_: FieldType::from(&f.field_type),
-                                deprecation: DeprecationStatus::Current
+                                deprecation: DeprecationStatus::Current,
                             }));
                         schema.interfaces.insert(&interface.name, iface);
                     }
@@ -353,7 +353,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                                 description: f.description.as_ref().map(String::as_str),
                                 name: f.name.as_ref().expect("field name").as_str(),
                                 type_: FieldType::from(f.type_.as_ref().expect("field type")),
-                                deprecation: DeprecationStatus::Current
+                                deprecation: DeprecationStatus::Current,
                             })
                     );
                     schema.interfaces.insert(name, iface);
@@ -407,43 +407,43 @@ mod tests {
                         description: None,
                         name: TYPENAME_FIELD,
                         type_: FieldType::new(string_type()),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "id",
                         type_: FieldType::new("ID").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "name",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "friends",
                         type_: FieldType::new("Character").list(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "friendsConnection",
                         type_: FieldType::new("FriendsConnection").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "appearsIn",
                         type_: FieldType::new("Episode").list().nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "primaryFunction",
                         type_: FieldType::new("String"),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                 ],
                 is_required: false.into()

@@ -54,7 +54,7 @@ pub(crate) fn introspect(
     let request_body = QueryBody {
         query: query::QUERY,
         operation_name: query::OPERATION_NAME,
-        variables: ()
+        variables: query::Variables
     };
 
     let client = reqwest::Client::new();

@@ -41,6 +41,8 @@ mod variables;
 #[cfg(test)]
 mod tests;
 
+mod extensions;
+
 pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
 
 use crate::unions::UnionError;

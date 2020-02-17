@@ -1,16 +1,13 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response, ResultSource
-};
-use serde::Serialize;
+use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationMeta, OperationType, RequestPolicy, Response, ResultSource, DebugInfo, GraphQLQuery};
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
     sync::{Arc, Mutex}
 };
+use std::any::Any;
 
-type ResultCache = Arc<Mutex<HashMap<u32, OperationResult>>>;
-type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u32>>>>;
+type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
+type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
 
 pub struct CacheExchange;
 impl<TNext: Exchange> ExchangeFactory<CacheExchangeImpl<TNext>, TNext> for CacheExchange {
@@ -31,13 +28,14 @@ pub struct CacheExchangeImpl<TNext: Exchange> {
     next: TNext
 }
 
-fn should_skip<T: Serialize + Send + Sync>(operation: &Operation<T>) -> bool {
+#[inline]
+fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
     let operation_type = &operation.meta.operation_type;
     operation_type != &OperationType::Query && operation_type != &OperationType::Mutation
 }
 
 impl<TNext: Exchange> CacheExchangeImpl<TNext> {
-    fn is_operation_cached<T: Serialize + Send + Sync>(&self, operation: &Operation<T>) -> bool {
+    fn is_operation_cached<Q: GraphQLQuery>(&self, operation: &Operation<Q::Variables>) -> bool {
         let OperationMeta {
             key,
             operation_type,
@@ -50,10 +48,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
                 || self.result_cache.lock().unwrap().contains_key(&key))
     }
 
-    fn after_query(
+    fn after_query<Q: GraphQLQuery>(
         &self,
-        operation_result: OperationResult
-    ) -> Result<OperationResult, Box<dyn Error>> {
+        operation_result: OperationResult<Q::ResponseData>
+    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }
@@ -66,7 +64,8 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
         {
             let mut result_cache = self.result_cache.lock().unwrap();
-            result_cache.insert(key.clone(), operation_result.clone());
+            let data = operation_result.response.data.as_ref().unwrap().clone();
+            result_cache.insert(key.clone(), Box::new(data));
         }
         {
             let mut operation_cache = self.operation_cache.lock().unwrap();
@@ -88,10 +87,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         Ok(operation_result)
     }
 
-    fn after_mutation(
+    fn after_mutation<Q: GraphQLQuery>(
         &self,
-        operation_result: OperationResult
-    ) -> Result<OperationResult, Box<dyn Error>> {
+        operation_result: OperationResult<Q::ResponseData>
+    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }
@@ -102,7 +101,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
             ..
         } = &operation_result.meta;
 
-        let ops_to_remove: HashSet<u32> = {
+        let ops_to_remove: HashSet<u64> = {
             let cache = self.operation_cache.lock().unwrap();
             let mut ops = HashSet::new();
             for involved_type in involved_types {
@@ -126,43 +125,47 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
-    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
-        if should_skip(&operation) {
-            return self.next.run(operation).await;
+    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
+        if should_skip::<Q>(&operation) {
+            return self.next.run::<Q>(operation).await;
         }
 
-        if !self.is_operation_cached(&operation) {
-            let res = self.next.run(operation).await?;
+        if !self.is_operation_cached::<Q>(&operation) {
+            let res = self.next.run::<Q>(operation).await?;
 
             match &res.meta.operation_type {
-                &OperationType::Query => self.after_query(res),
-                &OperationType::Mutation => self.after_mutation(res),
+                &OperationType::Query => self.after_query::<Q>(res),
+                &OperationType::Mutation => self.after_mutation::<Q>(res),
                 _ => Ok(res)
             }
         } else {
             let OperationMeta { key, .. } = &operation.meta;
 
-            let mut cached_result = {
+            let cached_result = {
                 let cache = self.result_cache.lock().unwrap();
-                cache.get(key).cloned()
+                cache.get(key).map(|res| {
+                    let res: &Q::ResponseData = (&**res)
+                        .downcast_ref::<Q::ResponseData>()
+                        .unwrap();
+                    res.clone()
+                })
             };
 
-            if let Some(OperationResult {
-                response:
-                    Response {
-                        debug_info: Some(ref mut debug_info),
-                        ..
-                    },
-                ..
-            }) = cached_result
-            {
-                debug_info.source = ResultSource::Cache;
-            }
-
             if let Some(cached) = cached_result {
-                Ok(cached)
+                let result = OperationResult {
+                    meta: operation.meta,
+                    response: Response {
+                        debug_info: Some(DebugInfo {
+                            source: ResultSource::Cache,
+                            did_dedup: false
+                        }),
+                        data: Some(cached),
+                        errors: None
+                    }
+                };
+                Ok(result)
             } else {
-                self.next.run(operation).await
+                self.next.run::<Q>(operation).await
             }
         }
     }

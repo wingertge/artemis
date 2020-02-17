@@ -4,11 +4,10 @@ extern crate async_trait;
 use crate::queries::get_conference::{get_conference::Variables, GetConference};
 use artemis::{
     exchanges::{CacheExchange, DedupExchange},
-    ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, Response
+    ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, QueryVariables, Response
 };
 use rand::Rng;
 use rayon::{iter, iter::ParallelIterator};
-use serde::Serialize;
 use std::{error::Error, sync::Arc, time::Duration};
 
 mod queries;
@@ -18,14 +17,14 @@ pub(crate) type Long = String;
 struct DummyFetchExchange;
 
 impl<TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchExchange {
-    fn build(_next: TNext) -> DummyFetchExchange {
+    fn build(self, _next: TNext) -> DummyFetchExchange {
         Self
     }
 }
 
 #[async_trait]
 impl Exchange for DummyFetchExchange {
-    async fn run<V: Serialize + Send + Sync>(
+    async fn run<V: QueryVariables>(
         &self,
         operation: Operation<V>
     ) -> Result<OperationResult, Box<dyn Error>> {

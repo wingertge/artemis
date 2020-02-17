@@ -215,7 +215,7 @@ pub struct InputValueType {
 pub struct TypeRef {
     pub kind: Option<__TypeKind>,
     pub name: Option<String>,
-    pub of_type: Option<Box<TypeRef>>
+    pub of_type: Option<Box<TypeRef>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

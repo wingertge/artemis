@@ -13,8 +13,9 @@ pub(crate) struct QueryContext<'query, 'schema: 'query> {
     pub schema: &'schema Schema<'schema>,
     pub deprecation_strategy: DeprecationStrategy,
     pub normalization: Normalization,
+    pub include_query_info: bool,
     variables_derives: Vec<Ident>,
-    response_derives: Vec<Ident>
+    response_derives: Vec<Ident>,
 }
 
 impl<'query, 'schema> QueryContext<'query, 'schema> {
@@ -22,15 +23,23 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
     pub(crate) fn new(
         schema: &'schema Schema<'schema>,
         deprecation_strategy: DeprecationStrategy,
-        normalization: Normalization
+        normalization: Normalization,
+        include_query_info: bool
     ) -> QueryContext<'query, 'schema> {
         QueryContext {
             fragments: BTreeMap::new(),
             schema,
             deprecation_strategy,
             normalization,
-            variables_derives: vec![Ident::new("Serialize", Span::call_site())],
-            response_derives: vec![Ident::new("Deserialize", Span::call_site())]
+            include_query_info,
+            variables_derives: vec![
+                Ident::new("Serialize", Span::call_site()),
+                Ident::new("Clone", Span::call_site()),
+            ],
+            response_derives: vec![
+                Ident::new("Deserialize", Span::call_site()),
+                Ident::new("Clone", Span::call_site()),
+            ]
         }
     }
 
@@ -49,8 +58,15 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
             schema,
             deprecation_strategy: DeprecationStrategy::Allow,
             normalization: Normalization::None,
-            variables_derives: vec![Ident::new("Serialize", Span::call_site())],
-            response_derives: vec![Ident::new("Deserialize", Span::call_site())]
+            include_query_info: true,
+            variables_derives: vec![
+                Ident::new("Serialize", Span::call_site()),
+                Ident::new("Clone", Span::call_site()),
+            ],
+            response_derives: vec![
+                Ident::new("Deserialize", Span::call_site()),
+                Ident::new("Clone", Span::call_site()),
+            ]
         }
     }
 
@@ -100,7 +116,7 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         &mut self,
         attribute_value: &str
     ) -> Result<(), CodegenError> {
-        if self.response_derives.len() > 1 {
+        if self.response_derives.len() > 2 {
             return Err(CodegenError::InternalError(format!(
                 "ingest_response_derives should only be called once"
             )));
@@ -119,7 +135,7 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         &mut self,
         attribute_value: &str
     ) -> Result<(), CodegenError> {
-        if self.variables_derives.len() > 1 {
+        if self.variables_derives.len() > 2 {
             return Err(CodegenError::InternalError(format!(
                 "ingest_variables_derives should only be called once"
             )));
@@ -162,7 +178,10 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
             .filter(|derive| {
                 // Do not apply the "Default" derive to enums.
                 let derive = derive.to_string();
-                derive != "Serialize" && derive != "Deserialize" && derive != "Default"
+                derive != "Serialize"
+                    && derive != "Deserialize"
+                    && derive != "Default"
+                    && derive != "Clone"
             })
             .collect();
         enum_derives.extend(always_derives.iter());
@@ -187,7 +206,7 @@ mod tests {
 
         assert_eq!(
             context.response_derives().to_string(),
-            "# [ derive ( Deserialize , PartialEq , PartialOrd , Serialize ) ]"
+            "# [ derive ( Clone , Deserialize , PartialEq , PartialOrd , Serialize ) ]"
         );
     }
 

@@ -138,7 +138,7 @@ async fn test_cache_invalidation() {
     // INVALIDATE CACHE
     let mutation_variables = artemis_test::add_conference::add_conference::Variables {
         name: "test_name".to_string(),
-        city: "test_city".to_string()
+        city: Some("test_city".to_string())
     };
     let result = client.query(AddConference, mutation_variables).await;
     assert!(result.is_ok());

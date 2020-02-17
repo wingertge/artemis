@@ -1,4 +1,4 @@
-mutation AddConference($name: String!, $city: String!) {
+mutation AddConference($name: String!, $city: String = "Test City") {
     addConference(conference: {
         name: $name,
         city: $city

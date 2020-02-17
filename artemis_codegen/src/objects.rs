@@ -21,7 +21,7 @@ pub struct GqlObject<'schema> {
     pub is_required: Cell<bool>
 }
 
-#[derive(Clone, Debug, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GqlObjectField<'schema> {
     pub description: Option<&'schema str>,
     pub name: &'schema str,
@@ -78,7 +78,7 @@ impl<'schema> GqlObject<'schema> {
                 description: f.description.as_ref().map(String::as_str),
                 name: &f.name,
                 type_: FieldType::from(&f.field_type),
-                deprecation
+                deprecation,
             }
         }));
         item
@@ -100,7 +100,7 @@ impl<'schema> GqlObject<'schema> {
                     description: t.description.as_ref().map(String::as_str),
                     name: t.name.as_ref().expect("field name"),
                     type_: FieldType::from(t.type_.as_ref().expect("field type")),
-                    deprecation
+                    deprecation,
                 }
             })
         });
@@ -128,10 +128,29 @@ impl<'schema> GqlObject<'schema> {
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let derives = query_context.response_derives();
         let name = Ident::new(prefix, Span::call_site());
-        let fields = self.response_fields_for_selection(query_context, selection, prefix)?;
+        let (field_infos, fields) = self.response_fields_for_selection(query_context, selection, prefix)?;
         let (field_impls, types) =
             self.field_impls_for_selection(query_context, selection, &prefix)?;
         let description = self.description.as_ref().map(|desc| quote!(#[doc = #desc]));
+        let type_name = self.name;
+
+        let query_info = if query_context.include_query_info {
+            quote! {
+                impl ::artemis::QueryInfo<Variables> for #name {
+                    fn typename(&self) -> &'static str {
+                        #type_name
+                    }
+
+                    #[allow(unused_variables)]
+                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                        vec![
+                            #(#field_infos),*
+                        ]
+                    }
+                }
+            }
+        } else { quote!() };
+
         let tokens = quote! {
             #(#field_impls)*
 
@@ -140,6 +159,8 @@ impl<'schema> GqlObject<'schema> {
             pub struct #name {
                 #(#fields,)*
             }
+
+            #query_info
         };
         Ok((tokens, types))
     }
@@ -158,7 +179,7 @@ impl<'schema> GqlObject<'schema> {
         query_context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<Vec<TokenStream>, CodegenError> {
+    ) -> Result<(Vec<TokenStream>, Vec<TokenStream>), CodegenError> {
         response_fields_for_selection(&self.name, &self.fields, query_context, selection, prefix)
     }
 }

@@ -37,7 +37,9 @@ pub struct GraphQLClientCodegenOptions {
     /// the schema files when recompiling.
     schema_file: Option<PathBuf>,
     /// Normalization pattern for query types and names.
-    normalization: Normalization
+    normalization: Normalization,
+    /// Include query info? (Needed for things like normalized caching)
+    pub include_query_info: bool
 }
 
 impl GraphQLClientCodegenOptions {
@@ -54,7 +56,8 @@ impl GraphQLClientCodegenOptions {
             struct_name: Default::default(),
             query_file: Default::default(),
             schema_file: Default::default(),
-            normalization: Normalization::None
+            normalization: Normalization::None,
+            include_query_info: true
         }
     }
 

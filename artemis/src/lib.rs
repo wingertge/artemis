@@ -1,4 +1,6 @@
-#[warn(missing_docs)]
+//#![warn(missing_docs)]
+#![deny(warnings)]
+
 #[macro_use]
 extern crate serde;
 #[macro_use]
@@ -13,16 +15,17 @@ mod utils;
 
 pub use client::{Client, ClientBuilder, QueryOptions};
 pub use exchanges::FetchExchange;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
 pub use types::{
-    DebugInfo, Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, OperationResult,
-    OperationType, RequestPolicy, ResultSource
+    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, HeaderPair, Operation, OperationMeta,
+    OperationResult, OperationType, RequestPolicy, ResultSource, QueryInfo, FieldSelector
 };
+pub use utils::progressive_hash;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]
-pub struct QueryBody<Variables> {
+pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
     pub variables: Variables,
     /// The GraphQL query, as a string.
@@ -75,9 +78,9 @@ pub struct QueryBody<Variables> {
 /// ```
 pub trait GraphQLQuery: Send + Sync {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
-    type Variables: serde::Serialize + Send + Sync;
+    type Variables: Serialize + Send + Sync + Clone;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
-    type ResponseData: DeserializeOwned + Send + Sync;
+    type ResponseData: DeserializeOwned + Send + Sync + Clone + 'static + QueryInfo<Self::Variables>;
 
     /// Produce a GraphQL query struct that can be JSON serialized and sent to a GraphQL API.
     fn build_query(variables: Self::Variables) -> (QueryBody<Self::Variables>, OperationMeta);

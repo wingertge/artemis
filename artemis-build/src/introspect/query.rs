@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 pub const OPERATION_NAME: &'static str = "IntrospectionQuery";
 pub const QUERY: &'static str = r#"
 query IntrospectionQuery {
@@ -99,3 +101,6 @@ fragment TypeRef on __Type {
     }
   }
 }"#;
+
+#[derive(Serialize, Clone)]
+pub struct Variables;

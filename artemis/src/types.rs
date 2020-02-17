@@ -1,17 +1,23 @@
-use crate::{QueryBody, Response};
-use serde::Serialize;
+use crate::{QueryBody, Response, GraphQLQuery};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
-pub type ExchangeResult = Result<OperationResult, Box<dyn Error>>;
+pub type ExchangeResult<R> = Result<OperationResult<R>, Box<dyn Error>>;
 
 #[async_trait]
 pub trait Exchange: Send + Sync {
-    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult;
+    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData>;
 }
 
 pub trait ExchangeFactory<T: Exchange, TNext: Exchange> {
     fn build(self, next: TNext) -> T;
+}
+
+pub trait QueryInfo<TVars> {
+    fn typename(&self) -> &'static str;
+    fn selection(variables: &TVars) -> Vec<FieldSelector>;
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -42,13 +48,21 @@ pub enum RequestPolicy {
 pub struct HeaderPair(pub &'static str, pub &'static str);
 
 #[derive(Clone, Debug)]
-pub struct OperationMeta {
-    pub key: u32,
-    pub operation_type: OperationType,
-    pub involved_types: Vec<&'static str>
+pub enum FieldSelector {
+    Scalar(String),
+    Object(String, Vec<FieldSelector>)
 }
 
-pub struct Operation<V: Serialize> {
+#[derive(Clone, Debug)]
+pub struct OperationMeta {
+    pub key: u64,
+    pub operation_type: OperationType,
+    pub involved_types: Vec<&'static str>,
+    //pub selection: Vec<FieldSelector>
+}
+
+#[derive(Clone)]
+pub struct Operation<V: Serialize + Clone + Send + Sync> {
     pub meta: OperationMeta,
     pub query: QueryBody<V>,
     pub url: Url,
@@ -69,7 +83,7 @@ pub struct DebugInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct OperationResult {
+pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub meta: OperationMeta,
-    pub response: Response<serde_json::Value>
+    pub response: Response<R>
 }

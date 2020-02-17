@@ -25,8 +25,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn generate_code() -> Result<(), Box<dyn Error>> {
     CodegenBuilder::new()
         .with_out_dir("src/queries")
-        .with_derives_on_variables("Debug,PartialEq,Clone")
-        .with_derives_on_response("Debug,PartialEq,Clone,Serialize")
+        .with_derives_on_variables("Debug,PartialEq")
+        .with_derives_on_response("Debug,PartialEq,Serialize")
         .add_query(query("get_conference.graphql"))
         .add_query(query("add_conference.graphql"))
         .introspect_schema("http://localhost:8080/graphql", None, Vec::new())?

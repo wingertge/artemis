@@ -22,6 +22,11 @@ pub mod get_conference {
         #[doc = "Fullname of the person"]
         pub name: String
     }
+    impl ::artemis::QueryInfo for GetConferenceConferenceTalksSpeakers {
+        fn typename(&self) -> &'static str {
+            "Person"
+        }
+    }
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     #[doc = "Object to represent a talk"]
     pub struct GetConferenceConferenceTalks {
@@ -31,6 +36,11 @@ pub mod get_conference {
         pub title: String,
         #[doc = "Speakers of the talk"]
         pub speakers: Option<Vec<GetConferenceConferenceTalksSpeakers>>
+    }
+    impl ::artemis::QueryInfo for GetConferenceConferenceTalks {
+        fn typename(&self) -> &'static str {
+            "Talk"
+        }
     }
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     #[doc = "Object to represent a conference"]
@@ -44,11 +54,17 @@ pub mod get_conference {
         #[doc = "Talks on the conference agenda"]
         pub talks: Option<Vec<GetConferenceConferenceTalks>>
     }
+    impl ::artemis::QueryInfo for GetConferenceConference {
+        fn typename(&self) -> &'static str {
+            "Conference"
+        }
+    }
     #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct Variables {
         pub id: Long
     }
     impl Variables {}
+    impl ::artemis::QueryVariables for Variables {}
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ResponseData {
         #[doc = "Find a conference based on the name"]
@@ -67,7 +83,7 @@ impl ::artemis::GraphQLQuery for GetConference {
         let meta = ::artemis::OperationMeta {
             key: 1354603040u32,
             operation_type: ::artemis::OperationType::Query,
-            involved_types: vec!["Talk", "Conference", "Person"]
+            involved_types: vec!["Conference", "Person", "Talk"]
         };
         let body = ::artemis::QueryBody {
             variables,

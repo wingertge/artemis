@@ -61,8 +61,23 @@ impl<'schema> GqlEnum<'schema> {
         let constructors = &constructors;
         let variant_str: Vec<&str> = self.variants.iter().map(|v| v.name).collect();
         let variant_str = &variant_str;
+        let type_name = self.name;
 
         let name = name_ident;
+        let query_info = if query_context.include_query_info {
+            quote! {
+                impl ::artemis::QueryInfo<Variables> for #name {
+                    fn typename(&self) -> &'static str {
+                        #type_name
+                    }
+
+                    #[allow(unused_variables)]
+                    fn selection(variables: Variables) -> Vec<::artemis::FieldSelector> {
+                        vec![]
+                    }
+                }
+            }
+        } else { quote!() };
 
         quote! {
             #derives
@@ -90,6 +105,8 @@ impl<'schema> GqlEnum<'schema> {
                     }
                 }
             }
+
+            #query_info
         }
     }
 }

@@ -3,6 +3,7 @@ use crate::{
 };
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
+use crate::shared::{ArgumentValue, ToRust};
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 enum GraphqlTypeQualifier {
@@ -44,12 +45,14 @@ impl<'a> FieldType<'a> {
     }
 
     /// Takes a field type with its name.
-    pub(crate) fn to_rust(&self, context: &QueryContext<'_, '_>, prefix: &str) -> TokenStream {
+    pub(crate) fn to_rust(&self, context: &QueryContext<'_, '_>, prefix: &str, field_name: &str, arguments: Vec<(String, ArgumentValue)>) -> (TokenStream, TokenStream) {
         let prefix: &str = if prefix.is_empty() {
             self.inner_name_str()
         } else {
             prefix
         };
+
+        let field_selector;
 
         let full_name = {
             if context
@@ -60,6 +63,15 @@ impl<'a> FieldType<'a> {
                 .is_some()
                 || DEFAULT_SCALARS.iter().any(|elem| elem == &self.name)
             {
+                let field_name = if let Some(arguments) = arguments.to_rust() {
+                    let format_string = format!("{}{{}}", field_name);
+                    quote!(format!(#format_string, #arguments))
+                } else {
+                    quote!(#field_name)
+                };
+                field_selector = quote! {
+                    ::artemis::FieldSelector::Scalar(#field_name)
+                };
                 self.name.to_string()
             } else if context
                 .schema
@@ -68,11 +80,21 @@ impl<'a> FieldType<'a> {
                 .map(|enm| enm.is_required.set(true))
                 .is_some()
             {
+                let name = self.name.to_string();
+                field_selector = quote! {
+                    ::artemis::FieldSelector::Scalar(#name)
+                };
                 format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
                 if prefix.is_empty() {
                     panic!("Empty prefix for {:?}", self);
                 }
+                let name = format!("{}{{}}", self.name.to_string());
+                let arguments = arguments.to_rust();
+                let type_ident = Ident::new(prefix,  Span::call_site());
+                field_selector = quote! {
+                    ::artemis::FieldSelector::Object(format!(#name, #arguments), #type_ident::selection(variables))
+                };
                 prefix.to_string()
             }
         };
@@ -115,7 +137,7 @@ impl<'a> FieldType<'a> {
             qualified = quote!(Option<#qualified>);
         }
 
-        qualified
+        (field_selector, qualified)
     }
 
     /// Return the innermost name - we mostly use this for looking types up in our Schema struct.

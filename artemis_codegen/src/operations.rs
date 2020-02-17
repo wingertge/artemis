@@ -52,7 +52,7 @@ impl<'query> Operation<'query> {
         }
 
         let fields = variables.iter().map(|variable| {
-            let ty = variable.ty.to_rust(context, "");
+            let (_, ty) = variable.ty.to_rust(context, "", "", Vec::new());
             let rust_safe_field_name =
                 crate::shared::keyword_replace(&variable.name.to_snake_case());
             let rename =

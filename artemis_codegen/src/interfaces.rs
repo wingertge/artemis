@@ -124,7 +124,7 @@ impl<'schema> GqlInterface<'schema> {
         context: &QueryContext<'_, '_>,
         selection: &Selection<'_>,
         prefix: &str
-    ) -> Result<Vec<TokenStream>, CodegenError> {
+    ) -> Result<(Vec<TokenStream>, Vec<TokenStream>), CodegenError> {
         response_fields_for_selection(
             &self.name,
             &self.fields,
@@ -151,7 +151,7 @@ impl<'schema> GqlInterface<'schema> {
             ))
         })?;
 
-        let object_fields =
+        let (selection_fields, object_fields) =
             self.response_fields_for_selection(query_context, &selection, prefix)?;
 
         let (object_children, _) =
@@ -198,6 +198,24 @@ impl<'schema> GqlInterface<'schema> {
                 (None, None)
             };
 
+        let type_name = self.name;
+        let query_info = if query_context.include_query_info {
+            quote! {
+                impl ::artemis::QueryInfo<Variables> for #name {
+                    fn typename(&self) -> &'static str {
+                        #type_name
+                    }
+
+                    #[allow(unused_variables)]
+                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                        vec![
+                            #(#selection_fields,)*
+                        ]
+                    }
+                }
+            }
+        } else { quote!() };
+
         let tokens = quote! {
 
             #(#object_children)*
@@ -211,6 +229,8 @@ impl<'schema> GqlInterface<'schema> {
                 #(#object_fields,)*
                 #last_object_field
             }
+
+            #query_info
         };
 
         Ok((tokens, types))
@@ -239,7 +259,8 @@ mod tests {
             crate::selection::SelectionItem::Field(crate::selection::SelectionField {
                 alias: None,
                 name: "__typename",
-                fields: Selection::new_empty()
+                fields: Selection::new_empty(),
+                arguments: Vec::new()
             });
         let selection = Selection::from_vec(vec![typename_field.clone()]);
 
@@ -267,7 +288,8 @@ mod tests {
             crate::selection::SelectionItem::Field(crate::selection::SelectionField {
                 alias: None,
                 name: "__typename",
-                fields: Selection::new_empty()
+                fields: Selection::new_empty(),
+                arguments: Vec::new()
             });
         let selection: Selection<'_> = vec![typename_field].into_iter().collect();
 

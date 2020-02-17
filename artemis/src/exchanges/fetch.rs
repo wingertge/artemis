@@ -1,8 +1,4 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    DebugInfo, Exchange, ExchangeFactory, HeaderPair, Response, ResultSource
-};
-use serde::Serialize;
+use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, HeaderPair, Response, ResultSource, GraphQLQuery};
 use std::{error::Error, fmt};
 
 #[derive(Debug)]
@@ -31,7 +27,7 @@ impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
 
 #[async_trait]
 impl Exchange for FetchExchange {
-    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
+    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()
         } else {
@@ -47,7 +43,7 @@ impl Exchange for FetchExchange {
             request = request.set_header(key, value)
         }
 
-        let mut response: Response<serde_json::Value> = request
+        let mut response: Response<Q::ResponseData> = request
             .await
             .map_err(FetchError::FetchError)?
             .body_json()

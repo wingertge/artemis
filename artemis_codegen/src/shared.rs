@@ -8,7 +8,8 @@ use crate::{
 use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use std::collections::HashSet;
+use std::collections::{HashSet, BTreeMap};
+use graphql_parser::schema::Value;
 
 // List of keywords based on https://doc.rust-lang.org/grammar.html#keywords
 const RUST_KEYWORDS: &[&str] = &[
@@ -156,14 +157,123 @@ pub(crate) fn field_impls_for_selection(
     Ok((tokens, types))
 }
 
+#[derive(PartialEq, Debug, Clone)]
+pub enum ArgumentValue {
+    Variable(String),
+    Int(i64),
+    Float(f64),
+    String(String),
+    Boolean(bool),
+    Null,
+    Enum(String),
+    List(Vec<ArgumentValue>),
+    Object(BTreeMap<String, ArgumentValue>),
+}
+
+pub trait ToRust {
+    fn to_rust(&self) -> Option<TokenStream>;
+}
+
+impl ToRust for Vec<(String, ArgumentValue)> {
+    fn to_rust(&self) -> Option<TokenStream> {
+        if self.len() == 0 {
+            return None;
+        }
+
+        let mut placeholder_idents = Vec::new();
+        let fields: Vec<String> = self.iter().map(|(name, value)| {
+            let (formatted, idents) = value.format(name);
+            placeholder_idents.extend(idents);
+            formatted
+        }).collect();
+        let fields = fields.join(",");
+        let formatted_vars = format!("({})", fields);
+
+        let idents = if placeholder_idents.len() > 0 {
+            quote!(,#(&variables.#placeholder_idents),*)
+        } else { quote!() };
+
+        Some(quote! {
+            format!(#formatted_vars #idents)
+        })
+    }
+}
+
+impl ArgumentValue {
+    fn format(&self, name: &String) -> (String, Vec<Ident>) {
+        let mut placeholder_idents = Vec::new();
+        let formatted = match self {
+            ArgumentValue::Int(i) => format!("{}:{}", name, i),
+            ArgumentValue::Float(i) => format!("{}:{}", name, i),
+            ArgumentValue::String(i) => format!("{}:{}", name, i),
+            ArgumentValue::Boolean(i) => format!("{}:{}", name, i),
+            ArgumentValue::Null => format!("{}:null", name),
+            ArgumentValue::Enum(i) => format!("{}:{}", name, i),
+            ArgumentValue::List(list) => {
+                let entries: Vec<String> = list.iter()
+                    .map(|entry| {
+                        let key = String::new();
+                        let (formatted, idents) = entry.format(&key);
+                        let formatted = formatted.replace(":", "");
+                        placeholder_idents.extend(idents);
+                        formatted
+                    })
+                    .collect();
+                let entries = entries.join(",");
+                format!("[{}]", entries)
+            },
+            ArgumentValue::Object(map) => {
+                let entries: Vec<String> = map.iter()
+                    .map(|(key, value)| {
+                        let (formatted, idents) = value.format(key);
+                        placeholder_idents.extend(idents);
+                        formatted
+                    })
+                    .collect();
+                let entries = entries.join(",");
+                format!("{{{{{}}}}}", entries)
+            }
+            ArgumentValue::Variable(var_name) => {
+                placeholder_idents.push(Ident::new(var_name, Span::call_site()));
+                format!("{}:{{:?}}", name)
+            }
+        };
+
+        (formatted, placeholder_idents)
+    }
+}
+
+impl From<Value> for ArgumentValue {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::Variable(x) => ArgumentValue::Variable(x),
+            Value::Int(x) => ArgumentValue::Int(x.as_i64().unwrap()), //This is always Some
+            Value::Float(x) => ArgumentValue::Float(x),
+            Value::String(x) => ArgumentValue::String(x),
+            Value::Boolean(x) => ArgumentValue::Boolean(x),
+            Value::Null => ArgumentValue::Null,
+            Value::Enum(x) => ArgumentValue::Enum(x),
+            Value::List(list) => ArgumentValue::List(list.into_iter().map(Into::into).collect()),
+            Value::Object(object) => {
+                let map = object.into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect();
+                ArgumentValue::Object(map)
+            },
+        }
+    }
+}
+
 pub(crate) fn response_fields_for_selection(
     type_name: &str,
     schema_fields: &[GqlObjectField<'_>],
     context: &QueryContext<'_, '_>,
     selection: &Selection<'_>,
     prefix: &str
-) -> Result<Vec<TokenStream>, CodegenError> {
-    (&selection)
+) -> Result<(Vec<TokenStream>, Vec<TokenStream>), CodegenError> {
+    let mut selectors = Vec::new();
+
+    let field_defs: Result<Vec<TokenStream>, CodegenError> = (&selection)
         .into_iter()
         .map(|item| match item {
             SelectionItem::Field(f) => {
@@ -189,10 +299,14 @@ pub(crate) fn response_fields_for_selection(
                                 .trim_end_matches(", ")
                         ))
                     })?;
-                let ty = schema_field.type_.to_rust(
+                let (field_selector, ty) = schema_field.type_.to_rust(
                     context,
-                    &format!("{}{}", prefix.to_camel_case(), alias.to_camel_case())
+                    &format!("{}{}", prefix.to_camel_case(), alias.to_camel_case()),
+                    name,
+                    f.arguments.iter().cloned().collect()
                 );
+
+                selectors.push(field_selector);
 
                 Ok(render_object_field(
                     alias,
@@ -221,6 +335,13 @@ pub(crate) fn response_fields_for_selection(
                 } else {
                     quote!(#type_name)
                 };
+                let field_name_str = fragment.fragment_name.to_snake_case();
+                let field_selector = quote! {
+                    ::artemis::FieldSelector::Object(#field_name_str, #type_name)
+                };
+
+                selectors.push(field_selector);
+
                 Ok(Some(quote! {
                     #[serde(flatten)]
                     pub #field_name: #type_name
@@ -236,7 +357,9 @@ pub(crate) fn response_fields_for_selection(
             Ok(f) => f.map(Ok),
             Err(err) => Some(Err(err))
         })
-        .collect()
+        .collect();
+
+    Ok((selectors, field_defs?))
 }
 
 /// Given the GraphQL schema name for an object/interface/input object field and

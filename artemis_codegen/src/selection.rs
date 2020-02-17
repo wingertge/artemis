@@ -1,13 +1,15 @@
 use crate::{constants::*, CodegenError};
 use graphql_parser::query::SelectionSet;
 use std::collections::BTreeMap;
+use crate::shared::ArgumentValue;
 
 /// A single object field as part of a selection.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SelectionField<'query> {
     pub alias: Option<&'query str>,
     pub name: &'query str,
-    pub fields: Selection<'query>
+    pub fields: Selection<'query>,
+    pub arguments: Vec<(String, ArgumentValue)>
 }
 
 /// A spread fragment in a selection (e.g. `...MyFragment`).
@@ -17,14 +19,14 @@ pub struct SelectionFragmentSpread<'query> {
 }
 
 /// An inline fragment as part of a selection (e.g. `...on MyThing { name }`).
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SelectionInlineFragment<'query> {
     pub on: &'query str,
     pub fields: Selection<'query>
 }
 
 /// An element in a query selection.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SelectionItem<'query> {
     Field(SelectionField<'query>),
     FragmentSpread(SelectionFragmentSpread<'query>),
@@ -42,7 +44,7 @@ impl<'query> SelectionItem<'query> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Selection<'query>(Vec<SelectionItem<'query>>);
 
 impl<'query> Selection<'query> {
@@ -186,7 +188,8 @@ impl<'query> std::convert::From<&'query SelectionSet> for Selection<'query> {
                 Selection::Field(f) => SelectionItem::Field(SelectionField {
                     alias: f.alias.as_ref().map(String::as_str),
                     name: &f.name,
-                    fields: (&f.selection_set).into()
+                    fields: (&f.selection_set).into(),
+                    arguments: f.arguments.iter().cloned().map(|(key, value)| (key, value.into())).collect()
                 }),
                 Selection::FragmentSpread(spread) => {
                     SelectionItem::FragmentSpread(SelectionFragmentSpread {
@@ -254,7 +257,8 @@ mod tests {
             .push(SelectionItem::Field(SelectionField {
                 alias: None,
                 name: "__typename",
-                fields: Selection::new_empty()
+                fields: Selection::new_empty(),
+                arguments: Vec::new()
             }));
 
         let schema = crate::schema::Schema::new();
@@ -314,16 +318,19 @@ mod tests {
             Selection(vec![SelectionItem::Field(SelectionField {
                 alias: None,
                 name: "animal",
+                arguments: Vec::new(),
                 fields: Selection(vec![
                     SelectionItem::Field(SelectionField {
                         alias: None,
                         name: "isCat",
-                        fields: Selection(Vec::new())
+                        fields: Selection(Vec::new()),
+                        arguments: Vec::new()
                     }),
                     SelectionItem::Field(SelectionField {
                         alias: None,
                         name: "isHorse",
-                        fields: Selection(Vec::new())
+                        fields: Selection(Vec::new()),
+                        arguments: Vec::new()
                     }),
                     SelectionItem::FragmentSpread(SelectionFragmentSpread {
                         fragment_name: "Timestamps"
@@ -331,25 +338,29 @@ mod tests {
                     SelectionItem::Field(SelectionField {
                         alias: None,
                         name: "barks",
-                        fields: Selection(Vec::new())
+                        fields: Selection(Vec::new()),
+                        arguments: Vec::new()
                     }),
                     SelectionItem::InlineFragment(SelectionInlineFragment {
                         on: "Dog",
                         fields: Selection(vec![SelectionItem::Field(SelectionField {
                             alias: None,
                             name: "rating",
-                            fields: Selection(Vec::new())
+                            fields: Selection(Vec::new()),
+                            arguments: Vec::new()
                         })])
                     }),
                     SelectionItem::Field(SelectionField {
                         alias: None,
                         name: "pawsCount",
-                        fields: Selection(Vec::new())
+                        fields: Selection(Vec::new()),
+                        arguments: Vec::new()
                     }),
                     SelectionItem::Field(SelectionField {
                         alias: Some("aliased"),
                         name: "sillyName",
-                        fields: Selection(Vec::new())
+                        fields: Selection(Vec::new()),
+                        arguments: Vec::new()
                     }),
                 ])
             })])

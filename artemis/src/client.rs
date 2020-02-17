@@ -1,10 +1,8 @@
 use crate::{
     exchanges::{CacheExchange, DedupExchange, DummyExchange, FetchExchange},
     types::{Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, RequestPolicy},
-    utils::progressive_hash,
     GraphQLQuery, QueryBody, Response
 };
-use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, sync::Arc};
 use surf::url::Url;
 
@@ -39,12 +37,12 @@ impl<M: Exchange> ClientBuilder<M> {
     }
 
     /// Add a middleware to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
-    pub fn with_exchange<TResult, F>(self, _exchange_factory: F) -> ClientBuilder<TResult>
+    pub fn with_exchange<TResult, F>(self, exchange_factory: F) -> ClientBuilder<TResult>
     where
         TResult: Exchange + Send + Sync,
         F: ExchangeFactory<TResult, M>
     {
-        let exchange = F::build(self.exchange);
+        let exchange = exchange_factory.build(self.exchange);
         ClientBuilder {
             exchange,
             url: self.url,
@@ -91,27 +89,13 @@ pub struct Client<M: Exchange> {
 }
 
 impl<M: Exchange> Client<M> {
-    async fn execute_request_operation<TVariables, TResult>(
+    async fn execute_request_operation<Q: GraphQLQuery>(
         &self,
-        operation: Operation<TVariables>
-    ) -> Result<Response<TResult>, Box<dyn Error>>
-    where
-        TVariables: Serialize + Send + Sync,
-        TResult: DeserializeOwned + Send + Sync
-    {
-        let operation_result = self.exchange.run(operation).await?;
+        operation: Operation<Q::Variables>
+    ) -> Result<Response<Q::ResponseData>, Box<dyn Error>> {
+        let operation_result = self.exchange.run::<Q>(operation).await?;
 
-        let Response {
-            data,
-            errors,
-            debug_info
-        } = operation_result.response;
-        let data = data.map(|val| serde_json::from_value(val)).transpose()?;
-        Ok(Response {
-            data,
-            errors,
-            debug_info
-        })
+        Ok(operation_result.response)
     }
 
     pub async fn query<Q: GraphQLQuery>(
@@ -120,8 +104,8 @@ impl<M: Exchange> Client<M> {
         variables: Q::Variables
     ) -> Result<Response<Q::ResponseData>, Box<dyn Error>> {
         let (query, meta) = Q::build_query(variables);
-        let operation = self.create_request_operation(query, meta, QueryOptions::default());
-        self.execute_request_operation(operation).await
+        let operation = self.create_request_operation::<Q>(query, meta, QueryOptions::default());
+        self.execute_request_operation::<Q>(operation).await
     }
 
     pub async fn query_with_options<Q: GraphQLQuery>(
@@ -131,16 +115,16 @@ impl<M: Exchange> Client<M> {
         options: QueryOptions
     ) -> Result<Response<Q::ResponseData>, Box<dyn Error>> {
         let (query, meta) = Q::build_query(variables);
-        let operation = self.create_request_operation(query, meta, options);
-        self.execute_request_operation(operation).await
+        let operation = self.create_request_operation::<Q>(query, meta, options);
+        self.execute_request_operation::<Q>(operation).await
     }
 
-    fn create_request_operation<V: Serialize + Send + Sync>(
+    fn create_request_operation<Q: GraphQLQuery>(
         &self,
-        query: QueryBody<V>,
+        query: QueryBody<Q::Variables>,
         meta: OperationMeta,
         options: QueryOptions
-    ) -> Operation<V> {
+    ) -> Operation<Q::Variables> {
         let extra_headers = if let Some(extra_headers) = options.extra_headers {
             Some(extra_headers.clone())
         } else if let Some(ref extra_headers) = self.extra_headers {
@@ -148,9 +132,6 @@ impl<M: Exchange> Client<M> {
         } else {
             None
         };
-
-        let key = progressive_hash(&meta.key, &query.variables);
-        let meta = OperationMeta { key, ..meta };
 
         let operation = Operation {
             meta,

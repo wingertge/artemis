@@ -20,6 +20,11 @@ pub mod add_conference {
         #[doc = "The technical id"]
         pub id: ID
     }
+    impl ::artemis::QueryInfo for AddConferenceAddConferenceTalks {
+        fn typename(&self) -> &'static str {
+            "Talk"
+        }
+    }
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     #[doc = "Object to represent a conference"]
     pub struct AddConferenceAddConference {
@@ -32,12 +37,18 @@ pub mod add_conference {
         #[doc = "Talks on the conference agenda"]
         pub talks: Option<Vec<AddConferenceAddConferenceTalks>>
     }
+    impl ::artemis::QueryInfo for AddConferenceAddConference {
+        fn typename(&self) -> &'static str {
+            "Conference"
+        }
+    }
     #[derive(Clone, Debug, PartialEq, Serialize)]
     pub struct Variables {
         pub name: String,
         pub city: String
     }
     impl Variables {}
+    impl ::artemis::QueryVariables for Variables {}
     #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
     pub struct ResponseData {
         #[doc = "Add a new conference"]

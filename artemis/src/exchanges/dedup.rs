@@ -1,17 +1,14 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    Exchange, ExchangeFactory, OperationType
-};
+use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, OperationType, GraphQLQuery};
 use futures::channel::oneshot::{self, Sender};
-use serde::Serialize;
 use std::{
     collections::HashMap,
     error::Error,
     fmt,
     sync::{Arc, Mutex}
 };
+use std::any::Any;
 
-type InFlightCache = Arc<Mutex<HashMap<u32, Vec<Sender<Result<OperationResult, DedupError>>>>>>;
+type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, DedupError>>>>>>;
 
 pub struct DedupExchange; // Factory
 pub struct DedupExchangeImpl<TNext: Exchange> {
@@ -37,30 +34,30 @@ impl fmt::Display for DedupError {
     }
 }
 
-fn should_skip<V: Serialize + Send + Sync>(operation: &Operation<V>) -> bool {
+fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
     let op_type = &operation.meta.operation_type;
     op_type != &OperationType::Query && op_type != &OperationType::Mutation
 }
 
-fn make_deduped_result(res: &ExchangeResult) -> Result<OperationResult, DedupError> {
+fn make_deduped_result<Q: GraphQLQuery>(res: &ExchangeResult<Q::ResponseData>) -> Result<Box<dyn Any + Send>, DedupError> {
     match res {
         Ok(ref res) => {
             let mut res = res.clone();
             if let Some(ref mut debug_info) = res.response.debug_info {
                 debug_info.did_dedup = true;
             }
-            Ok(res)
+            Ok(Box::new(res))
         }
         Err(_) => Err(DedupError)
     }
 }
 
 impl<TNext: Exchange> DedupExchangeImpl<TNext> {
-    fn notify_listeners(&self, key: &u32, res: &ExchangeResult) {
+    fn notify_listeners<Q: GraphQLQuery>(&self, key: &u64, res: &ExchangeResult<Q::ResponseData>) {
         let mut cache = self.in_flight_operations.lock().unwrap();
         let to_be_notified = cache.remove(key).unwrap();
         for sender in to_be_notified {
-            let res = make_deduped_result(res);
+            let res = make_deduped_result::<Q>(res);
             sender.send(res).unwrap();
         }
     }
@@ -68,9 +65,9 @@ impl<TNext: Exchange> DedupExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
-    async fn run<V: Serialize + Send + Sync>(&self, operation: Operation<V>) -> ExchangeResult {
-        if should_skip(&operation) {
-            return self.next.run(operation).await;
+    async fn run<Q: GraphQLQuery>(&self, operation: Operation<Q::Variables>) -> ExchangeResult<Q::ResponseData> {
+        if should_skip::<Q>(&operation) {
+            return self.next.run::<Q>(operation).await;
         }
 
         let key = operation.meta.key.clone();
@@ -87,11 +84,12 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
         };
 
         if let Some(rcv) = rcv {
-            let res = rcv.await.unwrap();
-            Ok(res?)
+            let res: Box<dyn Any> = rcv.await.unwrap()?;
+            let res: OperationResult<Q::ResponseData> = *res.downcast().unwrap();
+            Ok(res)
         } else {
-            let res = self.next.run(operation).await;
-            self.notify_listeners(&key, &res);
+            let res = self.next.run::<Q>(operation).await;
+            self.notify_listeners::<Q>(&key, &res);
             res
         }
     }
@@ -100,24 +98,19 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{
-        exchanges::DedupExchange,
-        types::{Operation, OperationResult},
-        DebugInfo, Exchange, ExchangeFactory, OperationMeta, OperationType, QueryBody,
-        RequestPolicy, Response, ResultSource, Url
-    };
-    use artemis_test::get_conference::get_conference::{Variables, OPERATION_NAME, QUERY};
+    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, OperationMeta, OperationType, QueryBody, RequestPolicy, Response, ResultSource, Url, GraphQLQuery, QueryInfo, FieldSelector};
+    use artemis_test::get_conference::get_conference::{Variables, OPERATION_NAME, QUERY, ResponseData};
     use lazy_static::lazy_static;
-    use serde::Serialize;
     use std::{error::Error, time::Duration};
     use tokio::time::delay_for;
+    use artemis_test::get_conference::GetConference;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables {
             id: "1".to_string()
         };
         static ref EXCHANGE: DedupExchangeImpl<FakeFetchExchange> =
-            DedupExchange::build(FakeFetchExchange);
+            DedupExchange.build(FakeFetchExchange);
     }
 
     fn url() -> Url {
@@ -127,17 +120,17 @@ mod test {
     struct FakeFetchExchange;
 
     impl<TNext: Exchange> ExchangeFactory<FakeFetchExchange, TNext> for FakeFetchExchange {
-        fn build(_next: TNext) -> FakeFetchExchange {
+        fn build(self, _next: TNext) -> FakeFetchExchange {
             Self
         }
     }
 
     #[async_trait]
     impl Exchange for FakeFetchExchange {
-        async fn run<V: Serialize + Send + Sync>(
+        async fn run<Q: GraphQLQuery>(
             &self,
-            operation: Operation<V>
-        ) -> Result<OperationResult, Box<dyn Error>> {
+            operation: Operation<Q::Variables>
+        ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
                 meta: operation.meta,
@@ -166,7 +159,7 @@ mod test {
 
     fn build_query(variables: Variables) -> (QueryBody<Variables>, OperationMeta) {
         let meta = OperationMeta {
-            key: 1354603040u32,
+            key: 1354603040u64,
             operation_type: OperationType::Query,
             involved_types: vec!["Conference", "Person", "Talk"]
         };
@@ -178,12 +171,31 @@ mod test {
         (body, meta)
     }
 
+    impl GraphQLQuery for GetConference {
+        type Variables = Variables;
+        type ResponseData = ResponseData;
+
+        fn build_query(_variables: Self::Variables) -> (QueryBody<Self::Variables>, OperationMeta) {
+            unimplemented!()
+        }
+    }
+
+    impl QueryInfo<Variables> for ResponseData {
+        fn typename(&self) -> &'static str {
+            unimplemented!()
+        }
+
+        fn selection(_variables: &Variables) -> Vec<FieldSelector> {
+            unimplemented!()
+        }
+    }
+
     #[tokio::test]
     async fn test_dedup() {
         let (query, meta) = build_query(VARIABLES.clone());
 
-        let fut1 = EXCHANGE.run(make_operation(query.clone(), meta.clone()));
-        let fut2 = EXCHANGE.run(make_operation(query.clone(), meta.clone()));
+        let fut1 = EXCHANGE.run::<GetConference>(make_operation(query.clone(), meta.clone()));
+        let fut2 = EXCHANGE.run::<GetConference>(make_operation(query.clone(), meta.clone()));
         let join = tokio::spawn(async { fut1.await.unwrap() });
         let res2 = fut2.await.unwrap();
         let res1 = join.await.unwrap();

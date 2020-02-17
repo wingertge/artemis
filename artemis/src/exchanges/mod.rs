@@ -1,11 +1,11 @@
 use crate::types::{Exchange, Operation, OperationResult};
-use serde::Serialize;
 use std::{error::Error, fmt};
 
 mod cache;
 mod dedup;
 mod fetch;
 
+use crate::GraphQLQuery;
 pub use cache::CacheExchange;
 pub use dedup::DedupExchange;
 pub use fetch::FetchExchange;
@@ -26,10 +26,10 @@ pub struct DummyExchange;
 
 #[async_trait]
 impl Exchange for DummyExchange {
-    async fn run<V: Serialize + Send + Sync>(
+    async fn run<Q: GraphQLQuery>(
         &self,
-        _operation: Operation<V>
-    ) -> Result<OperationResult, Box<dyn Error>> {
+        _operation: Operation<Q::Variables>
+    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
         Err(MiddlewareError::UnexpectedEndOfChain.into())
     }
 }

@@ -158,6 +158,36 @@ impl<'schema> GqlUnion<'schema> {
                 })
         );
 
+        let query_info = if query_context.include_query_info {
+            let type_names: Vec<_> = used_variants
+                .iter()
+                .collect::<HashSet<_>>()
+                .iter()
+                .map(|variant| {
+                    let ident = Ident::new(variant, Span::call_site());
+                    quote! {
+                    #struct_name::#ident(inner) => inner.typename()
+                }
+                })
+                .collect();
+            // TODO: Unions are tricky, have to look into it later
+            quote! {
+                impl ::artemis::QueryInfo<Variables> for #struct_name {
+                    fn typename(&self) -> &'static str {
+                        match self {
+                            #(#type_names),*
+                        }
+                    }
+
+                    #[allow(unused_variables)]
+                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                        vec![
+                        ]
+                    }
+                }
+            }
+        } else { quote!() };
+
         let tokens = quote! {
             #(#children_definitions)*
 
@@ -166,6 +196,8 @@ impl<'schema> GqlUnion<'schema> {
             pub enum #struct_name {
                 #(#variants),*
             }
+
+            #query_info
         };
 
         Ok((tokens, types))
@@ -191,7 +223,8 @@ mod tests {
                 fields: Selection::from_vec(vec![SelectionItem::Field(SelectionField {
                     alias: None,
                     name: "firstName",
-                    fields: Selection::new_empty()
+                    fields: Selection::new_empty(),
+                    arguments: Vec::new()
                 })])
             }),
             SelectionItem::InlineFragment(SelectionInlineFragment {
@@ -199,7 +232,8 @@ mod tests {
                 fields: Selection::from_vec(vec![SelectionItem::Field(SelectionField {
                     alias: None,
                     name: "title",
-                    fields: Selection::new_empty()
+                    fields: Selection::new_empty(),
+                    arguments: Vec::new()
                 })])
             }),
         ];
@@ -224,20 +258,20 @@ mod tests {
                         description: None,
                         name: "firstName",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "lastName",
                         type_: FieldType::new("String").nonnull(),
 
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                 ],
                 is_required: false.into()
@@ -254,13 +288,13 @@ mod tests {
                         description: None,
                         name: "title",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "created_at",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                 ],
                 is_required: false.into()
@@ -284,14 +318,16 @@ mod tests {
             SelectionItem::Field(SelectionField {
                 alias: None,
                 name: "__typename",
-                fields: Selection::new_empty()
+                fields: Selection::new_empty(),
+                arguments: Vec::new()
             }),
             SelectionItem::InlineFragment(SelectionInlineFragment {
                 on: "User",
                 fields: Selection::from_vec(vec![SelectionItem::Field(SelectionField {
                     alias: None,
                     name: "firstName",
-                    fields: Selection::new_empty()
+                    fields: Selection::new_empty(),
+                    arguments: Vec::new()
                 })])
             }),
             SelectionItem::InlineFragment(SelectionInlineFragment {
@@ -299,7 +335,8 @@ mod tests {
                 fields: Selection::from_vec(vec![SelectionItem::Field(SelectionField {
                     alias: None,
                     name: "title",
-                    fields: Selection::new_empty()
+                    fields: Selection::new_empty(),
+                    arguments: Vec::new()
                 })])
             }),
         ];
@@ -332,25 +369,25 @@ mod tests {
                         description: None,
                         name: "__typename",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "firstName",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "lastName",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                 ],
                 is_required: false.into()
@@ -367,19 +404,19 @@ mod tests {
                         description: None,
                         name: "__typename",
                         type_: FieldType::new(string_type()).nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "title",
                         type_: FieldType::new("String").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                     GqlObjectField {
                         description: None,
                         name: "createdAt",
                         type_: FieldType::new("Date").nonnull(),
-                        deprecation: DeprecationStatus::Current
+                        deprecation: DeprecationStatus::Current,
                     },
                 ],
                 is_required: false.into()
@@ -396,18 +433,69 @@ mod tests {
 
         let (tokens, _) = result.unwrap();
 
+        let expected = quote! {
+            #[derive(Clone, Deserialize)]
+            pub struct MeowOnOrganization {
+                pub title: String,
+            }
+
+            impl ::artemis::QueryInfo<Variables> for MeowOnOrganization {
+                fn typename(&self) -> &'static str {
+                    "Organization"
+                }
+
+                #[allow(unused_variables)]
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![
+                        ::artemis::FieldSelector::Scalar("title")
+                    ]
+                }
+            }
+
+            #[derive(Clone, Deserialize)]
+            pub struct MeowOnUser {
+                #[serde(rename = "firstName")]
+                pub first_name: String,
+            }
+
+            impl ::artemis::QueryInfo<Variables> for MeowOnUser {
+                fn typename(&self) -> &'static str {
+                    "User"
+                }
+
+                #[allow(unused_variables)]
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![
+                        ::artemis::FieldSelector::Scalar("firstName")
+                    ]
+                }
+            }
+
+            #[derive(Clone, Deserialize)]
+            #[serde(tag = "__typename")]
+            pub enum Meow {
+                Organization(MeowOnOrganization),
+                User(MeowOnUser)
+            }
+
+            impl ::artemis::QueryInfo<Variables> for Meow {
+                fn typename(&self) -> &'static str {
+                    match self {
+                        Meow::Organization(inner) => inner.typename(),
+                        Meow::User(inner) => inner.typename()
+                    }
+                }
+
+                #[allow(unused_variables)]
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![]
+                }
+            }
+        };
+
         assert_eq!(
             tokens.to_string(),
-            vec![
-                "# [ derive ( Deserialize ) ] ",
-                "pub struct MeowOnOrganization { pub title : String , } ",
-                "# [ derive ( Deserialize ) ] ",
-                "pub struct MeowOnUser { # [ serde ( rename = \"firstName\" ) ] pub first_name : String , } ",
-                "# [ derive ( Deserialize ) ] ",
-                "# [ serde ( tag = \"__typename\" ) ] ",
-                "pub enum Meow { Organization ( MeowOnOrganization ) , User ( MeowOnUser ) }",
-            ].into_iter()
-                .collect::<String>(),
+            expected.to_string(),
         );
     }
 
@@ -417,14 +505,16 @@ mod tests {
             SelectionItem::Field(SelectionField {
                 alias: None,
                 name: "__typename",
-                fields: Selection::new_empty()
+                fields: Selection::new_empty(),
+                arguments: Vec::new()
             }),
             SelectionItem::InlineFragment(SelectionInlineFragment {
                 on: "SomeNonUnionType",
                 fields: Selection::from_vec(vec![SelectionItem::Field(SelectionField {
                     alias: None,
                     name: "field",
-                    fields: Selection::new_empty()
+                    fields: Selection::new_empty(),
+                    arguments: Vec::new()
                 })])
             }),
         ];
@@ -457,7 +547,7 @@ mod tests {
                     description: None,
                     name: "field",
                     type_: FieldType::new(string_type()),
-                    deprecation: DeprecationStatus::Current
+                    deprecation: DeprecationStatus::Current,
                 }],
                 is_required: false.into()
             }
