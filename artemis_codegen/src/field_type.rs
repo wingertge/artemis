@@ -47,6 +47,14 @@ impl<'a> FieldType<'a> {
         self
     }
 
+    fn args_as_string(args: Option<TokenStream>) -> TokenStream {
+        if let Some(arguments) = args {
+            quote!(String::from(#arguments))
+        } else {
+            quote!(String::new())
+        }
+    }
+
     /// Takes a field type with its name.
     pub(crate) fn to_rust(
         &self,
@@ -72,14 +80,9 @@ impl<'a> FieldType<'a> {
                 .is_some()
                 || DEFAULT_SCALARS.iter().any(|elem| elem == &self.name)
             {
-                let field_name = if let Some(arguments) = arguments.to_rust() {
-                    let format_string = format!("{}{{}}", field_name);
-                    quote!(format!(#format_string, #arguments))
-                } else {
-                    quote!(format!(#field_name))
-                };
+                let args = Self::args_as_string(arguments.to_rust());
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(#field_name)
+                    ::artemis::FieldSelector::Scalar(String::from(#field_name), #args)
                 };
                 self.name.to_string()
             } else if context
@@ -89,25 +92,38 @@ impl<'a> FieldType<'a> {
                 .map(|enm| enm.is_required.set(true))
                 .is_some()
             {
+                let args = Self::args_as_string(arguments.to_rust());
                 let name = self.name.to_string();
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(#name)
+                    ::artemis::FieldSelector::Scalar(String::from(#name), #args)
                 };
                 format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
                 if prefix.is_empty() {
                     panic!("Empty prefix for {:?}", self);
                 }
-                let field_name = if let Some(arguments) = arguments.to_rust() {
-                    let format_string = format!("{}{{}}", field_name);
-                    quote!(format!(#format_string, #arguments))
-                } else {
-                    quote!(format!(#field_name))
-                };
+                let args = Self::args_as_string(arguments.to_rust());
                 let type_ident = Ident::new(prefix, Span::call_site());
-                field_selector = quote! {
-                    ::artemis::FieldSelector::Object(#field_name, #type_ident::selection(variables))
-                };
+
+                if context
+                    .schema
+                    .unions
+                    .get(&self.name)
+                    .map(|u| u.is_required.set(true))
+                    .is_some()
+                {
+                    let selection_fn =
+                        quote! { Box::new(|typename| #type_ident::selection(typename, variables)) };
+
+                    field_selector = quote! {
+                        ::artemis::FieldSelector::Union(String::from(#field_name), #args, #selection_fn)
+                    }
+                } else {
+                    field_selector = quote! {
+                        ::artemis::FieldSelector::Object(String::from(#field_name), #args, #type_ident::selection(variables))
+                    };
+                }
+
                 prefix.to_string()
             }
         };

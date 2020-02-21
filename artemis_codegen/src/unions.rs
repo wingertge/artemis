@@ -170,6 +170,17 @@ impl<'schema> GqlUnion<'schema> {
                     }
                 })
                 .collect();
+            let selections_by_type: Vec<_> = used_variants
+                .iter()
+                .collect::<HashSet<_>>()
+                .iter()
+                .map(|variant| {
+                    let ident = Ident::new(variant, Span::call_site());
+                    quote! {
+                        #variant => #ident::selection(variables)
+                    }
+                })
+                .collect();
             // TODO: Unions are tricky, have to look into it later
             quote! {
                 impl ::artemis::QueryInfo<Variables> for #struct_name {
@@ -183,6 +194,14 @@ impl<'schema> GqlUnion<'schema> {
                     fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                         vec![
                         ]
+                    }
+                }
+
+                impl #struct_name {
+                    fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                        match typename {
+                            #(#selections_by_type),*
+                        }
                     }
                 }
             }
@@ -449,7 +468,7 @@ mod tests {
                 #[allow(unused_variables)]
                 fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar(format!("title"))
+                        ::artemis::FieldSelector::Scalar(String::from("title"), String::new())
                     ]
                 }
             }
@@ -468,7 +487,7 @@ mod tests {
                 #[allow(unused_variables)]
                 fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar(format!("firstName"))
+                        ::artemis::FieldSelector::Scalar(String::from("firstName"), String::new())
                     ]
                 }
             }
@@ -483,14 +502,23 @@ mod tests {
             impl ::artemis::QueryInfo<Variables> for Meow {
                 fn typename(&self) -> &'static str {
                     match self {
-                        Meow::Organization(inner) => inner.typename(),
-                        Meow::User(inner) => inner.typename()
+                        Meow::User(inner) => inner.typename(),
+                        Meow::Organization(inner) => inner.typename()
                     }
                 }
 
                 #[allow(unused_variables)]
                 fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
                     vec![]
+                }
+            }
+
+            impl Meow {
+                fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    match typename {
+                        "Organization" => Organization::selection(variables),
+                        "User" => User::selection(variables)
+                    }
                 }
             }
         };

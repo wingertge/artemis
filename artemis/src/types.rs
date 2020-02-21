@@ -49,10 +49,14 @@ pub enum RequestPolicy {
 
 pub struct HeaderPair(pub &'static str, pub &'static str);
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum FieldSelector {
-    Scalar(String),
-    Object(String, Vec<FieldSelector>)
+    /// field name, arguments
+    Scalar(String, String),
+    /// field_name, arguments, inner selection
+    Object(String, String, Vec<FieldSelector>),
+    /// field name, arguments, inner selection by type
+    Union(String, String, Arc<Box<dyn Fn(&str) -> Vec<FieldSelector>>>)
 }
 
 #[derive(Clone, Debug)]

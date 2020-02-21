@@ -1,7 +1,9 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+#![deny(warnings)]
+
+#[macro_use]
+extern crate async_trait;
+#[macro_use]
+extern crate lazy_static;
+
+mod cache_exchange;
+mod store;

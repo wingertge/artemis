@@ -80,10 +80,20 @@ pub trait GraphQLQuery: Send + Sync {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
     type Variables: Serialize + Send + Sync + Clone;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
-    type ResponseData: DeserializeOwned + Send + Sync + Clone + 'static + QueryInfo<Self::Variables>;
+    type ResponseData: Serialize
+        + DeserializeOwned
+        + Send
+        + Sync
+        + Clone
+        + 'static
+        + QueryInfo<Self::Variables>;
 
     /// Produce a GraphQL query struct that can be JSON serialized and sent to a GraphQL API.
     fn build_query(variables: Self::Variables) -> (QueryBody<Self::Variables>, OperationMeta);
+
+    fn selection(variables: &Self::Variables) -> Vec<FieldSelector> {
+        <Self::ResponseData as QueryInfo<Self::Variables>>::selection(variables)
+    }
 }
 
 /// The generic shape taken by the responses of GraphQL APIs.
@@ -97,17 +107,17 @@ pub trait GraphQLQuery: Send + Sync {
 /// # use serde::Deserialize;
 /// # use artemis::GraphQLQuery;
 /// #
-/// # #[derive(Debug, Deserialize, PartialEq)]
+/// # #[derive(Debug, Deserialize, PartialEq, Clone)]
 /// # struct User {
 /// #     id: i32,
 /// # }
 /// #
-/// # #[derive(Debug, Deserialize, PartialEq)]
+/// # #[derive(Debug, Deserialize, PartialEq, Clone)]
 /// # struct Dog {
 /// #     name: String
 /// # }
 /// #
-/// # #[derive(Debug, Deserialize, PartialEq)]
+/// # #[derive(Debug, Deserialize, PartialEq, Clone)]
 /// # struct ResponseData {
 /// #     users: Vec<User>,
 /// #     dogs: Vec<Dog>,
@@ -139,7 +149,7 @@ pub trait GraphQLQuery: Send + Sync {
 /// # }
 /// ```
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct Response<Data> {
+pub struct Response<Data: Clone> {
     /// The debug info if in test config, an empty struct otherwise
     #[serde(skip)]
     pub debug_info: Option<DebugInfo>,
@@ -161,7 +171,7 @@ pub struct Response<Data> {
 /// # use serde::Deserialize;
 /// # use artemis::GraphQLQuery;
 /// #
-/// # #[derive(Debug, Deserialize, PartialEq)]
+/// # #[derive(Debug, Deserialize, PartialEq, Clone)]
 /// # struct ResponseData {
 /// #     something: i32
 /// # }
