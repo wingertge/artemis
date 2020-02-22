@@ -150,12 +150,21 @@ impl<M: Exchange> Client<M> {
     pub fn rerun_query(self: Arc<Self>, id: u64) {
         let client = self.clone();
         let fut = async move {
+            let rerun = {
+                let subscriptions = client.active_subscriptions.clone();
+                let subscriptions = subscriptions.lock();
+                subscriptions.get(&id).map(|sub| sub.rerun.clone())
+            };
+            let value = if let Some(rerun) = rerun {
+                Some(rerun().await)
+            } else { None };
+
             let subscriptions = client.active_subscriptions.clone();
             let mut subscriptions = subscriptions.lock();
             let subscription = subscriptions.get_mut(&id);
 
-            if let Some(Subscription { rerun, listeners }) = subscription {
-                let value: Arc<dyn Any + Send + Sync> = executor::block_on(rerun()); //TODO: Work out a better way
+            if let Some(Subscription { listeners, .. }) = subscription {
+                let value = value.unwrap();
                 for listener in listeners {
                     executor::block_on(listener.send(value.clone())).unwrap();
                 }
