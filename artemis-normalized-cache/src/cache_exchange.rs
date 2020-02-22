@@ -1,5 +1,8 @@
 use crate::store::Store;
-use artemis::{DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, OperationType, RequestPolicy, Response, ResultSource, QueryError};
+use artemis::{
+    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult,
+    OperationType, QueryError, RequestPolicy, Response, ResultSource
+};
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default)]
@@ -62,7 +65,11 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         self.store.write_query::<Q>(result, variables)
     }
 
-    fn after_mutation<Q: GraphQLQuery>(&self, result: &OperationResult<Q::ResponseData>, variables: Q::Variables) {
+    fn after_mutation<Q: GraphQLQuery>(
+        &self,
+        result: &OperationResult<Q::ResponseData>,
+        variables: Q::Variables
+    ) {
         self.store.invalidate_query::<Q>(result, &variables);
     }
 }

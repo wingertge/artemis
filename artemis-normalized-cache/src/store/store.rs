@@ -1,8 +1,7 @@
 use crate::store::data::{InMemoryData, Link};
-use artemis::{FieldSelector, GraphQLQuery, Operation, OperationResult, QueryInfo, QueryError};
+use artemis::{FieldSelector, GraphQLQuery, Operation, OperationResult, QueryError, QueryInfo};
 use flurry::{epoch, epoch::Guard};
-use std::{collections::HashMap, fmt};
-use std::error::Error;
+use std::{collections::HashMap, error::Error, fmt};
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
@@ -152,8 +151,11 @@ impl Store {
                 guard
             )?;
         }
-        self.data
-            .write_link(entity_key, format!("{}{}", field_name, args), Link::Single(key));
+        self.data.write_link(
+            entity_key,
+            format!("{}{}", field_name, args),
+            Link::Single(key)
+        );
         Ok(())
     }
 
@@ -170,11 +172,8 @@ impl Store {
         if values.len() == 0 {
             Ok(())
         } else if !values.iter().next().unwrap().is_object() {
-            self.data.write_record(
-                entity_key,
-                field_key,
-                Some(values.into())
-            );
+            self.data
+                .write_record(entity_key, field_key, Some(values.into()));
             Ok(())
         } else {
             let mut keys = Vec::new();
@@ -240,7 +239,9 @@ impl Store {
                     None
                 }
             })
-            .ok_or(StoreError::InvalidSelection(format!("Couldn't find returned field in selection")))?)
+            .ok_or(StoreError::InvalidSelection(format!(
+                "Couldn't find returned field in selection"
+            )))?)
     }
 
     fn store_data(
@@ -338,9 +339,7 @@ impl Store {
                     let link = self.data.read_link(entity_key, &field_key, &guard)?;
                     match link {
                         Link::Single(ref entity_key) => {
-                            let typename = self
-                                .data
-                                .read_record(entity_key, &field_key, &guard)?;
+                            let typename = self.data.read_record(entity_key, &field_key, &guard)?;
                             let typename = typename
                                 .as_str()
                                 .expect("__typename has invalid type! Should be string");
@@ -352,9 +351,8 @@ impl Store {
                             let values: Option<Vec<_>> = entity_keys
                                 .iter()
                                 .map(|entity_key| {
-                                    let typename = self
-                                        .data
-                                        .read_record(entity_key, &field_key, &guard)?;
+                                    let typename =
+                                        self.data.read_record(entity_key, &field_key, &guard)?;
                                     let typename = typename
                                         .as_str()
                                         .expect("__typename has invalid type! Should be string");
@@ -381,22 +379,26 @@ impl Store {
             .data
             .read_record(entity_key, &TYPENAME, guard)
             .expect("Missing typename from union type. This is a codegen error.");
-        let typename= typename.as_str().unwrap();
+        let typename = typename.as_str().unwrap();
         let subselection = subselection(typename);
         self.invalidate_selection(entity_key, &subselection, guard);
     }
 
-    pub fn invalidate_query<Q: GraphQLQuery>(&self, result: &OperationResult<Q::ResponseData>, variables: &Q::Variables) {
+    pub fn invalidate_query<Q: GraphQLQuery>(
+        &self,
+        result: &OperationResult<Q::ResponseData>,
+        variables: &Q::Variables
+    ) {
         if result.response.data.is_none() {
             return;
         }
         let data: Q::ResponseData = result.response.data.as_ref().unwrap().clone();
 
         let typename = QueryInfo::<Q::Variables>::typename(&data);
-        let data = serde_json::to_value(data)
-            .unwrap();
+        let data = serde_json::to_value(data).unwrap();
         let data = data.as_object().unwrap();
-        let key = self.key_of_entity(typename, data)
+        let key = self
+            .key_of_entity(typename, data)
             .expect(&format!("Failed to find key for {}", typename));
         let selection = Q::selection(variables);
         let guard = epoch::pin();

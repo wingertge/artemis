@@ -5,7 +5,7 @@ mod cache;
 mod dedup;
 mod fetch;
 
-use crate::{GraphQLQuery, ExchangeResult};
+use crate::{ExchangeResult, GraphQLQuery};
 pub use cache::CacheExchange;
 pub use dedup::DedupExchange;
 pub use fetch::FetchExchange;

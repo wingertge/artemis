@@ -1,6 +1,4 @@
-use std::sync::Arc;
-use std::fmt;
-use std::error::Error;
+use std::{error::Error, fmt, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct QueryError {
@@ -21,7 +19,6 @@ impl fmt::Display for QueryErrorCompat {
         write!(f, "{}", self.0)
     }
 }
-
 
 impl QueryError {
     pub fn source(&self) -> Option<&(dyn Error + 'static)> {

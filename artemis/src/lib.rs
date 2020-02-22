@@ -9,12 +9,13 @@ extern crate async_trait;
 use std::{collections::HashMap, fmt, fmt::Display};
 
 mod client;
+mod error;
 pub mod exchanges;
 mod types;
 mod utils;
-mod error;
 
 pub use client::{Client, ClientBuilder, QueryOptions};
+pub use error::QueryError;
 pub use exchanges::FetchExchange;
 use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
@@ -23,7 +24,6 @@ pub use types::{
     OperationMeta, OperationResult, OperationType, QueryInfo, RequestPolicy, ResultSource
 };
 pub use utils::progressive_hash;
-pub use error::QueryError;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]

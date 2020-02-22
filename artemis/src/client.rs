@@ -1,21 +1,24 @@
-use crate::{exchanges::{CacheExchange, DedupExchange, DummyExchange, FetchExchange}, types::{Exchange, ExchangeFactory, HeaderPair, Operation, OperationMeta, RequestPolicy}, GraphQLQuery, QueryBody, Response, QueryError};
-use std::{sync::Arc};
-use surf::url::Url;
-use crate::types::Observable;
+use crate::{
+    exchanges::{CacheExchange, DedupExchange, DummyExchange, FetchExchange},
+    types::{
+        Exchange, ExchangeFactory, HeaderPair, Observable, Operation, OperationMeta, RequestPolicy
+    },
+    GraphQLQuery, QueryBody, QueryError, Response
+};
+use futures::{channel::mpsc::Sender, executor, SinkExt};
 use parking_lot::Mutex;
-use std::collections::HashMap;
-use futures::channel::mpsc::Sender;
-use std::any::Any;
-use futures::{SinkExt, executor};
-use std::future::Future;
-use std::pin::Pin;
+use std::{any::Any, collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use surf::url::Url;
 
-type OperationObservable<Q, M> = Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
+type OperationObservable<Q, M> =
+    Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
 
 struct Subscription {
     listeners: Vec<Sender<Arc<dyn Any + Send + Sync>>>,
     // This captures the type and variables of the query without requiring generics, so we can store it in a hashmap
-    rerun: Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Arc<dyn Any + Send + Sync>> + Send>> + Send + Sync>
+    rerun: Arc<
+        dyn Fn() -> Pin<Box<dyn Future<Output = Arc<dyn Any + Send + Sync>> + Send>> + Send + Sync
+    >
 }
 
 pub struct ClientBuilder<M: Exchange> {
@@ -117,7 +120,9 @@ impl<M: Exchange> Client<M> {
         &self,
         operation: Operation<Q::Variables>
     ) -> Result<Response<Q::ResponseData>, QueryError> {
-        self.exchange.run::<Q>(operation).await
+        self.exchange
+            .run::<Q>(operation)
+            .await
             .map(|operation_result| operation_result.response)
     }
 
@@ -159,11 +164,21 @@ impl<M: Exchange> Client<M> {
         tokio::spawn(fut);
     }
 
-    pub async fn subscribe<Q: GraphQLQuery + 'static>(self: Arc<Self>, query: Q, variables: Q::Variables) -> OperationObservable<Q, M> {
-        self.subscribe_with_options(query, variables, QueryOptions::default()).await
+    pub async fn subscribe<Q: GraphQLQuery + 'static>(
+        self: Arc<Self>,
+        query: Q,
+        variables: Q::Variables
+    ) -> OperationObservable<Q, M> {
+        self.subscribe_with_options(query, variables, QueryOptions::default())
+            .await
     }
 
-    pub async fn subscribe_with_options<Q: GraphQLQuery + 'static>(self: Arc<Self>, _query: Q, variables: Q::Variables, options: QueryOptions) -> OperationObservable<Q, M> {
+    pub async fn subscribe_with_options<Q: GraphQLQuery + 'static>(
+        self: Arc<Self>,
+        _query: Q,
+        variables: Q::Variables,
+        options: QueryOptions
+    ) -> OperationObservable<Q, M> {
         let (query, meta) = Q::build_query(variables.clone());
         let (mut sender, receiver) = futures::channel::mpsc::channel(8);
         let key = meta.key.clone();

@@ -1,4 +1,8 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, RequestPolicy, Response, ResultSource, QueryError};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError,
+    RequestPolicy, Response, ResultSource
+};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},

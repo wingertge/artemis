@@ -1,14 +1,8 @@
-use crate::{GraphQLQuery, QueryBody, Response, Client, QueryError};
-use serde::{de::DeserializeOwned, Serialize};
-use std::{sync::Arc};
+use crate::{Client, GraphQLQuery, QueryBody, QueryError, Response};
+use futures::{channel::mpsc::Receiver, task::Context, Stream};
+use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
+use std::{any::Any, pin::Pin, sync::Arc, task::Poll};
 use surf::url::Url;
-use futures::channel::mpsc::Receiver;
-use futures::Stream;
-use futures::task::Context;
-use std::any::Any;
-use serde::export::PhantomData;
-use std::task::Poll;
-use std::pin::Pin;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
@@ -108,8 +102,13 @@ pub struct Observable<T, M: Exchange> {
     t: PhantomData<T>
 }
 
-impl <T: Clone, M: Exchange> Observable<T, M> {
-    pub(crate) fn new(key: u64, inner: Receiver<Arc<dyn Any + Send + Sync>>, client: Arc<Client<M>>, index: usize) -> Self {
+impl<T: Clone, M: Exchange> Observable<T, M> {
+    pub(crate) fn new(
+        key: u64,
+        inner: Receiver<Arc<dyn Any + Send + Sync>>,
+        client: Arc<Client<M>>,
+        index: usize
+    ) -> Self {
         Observable {
             inner,
             client,
@@ -120,7 +119,10 @@ impl <T: Clone, M: Exchange> Observable<T, M> {
     }
 }
 
-impl <T, M: Exchange> Stream for Observable<T, M> where T: 'static + Unpin + Clone {
+impl<T, M: Exchange> Stream for Observable<T, M>
+where
+    T: 'static + Unpin + Clone
+{
     type Item = T;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -130,14 +132,14 @@ impl <T, M: Exchange> Stream for Observable<T, M> where T: 'static + Unpin + Clo
             Poll::Ready(Some(boxed)) => {
                 let cast: &T = (&*boxed).downcast_ref::<T>().unwrap();
                 Poll::Ready(Some(cast.clone()))
-            },
+            }
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending
         }
     }
 }
 
-impl <T, M: Exchange> Drop for Observable<T, M> {
+impl<T, M: Exchange> Drop for Observable<T, M> {
     fn drop(&mut self) {
         self.client.clear_observable(self.key, self.index)
     }

@@ -1,10 +1,6 @@
 use flurry::{epoch, epoch::Guard};
 use parking_lot::Mutex;
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    sync::Arc
-};
+use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 type FlurryMap<K, V> = flurry::HashMap<K, V>;
 type CacheMap<V> = Arc<FlurryMap<String, Mutex<HashMap<String, V>>>>;
@@ -30,7 +26,7 @@ pub struct SerializedData {
 pub struct InMemoryData {
     records: Records,
     links: Links,
-    query_keys: QueryKeys,
+    query_keys: QueryKeys
     //entity_queries: QueryKeysReverse
 }
 
@@ -39,7 +35,7 @@ impl InMemoryData {
         Self {
             records: Records::default(),
             links: Links::default(),
-            query_keys: QueryKeys::default(),
+            query_keys: QueryKeys::default()
             //entity_queries: QueryKeysReverse::default(),
         }
     }
@@ -63,9 +59,7 @@ impl InMemoryData {
     ) -> Option<Link> {
         self.links
             .get(entity_key, &guard)
-            .and_then(|entity| {
-                entity.lock().get(field_key).cloned()
-            })
+            .and_then(|entity| entity.lock().get(field_key).cloned())
     }
 
     pub fn write_record(
@@ -88,8 +82,7 @@ impl InMemoryData {
             if let Some(value) = value {
                 let mut entity = HashMap::new();
                 entity.insert(field_key, value);
-                self.records
-                    .insert(entity_key, Mutex::new(entity), &guard);
+                self.records.insert(entity_key, Mutex::new(entity), &guard);
             }
         }
     }
@@ -117,7 +110,7 @@ impl InMemoryData {
         }
     }
 
-/*    pub fn remove_link(&self, entity_key: &String, field_key: &String) -> Option<Link> {
+    /*    pub fn remove_link(&self, entity_key: &String, field_key: &String) -> Option<Link> {
         let guard = epoch::pin();
         self.links.get(entity_key, &guard).and_then(|entity_links| {
             let mut entity_links = entity_links.lock();

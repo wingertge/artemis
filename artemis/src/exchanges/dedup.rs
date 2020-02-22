@@ -1,4 +1,7 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError};
+use crate::{
+    types::{ExchangeResult, Operation, OperationResult},
+    Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError
+};
 use futures::channel::oneshot::{self, Sender};
 use std::{
     any::Any,
@@ -103,13 +106,19 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, FieldSelector, GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url, ExchangeResult};
+    use crate::{
+        exchanges::DedupExchange,
+        types::{Operation, OperationResult},
+        DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, GraphQLQuery,
+        OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource,
+        Url
+    };
     use artemis_test::get_conference::{
         get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
         GetConference
     };
     use lazy_static::lazy_static;
-    use std::{time::Duration};
+    use std::time::Duration;
     use tokio::time::delay_for;
 
     lazy_static! {
