@@ -1,12 +1,19 @@
-use crate::{GraphQLQuery, QueryBody, Response};
+use crate::{GraphQLQuery, QueryBody, Response, Client, QueryError};
 use serde::{de::DeserializeOwned, Serialize};
-use std::{error::Error, sync::Arc};
+use std::{sync::Arc};
 use surf::url::Url;
+use futures::channel::mpsc::Receiver;
+use futures::Stream;
+use futures::task::Context;
+use std::any::Any;
+use serde::export::PhantomData;
+use std::task::Poll;
+use std::pin::Pin;
 
-pub type ExchangeResult<R> = Result<OperationResult<R>, Box<dyn Error>>;
+pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
 #[async_trait]
-pub trait Exchange: Send + Sync {
+pub trait Exchange: Send + Sync + 'static {
     async fn run<Q: GraphQLQuery>(
         &self,
         operation: Operation<Q::Variables>
@@ -91,4 +98,47 @@ pub struct DebugInfo {
 pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub meta: OperationMeta,
     pub response: Response<R>
+}
+
+pub struct Observable<T, M: Exchange> {
+    inner: Receiver<Arc<dyn Any + Send + Sync>>,
+    client: Arc<Client<M>>,
+    key: u64,
+    index: usize,
+    t: PhantomData<T>
+}
+
+impl <T: Clone, M: Exchange> Observable<T, M> {
+    pub(crate) fn new(key: u64, inner: Receiver<Arc<dyn Any + Send + Sync>>, client: Arc<Client<M>>, index: usize) -> Self {
+        Observable {
+            inner,
+            client,
+            key,
+            index,
+            t: PhantomData
+        }
+    }
+}
+
+impl <T, M: Exchange> Stream for Observable<T, M> where T: 'static + Unpin + Clone {
+    type Item = T;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let inner = &mut self.get_mut().inner;
+        let poll = <Receiver<Arc<dyn Any + Send + Sync>> as Stream>::poll_next(Pin::new(inner), cx);
+        match poll {
+            Poll::Ready(Some(boxed)) => {
+                let cast: &T = (&*boxed).downcast_ref::<T>().unwrap();
+                Poll::Ready(Some(cast.clone()))
+            },
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending
+        }
+    }
+}
+
+impl <T, M: Exchange> Drop for Observable<T, M> {
+    fn drop(&mut self) {
+        self.client.clear_observable(self.key, self.index)
+    }
 }

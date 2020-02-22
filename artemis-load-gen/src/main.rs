@@ -2,13 +2,10 @@
 extern crate async_trait;
 
 use crate::queries::get_conference::{get_conference::Variables, GetConference};
-use artemis::{
-    exchanges::{CacheExchange, DedupExchange},
-    ClientBuilder, Exchange, ExchangeFactory, GraphQLQuery, Operation, OperationResult, Response
-};
+use artemis::{exchanges::{CacheExchange, DedupExchange}, ClientBuilder, Exchange, ExchangeFactory, GraphQLQuery, Operation, OperationResult, Response, ExchangeResult};
 use rand::Rng;
 use rayon::{iter, iter::ParallelIterator};
-use std::{any::Any, error::Error, sync::Arc, time::Duration};
+use std::{any::Any, sync::Arc, time::Duration};
 
 mod queries;
 
@@ -27,7 +24,7 @@ impl Exchange for DummyFetchExchange {
     async fn run<Q: GraphQLQuery>(
         &self,
         operation: Operation<Q::Variables>
-    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
+    ) -> ExchangeResult<Q::ResponseData> {
         use crate::queries::get_conference::get_conference::{
             GetConferenceConference, ResponseData
         };

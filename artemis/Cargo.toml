@@ -14,6 +14,8 @@ surf = { git = "https://github.com/http-rs/surf.git" }
 serde_json = "1"
 async-trait = "0.1"
 bincode = "1"
+parking_lot = "0.10"
+tokio = "0.2"
 
 [dev-dependencies]
 artemis-test = { path = "../artemis-test" }

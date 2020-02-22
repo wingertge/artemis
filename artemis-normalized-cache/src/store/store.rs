@@ -1,11 +1,28 @@
 use crate::store::data::{InMemoryData, Link};
-use artemis::{FieldSelector, GraphQLQuery, Operation, OperationResult, QueryInfo};
+use artemis::{FieldSelector, GraphQLQuery, Operation, OperationResult, QueryInfo, QueryError};
 use flurry::{epoch, epoch::Guard};
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, fmt};
+use std::error::Error;
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
     data: InMemoryData
+}
+
+#[derive(Debug)]
+pub enum StoreError {
+    InvalidSelection(String),
+    InvalidMetadata(String)
+}
+impl Error for StoreError {}
+
+impl fmt::Display for StoreError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StoreError::InvalidSelection(msg) => write!(f, "Invalid selection: {}", msg),
+            StoreError::InvalidMetadata(msg) => write!(f, "Invalid metadata: {}", msg)
+        }
+    }
 }
 
 lazy_static! {
@@ -56,7 +73,7 @@ impl Store {
         &self,
         query: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), QueryError> {
         if query.response.data.is_none() {
             return Ok(());
         }
@@ -70,10 +87,10 @@ impl Store {
         }
         let data = data.as_object().unwrap();
         let key = self.key_of_entity(&typename, data).ok_or_else(|| {
-            format!(
+            StoreError::InvalidMetadata(format!(
                 "Cache error: couldn't find root key of query {}",
                 query.meta.key
-            )
+            ))
         })?;
 
         let guard = epoch::pin();
@@ -117,13 +134,13 @@ impl Store {
         value: serde_json::Map<String, serde_json::Value>,
         selection: &Vec<FieldSelector>,
         guard: &Guard
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), QueryError> {
         let inner_selector = self.find_selector(selection, &entity_key, field_name, guard)?;
         let key = self.key_of_entity(&"TODO", &value).ok_or_else(|| {
-            format!(
+            StoreError::InvalidMetadata(format!(
                 "Cache error: couldn't find index for {}:{}",
                 entity_key, field_name
-            )
+            ))
         })?;
         for (field_name, value) in value.into_iter() {
             self.store_data(
@@ -148,7 +165,7 @@ impl Store {
         values: Vec<serde_json::Value>,
         selection: &Vec<FieldSelector>,
         guard: &Guard
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), QueryError> {
         let field_key = format!("{}{}", field_name, args);
         if values.len() == 0 {
             Ok(())
@@ -164,10 +181,10 @@ impl Store {
             for value in values {
                 let value = value.as_object().unwrap();
                 let key = self.key_of_entity(&"TODO", value).ok_or_else(|| {
-                    format!(
+                    StoreError::InvalidMetadata(format!(
                         "Cache error: couldn't find index for {}:{}",
                         entity_key, field_key
-                    )
+                    ))
                 })?;
 
                 let inner_selector = self.find_selector(selection, &key, field_name, guard)?;
@@ -196,7 +213,7 @@ impl Store {
         entity_key: &String,
         field_name: &String,
         guard: &Guard
-    ) -> Result<Vec<FieldSelector>, Box<dyn Error>> {
+    ) -> Result<Vec<FieldSelector>, QueryError> {
         Ok(selection
             .iter()
             .find_map(|selector| {
@@ -223,7 +240,7 @@ impl Store {
                     None
                 }
             })
-            .ok_or("Couldn't find returned field in selection")?)
+            .ok_or(StoreError::InvalidSelection(format!("Couldn't find returned field in selection")))?)
     }
 
     fn store_data(
@@ -234,7 +251,7 @@ impl Store {
         data: serde_json::Value,
         selection: &Vec<FieldSelector>,
         guard: &Guard
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), QueryError> {
         let field_key = format!("{}{}", field_name, args);
         if let Some(values) = data.as_array() {
             self.store_array(

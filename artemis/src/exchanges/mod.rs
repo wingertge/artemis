@@ -1,11 +1,11 @@
-use crate::types::{Exchange, Operation, OperationResult};
+use crate::types::{Exchange, Operation};
 use std::{error::Error, fmt};
 
 mod cache;
 mod dedup;
 mod fetch;
 
-use crate::GraphQLQuery;
+use crate::{GraphQLQuery, ExchangeResult};
 pub use cache::CacheExchange;
 pub use dedup::DedupExchange;
 pub use fetch::FetchExchange;
@@ -29,7 +29,7 @@ impl Exchange for DummyExchange {
     async fn run<Q: GraphQLQuery>(
         &self,
         _operation: Operation<Q::Variables>
-    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
+    ) -> ExchangeResult<Q::ResponseData> {
         Err(MiddlewareError::UnexpectedEndOfChain.into())
     }
 }

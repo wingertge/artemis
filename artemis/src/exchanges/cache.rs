@@ -1,12 +1,7 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType,
-    RequestPolicy, Response, ResultSource
-};
+use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, RequestPolicy, Response, ResultSource, QueryError};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
-    error::Error,
     sync::{Arc, Mutex}
 };
 
@@ -55,7 +50,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
     fn after_query<Q: GraphQLQuery>(
         &self,
         operation_result: OperationResult<Q::ResponseData>
-    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
+    ) -> Result<OperationResult<Q::ResponseData>, QueryError> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }
@@ -94,7 +89,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
     fn after_mutation<Q: GraphQLQuery>(
         &self,
         operation_result: OperationResult<Q::ResponseData>
-    ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
+    ) -> Result<OperationResult<Q::ResponseData>, QueryError> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
         }

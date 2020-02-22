@@ -12,6 +12,7 @@ mod client;
 pub mod exchanges;
 mod types;
 mod utils;
+mod error;
 
 pub use client::{Client, ClientBuilder, QueryOptions};
 pub use exchanges::FetchExchange;
@@ -22,6 +23,7 @@ pub use types::{
     OperationMeta, OperationResult, OperationType, QueryInfo, RequestPolicy, ResultSource
 };
 pub use utils::progressive_hash;
+pub use error::QueryError;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]

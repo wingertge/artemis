@@ -1,7 +1,4 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    Exchange, ExchangeFactory, GraphQLQuery, OperationType
-};
+use crate::{types::{ExchangeResult, Operation, OperationResult}, Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError};
 use futures::channel::oneshot::{self, Sender};
 use std::{
     any::Any,
@@ -11,7 +8,7 @@ use std::{
     sync::{Arc, Mutex}
 };
 
-type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, DedupError>>>>>>;
+type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, QueryError>>>>>>;
 
 pub struct DedupExchange; // Factory
 pub struct DedupExchangeImpl<TNext: Exchange> {
@@ -44,7 +41,7 @@ fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
 
 fn make_deduped_result<Q: GraphQLQuery>(
     res: &ExchangeResult<Q::ResponseData>
-) -> Result<Box<dyn Any + Send>, DedupError> {
+) -> Result<Box<dyn Any + Send>, QueryError> {
     match res {
         Ok(ref res) => {
             let mut res = res.clone();
@@ -53,7 +50,7 @@ fn make_deduped_result<Q: GraphQLQuery>(
             }
             Ok(Box::new(res))
         }
-        Err(_) => Err(DedupError)
+        Err(e) => Err(e.clone())
     }
 }
 
@@ -106,18 +103,13 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{
-        exchanges::DedupExchange,
-        types::{Operation, OperationResult},
-        DebugInfo, Exchange, ExchangeFactory, FieldSelector, GraphQLQuery, OperationMeta,
-        OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url
-    };
+    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, FieldSelector, GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url, ExchangeResult};
     use artemis_test::get_conference::{
         get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
         GetConference
     };
     use lazy_static::lazy_static;
-    use std::{error::Error, time::Duration};
+    use std::{time::Duration};
     use tokio::time::delay_for;
 
     lazy_static! {
@@ -145,7 +137,7 @@ mod test {
         async fn run<Q: GraphQLQuery>(
             &self,
             operation: Operation<Q::Variables>
-        ) -> Result<OperationResult<Q::ResponseData>, Box<dyn Error>> {
+        ) -> ExchangeResult<Q::ResponseData> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
                 meta: operation.meta,

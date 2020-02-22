@@ -1,9 +1,6 @@
 use crate::store::Store;
-use artemis::{
-    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult,
-    OperationType, RequestPolicy, Response, ResultSource
-};
-use std::{collections::HashMap, error::Error, sync::Arc};
+use artemis::{DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, OperationType, RequestPolicy, Response, ResultSource, QueryError};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default)]
 pub struct NormalizedCacheExchange {
@@ -61,7 +58,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), QueryError> {
         self.store.write_query::<Q>(result, variables)
     }
 
