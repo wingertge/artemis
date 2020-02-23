@@ -4,6 +4,7 @@ use artemis::{
     OperationType, QueryError, RequestPolicy, Response, ResultSource
 };
 use std::{collections::HashMap, sync::Arc};
+use artemis::client::ClientImpl;
 
 #[derive(Default)]
 pub struct NormalizedCacheExchange {
@@ -76,9 +77,10 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
         if should_cache::<Q>(&operation) {
             if let Some(cached) = self.store.read_query::<Q>(&operation) {
@@ -96,14 +98,14 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
                 Ok(response)
             } else {
                 let variables: Q::Variables = operation.query.variables.clone();
-                let res = self.next.run::<Q>(operation).await?;
+                let res = self.next.run::<Q, M>(operation, client).await?;
                 self.after_query::<Q>(&res, &variables)?;
                 Ok(res)
             }
         } else {
             let operation_type = operation.meta.operation_type.clone();
             let variables = operation.query.variables.clone();
-            let res = self.next.run::<Q>(operation).await?;
+            let res = self.next.run::<Q, M>(operation, client).await?;
             if operation_type == OperationType::Mutation {
                 self.after_mutation::<Q>(&res, variables);
             }

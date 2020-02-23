@@ -10,6 +10,7 @@ use artemis::{
 use rand::Rng;
 use rayon::{iter, iter::ParallelIterator};
 use std::{any::Any, sync::Arc, time::Duration};
+use artemis::client::ClientImpl;
 
 mod queries;
 
@@ -25,9 +26,10 @@ impl<TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchE
 
 #[async_trait]
 impl Exchange for DummyFetchExchange {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        _client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
         use crate::queries::get_conference::get_conference::{
             GetConferenceConference, ResponseData

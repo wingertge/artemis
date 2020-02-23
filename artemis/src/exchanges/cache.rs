@@ -1,13 +1,10 @@
-use crate::{
-    types::{ExchangeResult, Operation, OperationResult},
-    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError,
-    RequestPolicy, Response, ResultSource
-};
+use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError, RequestPolicy, Response, ResultSource};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex}
 };
+use crate::client::ClientImpl;
 
 type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
@@ -90,9 +87,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         Ok(operation_result)
     }
 
-    fn after_mutation<Q: GraphQLQuery>(
+    fn after_mutation<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation_result: OperationResult<Q::ResponseData>
+        operation_result: OperationResult<Q::ResponseData>,
+        client: Arc<ClientImpl<M>>
     ) -> Result<OperationResult<Q::ResponseData>, QueryError> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
@@ -118,9 +116,12 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         };
         {
             let mut cache = self.result_cache.lock().unwrap();
-            for op in ops_to_remove {
-                cache.remove(&op);
+            for op in ops_to_remove.iter() {
+                cache.remove(op);
             }
+        }
+        for op in ops_to_remove {
+            client.rerun_query(op);
         }
         Ok(operation_result)
     }
@@ -128,20 +129,21 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
-            return self.next.run::<Q>(operation).await;
+            return self.next.run::<Q, M>(operation, client).await;
         }
 
         if !self.is_operation_cached::<Q>(&operation) {
-            let res = self.next.run::<Q>(operation).await?;
+            let res = self.next.run::<Q, M>(operation, client.clone()).await?;
 
             match &res.meta.operation_type {
                 &OperationType::Query => self.after_query::<Q>(res),
-                &OperationType::Mutation => self.after_mutation::<Q>(res),
+                &OperationType::Mutation => self.after_mutation::<Q, M>(res, client),
                 _ => Ok(res)
             }
         } else {
@@ -169,7 +171,7 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
                 };
                 Ok(result)
             } else {
-                self.next.run::<Q>(operation).await
+                self.next.run::<Q, M>(operation, client).await
             }
         }
     }

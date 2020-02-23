@@ -1,16 +1,18 @@
-use crate::{Client, GraphQLQuery, QueryBody, QueryError, Response};
+use crate::{GraphQLQuery, QueryBody, QueryError, Response};
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
 use std::{any::Any, pin::Pin, sync::Arc, task::Poll};
 use surf::url::Url;
+use crate::client::ClientImpl;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
 #[async_trait]
 pub trait Exchange: Send + Sync + 'static {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData>;
 }
 
@@ -94,19 +96,21 @@ pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub response: Response<R>
 }
 
+#[cfg(feature = "observable")]
 pub struct Observable<T, M: Exchange> {
     inner: Receiver<Arc<dyn Any + Send + Sync>>,
-    client: Arc<Client<M>>,
+    client: Arc<ClientImpl<M>>,
     key: u64,
     index: usize,
     t: PhantomData<T>
 }
 
+#[cfg(feature = "observable")]
 impl<T: Clone, M: Exchange> Observable<T, M> {
     pub(crate) fn new(
         key: u64,
         inner: Receiver<Arc<dyn Any + Send + Sync>>,
-        client: Arc<Client<M>>,
+        client: Arc<ClientImpl<M>>,
         index: usize
     ) -> Self {
         Observable {
@@ -119,6 +123,7 @@ impl<T: Clone, M: Exchange> Observable<T, M> {
     }
 }
 
+#[cfg(feature = "observable")]
 impl<T, M: Exchange> Stream for Observable<T, M>
 where
     T: 'static + Unpin + Clone
@@ -139,6 +144,7 @@ where
     }
 }
 
+#[cfg(feature = "observable")]
 impl<T, M: Exchange> Drop for Observable<T, M> {
     fn drop(&mut self) {
         self.client.clear_observable(self.key, self.index)

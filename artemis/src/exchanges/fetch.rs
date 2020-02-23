@@ -3,6 +3,8 @@ use crate::{
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, Response, ResultSource
 };
 use std::{error::Error, fmt};
+use crate::client::ClientImpl;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -30,9 +32,10 @@ impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
 
 #[async_trait]
 impl Exchange for FetchExchange {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        _client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
         let extra_headers = if let Some(extra_headers) = operation.extra_headers {
             extra_headers()

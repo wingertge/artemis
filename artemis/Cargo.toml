@@ -7,15 +7,23 @@ edition = "2018"
 [[bench]]
 name = "integration_bench"
 
+[features]
+default = ["observable", "default-exchanges"]
+observable = ["tokio", "stable-vec"]
+default-exchanges = ["surf"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 futures = "0.3"
-surf = { git = "https://github.com/http-rs/surf.git" }
 serde_json = "1"
 async-trait = "0.1"
 bincode = "1"
 parking_lot = "0.10"
-tokio = "0.2"
+
+surf = { git = "https://github.com/http-rs/surf.git", optional = true }
+
+tokio = { version = "0.2", optional = true }
+stable-vec = { version = "0.4", optional = true }
 
 [dev-dependencies]
 artemis-test = { path = "../artemis-test" }

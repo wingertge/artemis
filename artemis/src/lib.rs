@@ -8,7 +8,7 @@ extern crate async_trait;
 
 use std::{collections::HashMap, fmt, fmt::Display};
 
-mod client;
+pub mod client;
 mod error;
 pub mod exchanges;
 mod types;

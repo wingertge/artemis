@@ -10,6 +10,7 @@ use std::{
     fmt,
     sync::{Arc, Mutex}
 };
+use crate::client::ClientImpl;
 
 type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, QueryError>>>>>>;
 
@@ -70,12 +71,13 @@ impl<TNext: Exchange> DedupExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery>(
+    async fn run<Q: GraphQLQuery, M: Exchange>(
         &self,
-        operation: Operation<Q::Variables>
+        operation: Operation<Q::Variables>,
+        _client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
-            return self.next.run::<Q>(operation).await;
+            return self.next.run::<Q, M>(operation, _client).await;
         }
 
         let key = operation.meta.key.clone();
@@ -96,7 +98,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
             let res: OperationResult<Q::ResponseData> = *res.downcast().unwrap();
             Ok(res)
         } else {
-            let res = self.next.run::<Q>(operation).await;
+            let res = self.next.run::<Q, M>(operation, _client).await;
             self.notify_listeners::<Q>(&key, &res);
             res
         }
@@ -106,13 +108,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{
-        exchanges::DedupExchange,
-        types::{Operation, OperationResult},
-        DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, GraphQLQuery,
-        OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource,
-        Url
-    };
+    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url, ClientBuilder, Client};
     use artemis_test::get_conference::{
         get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
         GetConference
@@ -120,6 +116,9 @@ mod test {
     use lazy_static::lazy_static;
     use std::time::Duration;
     use tokio::time::delay_for;
+    use crate::client::ClientImpl;
+    use std::sync::Arc;
+    use crate::exchanges::DummyExchange;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables {
@@ -143,9 +142,10 @@ mod test {
 
     #[async_trait]
     impl Exchange for FakeFetchExchange {
-        async fn run<Q: GraphQLQuery>(
+        async fn run<Q: GraphQLQuery, M: Exchange>(
             &self,
-            operation: Operation<Q::Variables>
+            operation: Operation<Q::Variables>,
+            _client: Arc<ClientImpl<M>>
         ) -> ExchangeResult<Q::ResponseData> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
@@ -210,8 +210,11 @@ mod test {
     async fn test_dedup() {
         let (query, meta) = build_query(VARIABLES.clone());
 
-        let fut1 = EXCHANGE.run::<GetConference>(make_operation(query.clone(), meta.clone()));
-        let fut2 = EXCHANGE.run::<GetConference>(make_operation(query.clone(), meta.clone()));
+        let client: Client<DummyExchange> = ClientBuilder::new("http://localhost:4000/graphql")
+            .build();
+
+        let fut1 = EXCHANGE.run::<GetConference, _>(make_operation(query.clone(), meta.clone()), client.0.clone());
+        let fut2 = EXCHANGE.run::<GetConference, _>(make_operation(query.clone(), meta.clone()), client.0.clone());
         let join = tokio::spawn(async { fut1.await.unwrap() });
         let res2 = fut2.await.unwrap();
         let res1 = join.await.unwrap();
