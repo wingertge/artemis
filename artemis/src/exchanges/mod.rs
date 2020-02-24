@@ -8,14 +8,13 @@ mod dedup;
 #[cfg(feature = "default-exchanges")]
 mod fetch;
 
-use crate::{ExchangeResult, GraphQLQuery};
+use crate::{client::ClientImpl, ExchangeResult, GraphQLQuery};
 #[cfg(feature = "default-exchanges")]
 pub use cache::CacheExchange;
 #[cfg(feature = "default-exchanges")]
 pub use dedup::DedupExchange;
 #[cfg(feature = "default-exchanges")]
 pub use fetch::FetchExchange;
-use crate::client::ClientImpl;
 use std::sync::Arc;
 
 #[derive(Debug)]

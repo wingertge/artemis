@@ -1,17 +1,13 @@
-use crate::{Response, QueryError, Operation, GraphQLQuery, Exchange, Url, HeaderPair, RequestPolicy, QueryBody, OperationMeta};
-use std::sync::Arc;
+use crate::{
+    Exchange, GraphQLQuery, HeaderPair, Operation, OperationMeta, QueryBody, QueryError,
+    QueryOptions, RequestPolicy, Response, Url
+};
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc, vec};
 
 #[cfg(feature = "observable")]
 use crate::client::observable::Subscription;
-
-#[derive(Default, Clone)]
-pub struct QueryOptions {
-    url: Option<Url>,
-    extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
-    request_policy: Option<RequestPolicy>
-}
+use crate::types::OperationOptions;
 
 pub struct ClientImpl<M: Exchange> {
     pub(crate) url: Url,
@@ -71,7 +67,7 @@ impl<M: Exchange> ClientImpl<M> {
     }
 
     #[cfg(not(feature = "observable"))]
-    pub fn rerun_query(self: Arc<Self>, id: u64) {}
+    pub fn rerun_query(self: &Arc<Self>, id: u64) {}
 
     #[cfg(feature = "observable")]
     pub async fn subscribe<Q: GraphQLQuery + 'static>(
@@ -109,12 +105,15 @@ impl<M: Exchange> ClientImpl<M> {
 
         let operation = Operation {
             meta,
-            url: options.url.unwrap_or_else(|| self.url.clone()),
-            extra_headers,
-            request_policy: options
-                .request_policy
-                .unwrap_or_else(|| self.request_policy.clone()),
-            query
+            query,
+            options: OperationOptions {
+                url: options.url.unwrap_or_else(|| self.url.clone()),
+                extra_headers,
+                request_policy: options
+                    .request_policy
+                    .unwrap_or_else(|| self.request_policy.clone()),
+                extensions: options.extensions
+            }
         };
         operation
     }

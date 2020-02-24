@@ -105,23 +105,35 @@ impl<'a> FieldType<'a> {
                 let args = Self::args_as_string(arguments.to_rust());
                 let type_ident = Ident::new(prefix, Span::call_site());
 
-                if context
-                    .schema
-                    .unions
-                    .get(&self.name)
-                    .map(|u| u.is_required.set(true))
-                    .is_some()
-                {
+                if let Some(union) = context.schema.unions.get(&self.name) {
+                    let required = union.is_required.get();
                     let selection_fn =
                         quote! { Box::new(|typename| #type_ident::selection(typename, variables)) };
 
                     field_selector = quote! {
-                        ::artemis::FieldSelector::Union(String::from(#field_name), #args, #selection_fn)
+                        ::artemis::FieldSelector::Union(String::from(#field_name), #args, #required, #selection_fn)
                     }
                 } else {
-                    field_selector = quote! {
-                        ::artemis::FieldSelector::Object(String::from(#field_name), #args, #type_ident::selection(variables))
-                    };
+                    let required = context
+                        .schema
+                        .objects
+                        .get(&self.name)
+                        .map(|object| object.is_required.get())
+                        .or_else(|| {
+                            context
+                                .schema
+                                .interfaces
+                                .get(&self.name)
+                                .map(|interface| interface.is_required.get())
+                        });
+
+                    if let Some(required) = required {
+                        field_selector = quote! {
+                            ::artemis::FieldSelector::Object(String::from(#field_name), #args, #required, #type_ident::selection(variables))
+                        };
+                    } else {
+                        field_selector = quote!()
+                    }
                 }
 
                 prefix.to_string()

@@ -1,10 +1,9 @@
 use crate::{
+    client::ClientImpl,
     types::{ExchangeResult, Operation, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, Response, ResultSource
 };
-use std::{error::Error, fmt};
-use crate::client::ClientImpl;
-use std::sync::Arc;
+use std::{error::Error, fmt, sync::Arc};
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -37,13 +36,13 @@ impl Exchange for FetchExchange {
         operation: Operation<Q::Variables>,
         _client: Arc<ClientImpl<M>>
     ) -> ExchangeResult<Q::ResponseData> {
-        let extra_headers = if let Some(extra_headers) = operation.extra_headers {
+        let extra_headers = if let Some(extra_headers) = operation.options.extra_headers {
             extra_headers()
         } else {
             Vec::new()
         };
 
-        let mut request = surf::post(operation.url)
+        let mut request = surf::post(operation.options.url)
             .set_header("Content-Type", "application/json")
             .set_header("Accept", "application/json")
             .body_json(&operation.query)?;

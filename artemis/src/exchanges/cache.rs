@@ -1,10 +1,15 @@
-use crate::{types::{ExchangeResult, Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError, RequestPolicy, Response, ResultSource};
+use crate::{
+    client::ClientImpl,
+    types::{ExchangeResult, Operation, OperationOptions, OperationResult},
+    DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError,
+    RequestPolicy, Response, ResultSource
+};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex}
 };
-use crate::client::ClientImpl;
+use surf::options;
 
 type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
@@ -41,10 +46,11 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
             operation_type,
             ..
         } = &operation.meta;
+        let request_policy = &operation.options.request_policy;
 
         operation_type == &OperationType::Query
-            && operation.request_policy != RequestPolicy::NetworkOnly
-            && (operation.request_policy == RequestPolicy::CacheOnly
+            && request_policy != &RequestPolicy::NetworkOnly
+            && (request_policy == &RequestPolicy::CacheOnly
                 || self.result_cache.lock().unwrap().contains_key(&key))
     }
 

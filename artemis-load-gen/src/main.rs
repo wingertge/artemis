@@ -3,6 +3,7 @@ extern crate async_trait;
 
 use crate::queries::get_conference::{get_conference::Variables, GetConference};
 use artemis::{
+    client::ClientImpl,
     exchanges::{CacheExchange, DedupExchange},
     ClientBuilder, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation,
     OperationResult, Response
@@ -10,7 +11,6 @@ use artemis::{
 use rand::Rng;
 use rayon::{iter, iter::ParallelIterator};
 use std::{any::Any, sync::Arc, time::Duration};
-use artemis::client::ClientImpl;
 
 mod queries;
 

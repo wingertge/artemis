@@ -5,12 +5,19 @@ mod r#impl;
 #[cfg(feature = "observable")]
 mod observable;
 
-pub use r#impl::{ClientImpl, QueryOptions};
+use crate::{exchanges::DummyExchange, Exchange, GraphQLQuery, QueryError, QueryOptions, Response};
 pub use builder::ClientBuilder;
-use crate::{Exchange, GraphQLQuery, Response, QueryError};
+pub use r#impl::ClientImpl;
 
 #[derive(Clone)]
-pub struct Client<M: Exchange>(pub(crate) Arc<ClientImpl<M>>);
+#[repr(transparent)]
+pub struct Client<M: Exchange = DummyExchange>(pub Arc<ClientImpl<M>>);
+
+impl Client {
+    pub fn builder<U: Into<String>>(url: U) -> ClientBuilder {
+        ClientBuilder::new(url)
+    }
+}
 
 impl<M: Exchange> Client<M> {
     pub async fn query<Q: GraphQLQuery>(
@@ -50,6 +57,8 @@ impl<M: Exchange> Client<M> {
         variables: Q::Variables,
         options: QueryOptions
     ) -> observable::OperationObservable<Q, M> {
-        self.0.subscribe_with_options(_query, variables, options).await
+        self.0
+            .subscribe_with_options(_query, variables, options)
+            .await
     }
 }

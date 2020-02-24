@@ -1,4 +1,5 @@
 use crate::{
+    client::ClientImpl,
     types::{ExchangeResult, Operation, OperationResult},
     Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError
 };
@@ -10,7 +11,6 @@ use std::{
     fmt,
     sync::{Arc, Mutex}
 };
-use crate::client::ClientImpl;
 
 type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, QueryError>>>>>>;
 
@@ -108,17 +108,21 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 #[cfg(test)]
 mod test {
     use super::DedupExchangeImpl;
-    use crate::{exchanges::DedupExchange, types::{Operation, OperationResult}, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response, ResultSource, Url, ClientBuilder, Client};
+    use crate::{
+        client::ClientImpl,
+        exchanges::{DedupExchange, DummyExchange},
+        types::{Operation, OperationOptions, OperationResult},
+        Client, ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
+        GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,
+        ResultSource, Url
+    };
     use artemis_test::get_conference::{
         get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
         GetConference
     };
     use lazy_static::lazy_static;
-    use std::time::Duration;
+    use std::{sync::Arc, time::Duration};
     use tokio::time::delay_for;
-    use crate::client::ClientImpl;
-    use std::sync::Arc;
-    use crate::exchanges::DummyExchange;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables {
@@ -167,9 +171,12 @@ mod test {
         Operation {
             meta,
             query,
-            request_policy: RequestPolicy::NetworkOnly,
-            extra_headers: None,
-            url: url()
+            options: OperationOptions {
+                request_policy: RequestPolicy::NetworkOnly,
+                extra_headers: None,
+                url: url(),
+                extensions: None
+            }
         }
     }
 
@@ -210,11 +217,17 @@ mod test {
     async fn test_dedup() {
         let (query, meta) = build_query(VARIABLES.clone());
 
-        let client: Client<DummyExchange> = ClientBuilder::new("http://localhost:4000/graphql")
-            .build();
+        let client: Client<DummyExchange> =
+            ClientBuilder::new("http://localhost:4000/graphql").build();
 
-        let fut1 = EXCHANGE.run::<GetConference, _>(make_operation(query.clone(), meta.clone()), client.0.clone());
-        let fut2 = EXCHANGE.run::<GetConference, _>(make_operation(query.clone(), meta.clone()), client.0.clone());
+        let fut1 = EXCHANGE.run::<GetConference, _>(
+            make_operation(query.clone(), meta.clone()),
+            client.0.clone()
+        );
+        let fut2 = EXCHANGE.run::<GetConference, _>(
+            make_operation(query.clone(), meta.clone()),
+            client.0.clone()
+        );
         let join = tokio::spawn(async { fut1.await.unwrap() });
         let res2 = fut2.await.unwrap();
         let res1 = join.await.unwrap();

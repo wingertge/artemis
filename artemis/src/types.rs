@@ -1,9 +1,8 @@
-use crate::{GraphQLQuery, QueryBody, QueryError, Response};
+use crate::{client::ClientImpl, GraphQLQuery, QueryBody, QueryError, Response};
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
 use std::{any::Any, pin::Pin, sync::Arc, task::Poll};
 use surf::url::Url;
-use crate::client::ClientImpl;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
@@ -56,10 +55,15 @@ pub struct HeaderPair(pub &'static str, pub &'static str);
 pub enum FieldSelector {
     /// field name, arguments
     Scalar(String, String),
-    /// field_name, arguments, inner selection
-    Object(String, String, Vec<FieldSelector>),
-    /// field name, arguments, inner selection by type
-    Union(String, String, Arc<Box<dyn Fn(&str) -> Vec<FieldSelector>>>)
+    /// field_name, arguments, optional, inner selection
+    Object(String, String, bool, Vec<FieldSelector>),
+    /// field name, arguments, optional, inner selection by type
+    Union(
+        String,
+        String,
+        bool,
+        Arc<Box<dyn Fn(&str) -> Vec<FieldSelector>>>
+    )
 }
 
 #[derive(Clone, Debug)]
@@ -70,12 +74,18 @@ pub struct OperationMeta {
 }
 
 #[derive(Clone)]
+pub struct OperationOptions {
+    pub url: Url,
+    pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
+    pub request_policy: RequestPolicy,
+    pub extensions: Option<Extensions>
+}
+
+#[derive(Clone)]
 pub struct Operation<V: Serialize + Clone + Send + Sync> {
     pub meta: OperationMeta,
     pub query: QueryBody<V>,
-    pub url: Url,
-    pub request_policy: RequestPolicy,
-    pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>
+    pub options: OperationOptions
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -149,4 +159,14 @@ impl<T, M: Exchange> Drop for Observable<T, M> {
     fn drop(&mut self) {
         self.client.clear_observable(self.key, self.index)
     }
+}
+
+pub type Extensions = Arc<type_map::concurrent::TypeMap>;
+
+#[derive(Default, Clone)]
+pub struct QueryOptions {
+    pub url: Option<Url>,
+    pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
+    pub request_policy: Option<RequestPolicy>,
+    pub extensions: Option<Extensions>
 }

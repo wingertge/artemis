@@ -1,16 +1,13 @@
-use crate::{GraphQLQuery, Response, QueryError, Exchange, QueryOptions};
-use crate::types::Observable;
-use futures::channel::mpsc::Sender;
+use crate::{
+    client::ClientImpl, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions,
+    Response
+};
+use futures::{channel::mpsc::Sender, SinkExt};
 use stable_vec::StableVec;
-use std::sync::Arc;
-use std::any::Any;
-use std::future::Future;
-use std::pin::Pin;
-use futures::SinkExt;
-use crate::client::ClientImpl;
+use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 pub type OperationObservable<Q, M> =
-Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
+    Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
 
 pub(crate) struct Subscription {
     pub(crate) listeners: StableVec<Sender<Arc<dyn Any + Send + Sync>>>,
@@ -73,7 +70,9 @@ pub fn rerun_query<M: Exchange>(client: &Arc<ClientImpl<M>>, id: u64) {
         };
         let value = if let Some(rerun) = rerun {
             Some(rerun().await)
-        } else { None };
+        } else {
+            None
+        };
 
         let subscriptions = client.active_subscriptions.clone();
         let mut subscriptions = subscriptions.lock();

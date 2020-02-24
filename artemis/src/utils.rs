@@ -15,3 +15,16 @@ pub fn progressive_hash<V: Serialize>(h: u64, x: &V) -> u64 {
 
     h.0
 }
+
+#[macro_export]
+macro_rules! ext {
+    ($($x: expr),*) => {
+        {
+            let mut typemap = ::type_map::concurrent::TypeMap::new();
+            $(
+                typemap.insert($x)
+            )*
+            ::std::sync::Arc::new(typemap)
+        }
+    };
+}

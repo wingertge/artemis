@@ -1,5 +1,6 @@
 //#![warn(missing_docs)]
 #![deny(warnings)]
+#![allow(unused)]
 
 #[macro_use]
 extern crate serde;
@@ -11,17 +12,18 @@ use std::{collections::HashMap, fmt, fmt::Display};
 pub mod client;
 mod error;
 pub mod exchanges;
-mod types;
+pub mod types;
 mod utils;
 
-pub use client::{Client, ClientBuilder, QueryOptions};
+pub use client::{Client, ClientBuilder};
 pub use error::QueryError;
 pub use exchanges::FetchExchange;
 use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
 pub use types::{
     DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, HeaderPair, Operation,
-    OperationMeta, OperationResult, OperationType, QueryInfo, RequestPolicy, ResultSource
+    OperationMeta, OperationResult, OperationType, QueryInfo, QueryOptions, RequestPolicy,
+    ResultSource
 };
 pub use utils::progressive_hash;
 
@@ -80,7 +82,7 @@ pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
 /// ```
 pub trait GraphQLQuery: Send + Sync {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
-    type Variables: Serialize + Send + Sync + Clone;
+    type Variables: Serialize + Send + Sync + Clone + 'static;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
     type ResponseData: Serialize
         + DeserializeOwned

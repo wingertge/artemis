@@ -1,10 +1,11 @@
-use crate::{Exchange, Url, HeaderPair, RequestPolicy, exchanges::DummyExchange, ExchangeFactory, Client};
 #[cfg(feature = "default-exchanges")]
 use crate::exchanges::{CacheExchange, DedupExchange, FetchExchange};
-use std::sync::Arc;
-use crate::client::ClientImpl;
+use crate::{
+    client::ClientImpl, exchanges::DummyExchange, Client, Exchange, ExchangeFactory, HeaderPair,
+    RequestPolicy, Url
+};
 use parking_lot::Mutex;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 pub struct ClientBuilder<M: Exchange = DummyExchange> {
     exchange: M,
@@ -39,9 +40,9 @@ impl<M: Exchange> ClientBuilder<M> {
 
     /// Add a middleware to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
     pub fn with_exchange<TResult, F>(self, exchange_factory: F) -> ClientBuilder<TResult>
-        where
-            TResult: Exchange + Send + Sync,
-            F: ExchangeFactory<TResult, M>
+    where
+        TResult: Exchange + Send + Sync,
+        F: ExchangeFactory<TResult, M>
     {
         let exchange = exchange_factory.build(self.exchange);
         ClientBuilder {
