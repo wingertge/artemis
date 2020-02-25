@@ -1,5 +1,5 @@
 use crate::{
-    client::ClientImpl,
+    exchanges::Client,
     types::{ExchangeResult, Operation, OperationOptions, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError,
     RequestPolicy, Response, ResultSource
@@ -93,10 +93,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         Ok(operation_result)
     }
 
-    fn after_mutation<Q: GraphQLQuery, M: Exchange>(
+    fn after_mutation<Q: GraphQLQuery, C: Client>(
         &self,
         operation_result: OperationResult<Q::ResponseData>,
-        client: Arc<ClientImpl<M>>
+        client: C
     ) -> Result<OperationResult<Q::ResponseData>, QueryError> {
         if operation_result.response.data.is_none() {
             return Ok(operation_result);
@@ -135,21 +135,21 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
-        client: Arc<ClientImpl<M>>
+        client: C
     ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
-            return self.next.run::<Q, M>(operation, client).await;
+            return self.next.run::<Q, _>(operation, client).await;
         }
 
         if !self.is_operation_cached::<Q>(&operation) {
-            let res = self.next.run::<Q, M>(operation, client.clone()).await?;
+            let res = self.next.run::<Q, _>(operation, client.clone()).await?;
 
             match &res.meta.operation_type {
                 &OperationType::Query => self.after_query::<Q>(res),
-                &OperationType::Mutation => self.after_mutation::<Q, M>(res, client),
+                &OperationType::Mutation => self.after_mutation::<Q, _>(res, client),
                 _ => Ok(res)
             }
         } else {
@@ -177,7 +177,7 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
                 };
                 Ok(result)
             } else {
-                self.next.run::<Q, M>(operation, client).await
+                self.next.run::<Q, _>(operation, client).await
             }
         }
     }

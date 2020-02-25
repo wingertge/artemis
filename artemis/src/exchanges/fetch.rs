@@ -1,5 +1,5 @@
 use crate::{
-    client::ClientImpl,
+    exchanges::Client,
     types::{ExchangeResult, Operation, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, Response, ResultSource
 };
@@ -31,10 +31,10 @@ impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
 
 #[async_trait]
 impl Exchange for FetchExchange {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
-        _client: Arc<ClientImpl<M>>
+        _client: C
     ) -> ExchangeResult<Q::ResponseData> {
         let extra_headers = if let Some(extra_headers) = operation.options.extra_headers {
             extra_headers()

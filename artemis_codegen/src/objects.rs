@@ -158,6 +158,7 @@ impl<'schema> GqlObject<'schema> {
             #(#field_impls)*
 
             #derives
+            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
             #description
             pub struct #name {
                 #(#fields,)*

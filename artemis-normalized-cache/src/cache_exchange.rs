@@ -3,7 +3,7 @@ use crate::{
     types::{NormalizedCacheExtension, NormalizedCacheOptions}
 };
 use artemis::{
-    client::ClientImpl, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery,
+    exchanges::Client, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery,
     Operation, OperationResult, OperationType, QueryError, RequestPolicy, Response, ResultSource
 };
 use std::{collections::HashMap, sync::Arc};
@@ -60,31 +60,33 @@ fn is_optimistic_mutation<Q: GraphQLQuery>(op: &Operation<Q::Variables>) -> bool
 impl<TNext: Exchange> NormalizedCacheImpl<TNext> {}
 
 impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
-    fn after_query<Q: GraphQLQuery>(
+    fn after_query<Q: GraphQLQuery, C: Client>(
         &self,
         result: &OperationResult<Q::ResponseData>,
-        variables: &Q::Variables
+        variables: &Q::Variables,
+        client: &C
     ) -> Result<(), QueryError> {
-        self.store.write_query::<Q>(result, variables, false)
+        self.store
+            .write_query::<Q, _>(result, variables, false, client)
     }
 
-    fn after_mutation<Q: GraphQLQuery, M: Exchange>(
+    fn after_mutation<Q: GraphQLQuery, C: Client>(
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: Q::Variables,
-        client: &Arc<ClientImpl<M>>
+        client: &C
     ) {
         self.store
-            .invalidate_query::<Q, M>(result, &variables, client, false);
+            .invalidate_query::<Q, _>(result, &variables, client, false);
         self.store
-            .write_query::<Q>(result, &variables, false)
+            .write_query::<Q, _>(result, &variables, false, client)
             .unwrap();
     }
 
-    fn on_mutation<Q: GraphQLQuery, M: Exchange>(
+    fn on_mutation<Q: GraphQLQuery, C: Client>(
         &self,
         operation: &Operation<Q::Variables>,
-        client: &Arc<ClientImpl<M>>
+        client: &C
     ) {
         if is_optimistic_mutation::<Q>(operation) {
             let variables = &operation.query.variables;
@@ -111,9 +113,9 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
                 };
 
                 self.store
-                    .invalidate_query::<Q, M>(&result, variables, client, true);
+                    .invalidate_query::<Q, _>(&result, variables, client, true);
                 self.store
-                    .write_query::<Q>(&result, variables, true)
+                    .write_query::<Q, _>(&result, variables, true, client)
                     .unwrap();
             }
         }
@@ -122,10 +124,10 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
-        client: Arc<ClientImpl<M>>
+        client: C
     ) -> ExchangeResult<Q::ResponseData> {
         if should_cache::<Q>(&operation) {
             if let Some(cached) = self.store.read_query::<Q>(&operation) {
@@ -145,21 +147,21 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
             } else {
                 println!("Miss");
                 let variables: Q::Variables = operation.query.variables.clone();
-                let res = self.next.run::<Q, M>(operation, client).await?;
-                self.after_query::<Q>(&res, &variables)?;
+                let res = self.next.run::<Q, _>(operation, client.clone()).await?;
+                self.after_query::<Q, _>(&res, &variables, &client)?;
                 Ok(res)
             }
         } else {
             let operation_type = operation.meta.operation_type.clone();
 
             if operation_type == OperationType::Mutation {
-                self.on_mutation::<Q, M>(&operation, &client);
+                self.on_mutation::<Q, _>(&operation, &client);
             }
 
             let variables = operation.query.variables.clone();
-            let res = self.next.run::<Q, M>(operation, client.clone()).await?;
+            let res = self.next.run::<Q, _>(operation, client.clone()).await?;
             if operation_type == OperationType::Mutation {
-                self.after_mutation::<Q, M>(&res, variables, &client);
+                self.after_mutation::<Q, _>(&res, variables, &client);
             }
             Ok(res)
         }
@@ -170,15 +172,21 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
 mod tests {
     use crate::cache_exchange::NormalizedCacheExchange;
     use artemis::{
-        client::ClientImpl, types::OperationOptions, Client, DebugInfo, Exchange, ExchangeFactory,
-        ExchangeResult, GraphQLQuery, Operation, OperationResult, RequestPolicy, Response,
-        ResultSource
+        exchanges::Client, types::OperationOptions, ClientBuilder, DebugInfo, Exchange,
+        ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, RequestPolicy,
+        Response, ResultSource
     };
-    use artemis_test::get_conference::{
-        get_conference::{GetConferenceConference, ResponseData, Variables},
-        GetConference
+    use artemis_test::{
+        get_conference::{
+            get_conference::{GetConferenceConference, ResponseData, Variables},
+            GetConference
+        },
+        get_conferences::{
+            get_conferences, get_conferences::GetConferencesConferences, GetConferences
+        },
+        Counter, SyncCounter
     };
-    use std::{any::Any, sync::Arc};
+    use std::any::Any;
 
     fn make_operation<Q: GraphQLQuery>(
         _query: Q,
@@ -206,10 +214,10 @@ mod tests {
 
     #[async_trait]
     impl Exchange for DummyFetchExchange {
-        async fn run<Q: GraphQLQuery, M: Exchange>(
+        async fn run<Q: GraphQLQuery, C: Client>(
             &self,
             operation: Operation<Q::Variables>,
-            _client: Arc<ClientImpl<M>>
+            _client: C
         ) -> ExchangeResult<Q::ResponseData> {
             let response_data = ResponseData {
                 conference: Some(GetConferenceConference {
@@ -238,24 +246,20 @@ mod tests {
 
     #[tokio::test]
     async fn writes_queries_to_cache() {
-        let client = Client::builder("http://0.0.0.0").build();
+        let client = ClientBuilder::new("http://0.0.0.0").build();
         let variables = Variables {
             id: "1".to_string()
         };
 
+        let operation = make_operation(GetConference, variables.clone());
+
         let exchange = NormalizedCacheExchange::new().build(DummyFetchExchange);
         exchange
-            .run::<GetConference, _>(
-                make_operation(GetConference, variables.clone()),
-                client.0.clone()
-            )
+            .run::<GetConference, _>(operation.clone(), client.0.clone())
             .await
             .unwrap();
         let result = exchange
-            .run::<GetConference, _>(
-                make_operation(GetConference, variables.clone()),
-                client.0.clone()
-            )
+            .run::<GetConference, _>(operation.clone(), client.0.clone())
             .await;
         assert!(result.is_ok(), "Operation returned an error");
         let result = result.unwrap();
@@ -265,5 +269,119 @@ mod tests {
             ResultSource::Cache,
             "Result didn't come from the cache"
         );
+    }
+
+    fn make_result<Q: GraphQLQuery>(
+        operation: Operation<Q::Variables>,
+        data: Box<dyn Any>
+    ) -> ExchangeResult<Q::ResponseData> {
+        let data = *data.downcast::<Q::ResponseData>().unwrap();
+        Ok(OperationResult {
+            meta: operation.meta,
+            response: Response {
+                debug_info: Some(DebugInfo {
+                    source: ResultSource::Network,
+                    did_dedup: false
+                }),
+                errors: None,
+                data: Some(data)
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn updates_related_queries() {
+        #[derive(Clone)]
+        struct DummyExchange {
+            called: SyncCounter
+        }
+        #[async_trait]
+        impl Exchange for DummyExchange {
+            async fn run<Q: GraphQLQuery, C: Client>(
+                &self,
+                operation: Operation<<Q as GraphQLQuery>::Variables>,
+                _client: C
+            ) -> ExchangeResult<<Q as GraphQLQuery>::ResponseData> {
+                Counter::inc_sync(&self.called);
+
+                let key_single = 7240364581396770642u64;
+                let key_multiple = 11949895552938567266u64;
+
+                let data_single = ResponseData {
+                    conference: Some(GetConferenceConference {
+                        id: "1".to_string(),
+                        name: "test".to_string(),
+                        talks: None,
+                        city: None
+                    })
+                };
+                let data_multi = get_conferences::ResponseData {
+                    conferences: Some(vec![GetConferencesConferences {
+                        id: "1".to_string(),
+                        name: "test".to_string()
+                    }])
+                };
+
+                let query_key = operation.meta.key.clone();
+
+                if query_key == key_single {
+                    make_result::<Q>(operation, Box::new(data_single))
+                } else if query_key == key_multiple {
+                    make_result::<Q>(operation, Box::new(data_multi))
+                } else {
+                    panic!("Exchange got called with invalid query {}", query_key)
+                }
+            }
+        }
+        impl DummyExchange {
+            fn was_called(&self) -> u32 {
+                Counter::get_sync(&self.called)
+            }
+        }
+
+        #[derive(Clone)]
+        struct DummyClient {
+            called: SyncCounter
+        }
+        impl Client for DummyClient {
+            fn rerun_query(&self, _query_key: u64) {
+                Counter::inc_sync(&self.called);
+            }
+        }
+        impl DummyClient {
+            fn was_called(&self) -> u32 {
+                Counter::get_sync(&self.called)
+            }
+        }
+
+        let variables = Variables {
+            id: "1".to_string()
+        };
+        let operation_single = make_operation(GetConference, variables);
+        let operation_multiple = make_operation(
+            GetConferences,
+            get_conferences::Variables
+        );
+
+        let client = DummyClient {
+            called: Counter::sync()
+        };
+        let dummy_exchange = DummyExchange {
+            called: Counter::sync()
+        };
+        let exchange = NormalizedCacheExchange::new().build(dummy_exchange.clone());
+
+        let res = exchange
+            .run::<GetConference, _>(operation_single, client.clone())
+            .await;
+        assert!(res.is_ok());
+        assert_eq!(dummy_exchange.was_called(), 1, "Exchange was called more than once");
+
+        let res = exchange
+            .run::<GetConferences, _>(operation_multiple, client.clone())
+            .await;
+        assert!(res.is_ok());
+        assert_eq!(dummy_exchange.was_called(), 2, "Exchange was called more than twice");
+        assert_eq!(client.was_called(), 1, "Rerun queries was called more than once");
     }
 }

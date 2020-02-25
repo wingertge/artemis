@@ -3,8 +3,7 @@ extern crate async_trait;
 
 use crate::queries::get_conference::{get_conference::Variables, GetConference};
 use artemis::{
-    client::ClientImpl,
-    exchanges::{CacheExchange, DedupExchange},
+    exchanges::{CacheExchange, Client, DedupExchange},
     ClientBuilder, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation,
     OperationResult, Response
 };
@@ -26,10 +25,10 @@ impl<TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchE
 
 #[async_trait]
 impl Exchange for DummyFetchExchange {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
-        _client: Arc<ClientImpl<M>>
+        _client: C
     ) -> ExchangeResult<Q::ResponseData> {
         use crate::queries::get_conference::get_conference::{
             GetConferenceConference, ResponseData

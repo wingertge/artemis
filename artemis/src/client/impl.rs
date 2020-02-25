@@ -18,6 +18,14 @@ pub struct ClientImpl<M: Exchange> {
     pub(crate) active_subscriptions: Arc<Mutex<HashMap<u64, Subscription>>>
 }
 
+impl<M: Exchange> crate::exchanges::Client for Arc<ClientImpl<M>> {
+    fn rerun_query(&self, query_key: u64) {
+        if cfg!(feature = "observable") {
+            super::observable::rerun_query(self, query_key);
+        }
+    }
+}
+
 impl<M: Exchange> ClientImpl<M> {
     #[cfg(feature = "observable")]
     pub(crate) fn clear_observable(&self, key: u64, index: usize) {
@@ -35,7 +43,7 @@ impl<M: Exchange> ClientImpl<M> {
         operation: Operation<Q::Variables>
     ) -> Result<Response<Q::ResponseData>, QueryError> {
         self.exchange
-            .run::<Q, M>(operation, self.clone())
+            .run::<Q, _>(operation, self.clone())
             .await
             .map(|operation_result| operation_result.response)
     }
@@ -60,14 +68,6 @@ impl<M: Exchange> ClientImpl<M> {
         let operation = self.create_request_operation::<Q>(query, meta, options);
         self.execute_request_operation::<Q>(operation).await
     }
-
-    #[cfg(feature = "observable")]
-    pub fn rerun_query(self: &Arc<Self>, id: u64) {
-        super::observable::rerun_query(self, id);
-    }
-
-    #[cfg(not(feature = "observable"))]
-    pub fn rerun_query(self: &Arc<Self>, id: u64) {}
 
     #[cfg(feature = "observable")]
     pub async fn subscribe<Q: GraphQLQuery + 'static>(

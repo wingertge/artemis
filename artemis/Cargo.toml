@@ -34,3 +34,8 @@ criterion = "0.3"
 criterion-macro = "0.3"
 rand = "0.7"
 tokio-test = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2", features = ["nightly"] }
+js-sys = "0.3"
+wasm-bindgen-futures = "0.4"

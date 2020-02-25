@@ -205,7 +205,7 @@ pub(crate) fn response_for_query(
         #variables_struct
 
         #response_derives
-
+        #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
         pub struct ResponseData {
             #(#response_data_fields,)*
         }

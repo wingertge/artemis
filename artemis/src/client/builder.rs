@@ -7,6 +7,7 @@ use crate::{
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct ClientBuilder<M: Exchange = DummyExchange> {
     exchange: M,
     url: Url,
@@ -14,7 +15,9 @@ pub struct ClientBuilder<M: Exchange = DummyExchange> {
     request_policy: RequestPolicy
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl ClientBuilder<DummyExchange> {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new<U: Into<String>>(url: U) -> Self {
         let url = url
             .into()
@@ -29,6 +32,7 @@ impl ClientBuilder<DummyExchange> {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl<M: Exchange> ClientBuilder<M> {
     /// Add the default exchanges to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
     #[cfg(feature = "default-exchanges")]

@@ -3,15 +3,17 @@ use futures::{channel::mpsc::Receiver, task::Context, Stream};
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
 use std::{any::Any, pin::Pin, sync::Arc, task::Poll};
 use surf::url::Url;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
 #[async_trait]
 pub trait Exchange: Send + Sync + 'static {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: crate::exchanges::Client>(
         &self,
         operation: Operation<Q::Variables>,
-        client: Arc<ClientImpl<M>>
+        client: C
     ) -> ExchangeResult<Q::ResponseData>;
 }
 
@@ -95,6 +97,7 @@ pub enum ResultSource {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct DebugInfo {
     pub source: ResultSource,
     pub did_dedup: bool
@@ -161,9 +164,11 @@ impl<T, M: Exchange> Drop for Observable<T, M> {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub type Extensions = Arc<type_map::concurrent::TypeMap>;
 
 #[derive(Default, Clone)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct QueryOptions {
     pub url: Option<Url>,
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,

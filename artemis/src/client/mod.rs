@@ -11,6 +11,7 @@ pub use r#impl::ClientImpl;
 
 #[derive(Clone)]
 #[repr(transparent)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct Client<M: Exchange = DummyExchange>(pub Arc<ClientImpl<M>>);
 
 impl Client {
@@ -19,6 +20,7 @@ impl Client {
     }
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl<M: Exchange> Client<M> {
     pub async fn query<Q: GraphQLQuery>(
         &self,
@@ -35,10 +37,6 @@ impl<M: Exchange> Client<M> {
         options: QueryOptions
     ) -> Result<Response<Q::ResponseData>, QueryError> {
         self.0.query_with_options(_query, variables, options).await
-    }
-
-    pub fn rerun_query(&self, id: u64) {
-        self.0.rerun_query(id)
     }
 
     #[cfg(feature = "observable")]

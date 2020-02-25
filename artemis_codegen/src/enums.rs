@@ -83,6 +83,7 @@ impl<'schema> GqlEnum<'schema> {
 
         quote! {
             #derives
+            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
             pub enum #name {
                 #(#variant_names,)*
                 Other(String),

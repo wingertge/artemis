@@ -1,14 +1,13 @@
 use crate::store::data::{InMemoryData, Link};
 use artemis::{
-    client::ClientImpl, Exchange, FieldSelector, GraphQLQuery, Operation, OperationResult,
-    QueryError, QueryInfo
+    exchanges::Client, FieldSelector, GraphQLQuery, Operation, OperationResult, QueryError,
+    QueryInfo
 };
 use flurry::{epoch, epoch::Guard};
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt,
-    sync::Arc
+    fmt
 };
 
 pub struct Store {
@@ -76,11 +75,12 @@ impl Store {
     {
     }*/
 
-    pub fn write_query<Q: GraphQLQuery>(
+    pub fn write_query<Q: GraphQLQuery, C: Client>(
         &self,
         query: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
-        optimistic: bool
+        optimistic: bool,
+        client: &C
     ) -> Result<(), QueryError> {
         if query.response.data.is_none() {
             return Ok(());
@@ -142,10 +142,11 @@ impl Store {
 
         if !optimistic {
             self.data
-                .set_dependencies(query.meta.key.clone(), dependencies);
+                .set_dependencies(query.meta.key.clone(), dependencies.clone());
             self.data.clear_optimistic_layer(&query.meta.key);
         }
 
+        self.rerun_queries(dependencies, query.meta.key.clone(), client);
         self.data
             .set_entity_key_for_query(query.meta.key.clone(), key.clone());
 
@@ -494,11 +495,11 @@ impl Store {
         );
     }
 
-    pub fn invalidate_query<Q: GraphQLQuery, M: Exchange>(
+    pub fn invalidate_query<Q: GraphQLQuery, C: Client>(
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
-        client: &Arc<ClientImpl<M>>,
+        client: &C,
         optimistic: bool
     ) {
         if result.response.data.is_none() {
@@ -529,20 +530,18 @@ impl Store {
             self.data.clear_optimistic_layer(&result.meta.key);
         }
 
-        self.rerun_invalid_queries(invalidated, client);
+        self.rerun_queries(invalidated, result.meta.key.clone(), client);
     }
 
-    fn rerun_invalid_queries<M: Exchange>(
-        &self,
-        entities: HashSet<String>,
-        client: &Arc<ClientImpl<M>>
-    ) {
+    fn rerun_queries<C: Client>(&self, entities: HashSet<String>, originating_query: u64, client: &C) {
         let queries: HashSet<_> = entities
             .iter()
             .flat_map(|entity| self.data.get_dependencies(entity))
             .collect();
         for query in queries {
-            client.rerun_query(query);
+            if query != originating_query {
+                client.rerun_query(query);
+            }
         }
     }
 

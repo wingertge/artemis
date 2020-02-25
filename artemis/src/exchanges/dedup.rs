@@ -1,5 +1,5 @@
 use crate::{
-    client::ClientImpl,
+    exchanges::Client,
     types::{ExchangeResult, Operation, OperationResult},
     Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError
 };
@@ -71,13 +71,13 @@ impl<TNext: Exchange> DedupExchangeImpl<TNext> {
 
 #[async_trait]
 impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
-        _client: Arc<ClientImpl<M>>
+        _client: C
     ) -> ExchangeResult<Q::ResponseData> {
         if should_skip::<Q>(&operation) {
-            return self.next.run::<Q, M>(operation, _client).await;
+            return self.next.run::<Q, _>(operation, _client).await;
         }
 
         let key = operation.meta.key.clone();
@@ -98,7 +98,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
             let res: OperationResult<Q::ResponseData> = *res.downcast().unwrap();
             Ok(res)
         } else {
-            let res = self.next.run::<Q, M>(operation, _client).await;
+            let res = self.next.run::<Q, _>(operation, _client).await;
             self.notify_listeners::<Q>(&key, &res);
             res
         }
@@ -110,9 +110,9 @@ mod test {
     use super::DedupExchangeImpl;
     use crate::{
         client::ClientImpl,
-        exchanges::{DedupExchange, DummyExchange},
+        exchanges::{Client, DedupExchange, DummyExchange},
         types::{Operation, OperationOptions, OperationResult},
-        Client, ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
+        ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
         GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,
         ResultSource, Url
     };
@@ -146,10 +146,10 @@ mod test {
 
     #[async_trait]
     impl Exchange for FakeFetchExchange {
-        async fn run<Q: GraphQLQuery, M: Exchange>(
+        async fn run<Q: GraphQLQuery, C: Client>(
             &self,
             operation: Operation<Q::Variables>,
-            _client: Arc<ClientImpl<M>>
+            _client: C
         ) -> ExchangeResult<Q::ResponseData> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
@@ -217,8 +217,7 @@ mod test {
     async fn test_dedup() {
         let (query, meta) = build_query(VARIABLES.clone());
 
-        let client: Client<DummyExchange> =
-            ClientBuilder::new("http://localhost:4000/graphql").build();
+        let client = ClientBuilder::new("http://localhost:4000/graphql").build();
 
         let fut1 = EXCHANGE.run::<GetConference, _>(
             make_operation(query.clone(), meta.clone()),

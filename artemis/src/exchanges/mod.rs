@@ -33,11 +33,16 @@ pub struct DummyExchange;
 
 #[async_trait]
 impl Exchange for DummyExchange {
-    async fn run<Q: GraphQLQuery, M: Exchange>(
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         _operation: Operation<Q::Variables>,
-        _client: Arc<ClientImpl<M>>
+        _client: C
     ) -> ExchangeResult<Q::ResponseData> {
         Err(MiddlewareError::UnexpectedEndOfChain.into())
     }
+}
+
+/// Client trait passed to exchanges. Only exposes methods useful to exchanges
+pub trait Client: Clone + Send + Sync + 'static {
+    fn rerun_query(&self, query_key: u64);
 }

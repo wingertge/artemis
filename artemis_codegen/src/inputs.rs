@@ -99,6 +99,7 @@ impl<'schema> GqlInput<'schema> {
         let name = Ident::new(&name, Span::call_site());
         Ok(quote! {
             #variables_derives
+            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
             pub struct #name {
                 #(#fields,)*
             }
@@ -219,6 +220,7 @@ mod tests {
 
         let expected: String = vec![
             "# [ derive ( Clone , Serialize ) ] ",
+            "# [ cfg_attr ( target_arch = \"wasm32\" , wasm_bindgen ) ] ",
             "pub struct Cat { ",
             "pub offsprings : Vec < Cat > , ",
             "# [ serde ( rename = \"pawsCount\" ) ] ",
