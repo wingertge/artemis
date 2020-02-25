@@ -171,11 +171,7 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
 #[cfg(test)]
 mod tests {
     use crate::cache_exchange::NormalizedCacheExchange;
-    use artemis::{
-        exchanges::Client, types::OperationOptions, ClientBuilder, DebugInfo, Exchange,
-        ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, RequestPolicy,
-        Response, ResultSource
-    };
+    use artemis::{exchanges::Client, types::OperationOptions, ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, RequestPolicy, Response, ResultSource, progressive_hash};
     use artemis_test::{
         get_conference::{
             get_conference::{GetConferenceConference, ResponseData, Variables},
@@ -304,7 +300,7 @@ mod tests {
             ) -> ExchangeResult<<Q as GraphQLQuery>::ResponseData> {
                 Counter::inc_sync(&self.called);
 
-                let key_single = 7240364581396770642u64;
+                let key_single = 8181565099941403168u64;
                 let key_multiple = 11949895552938567266u64;
 
                 let data_single = ResponseData {
@@ -324,9 +320,10 @@ mod tests {
 
                 let query_key = operation.meta.key.clone();
 
-                if query_key == key_single {
+                // This needs to be calculated at runtime because bincode is platform specific
+                if query_key == progressive_hash(key_single, &operation.query.variables) {
                     make_result::<Q>(operation, Box::new(data_single))
-                } else if query_key == key_multiple {
+                } else if query_key == progressive_hash(key_multiple, &operation.query.variables) {
                     make_result::<Q>(operation, Box::new(data_multi))
                 } else {
                     panic!("Exchange got called with invalid query {}", query_key)
