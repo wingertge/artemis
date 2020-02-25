@@ -533,7 +533,12 @@ impl Store {
         self.rerun_queries(invalidated, result.meta.key.clone(), client);
     }
 
-    fn rerun_queries<C: Client>(&self, entities: HashSet<String>, originating_query: u64, client: &C) {
+    fn rerun_queries<C: Client>(
+        &self,
+        entities: HashSet<String>,
+        originating_query: u64,
+        client: &C
+    ) {
         let queries: HashSet<_> = entities
             .iter()
             .flat_map(|entity| self.data.get_dependencies(entity))

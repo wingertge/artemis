@@ -171,7 +171,11 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
 #[cfg(test)]
 mod tests {
     use crate::cache_exchange::NormalizedCacheExchange;
-    use artemis::{exchanges::Client, types::OperationOptions, ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationResult, RequestPolicy, Response, ResultSource, progressive_hash};
+    use artemis::{
+        exchanges::Client, types::OperationOptions, ClientBuilder, DebugInfo, Exchange,
+        ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationMeta, OperationResult,
+        RequestPolicy, Response, ResultSource
+    };
     use artemis_test::{
         get_conference::{
             get_conference::{GetConferenceConference, ResponseData, Variables},
@@ -186,12 +190,13 @@ mod tests {
 
     fn make_operation<Q: GraphQLQuery>(
         _query: Q,
-        variables: Q::Variables
+        variables: Q::Variables,
+        key: u64
     ) -> Operation<Q::Variables> {
         let (query, meta) = Q::build_query(variables);
         Operation {
             query,
-            meta,
+            meta: OperationMeta { key, ..meta },
             options: OperationOptions {
                 url: "http://0.0.0.0".parse().unwrap(),
                 request_policy: RequestPolicy::CacheFirst,
@@ -247,7 +252,7 @@ mod tests {
             id: "1".to_string()
         };
 
-        let operation = make_operation(GetConference, variables.clone());
+        let operation = make_operation(GetConference, variables.clone(), 1);
 
         let exchange = NormalizedCacheExchange::new().build(DummyFetchExchange);
         exchange
@@ -300,9 +305,6 @@ mod tests {
             ) -> ExchangeResult<<Q as GraphQLQuery>::ResponseData> {
                 Counter::inc_sync(&self.called);
 
-                let key_single = 8181565099941403168u64;
-                let key_multiple = 11949895552938567266u64;
-
                 let data_single = ResponseData {
                     conference: Some(GetConferenceConference {
                         id: "1".to_string(),
@@ -321,9 +323,9 @@ mod tests {
                 let query_key = operation.meta.key.clone();
 
                 // This needs to be calculated at runtime because bincode is platform specific
-                if query_key == progressive_hash(key_single, &operation.query.variables) {
+                if query_key == 1 {
                     make_result::<Q>(operation, Box::new(data_single))
-                } else if query_key == progressive_hash(key_multiple, &operation.query.variables) {
+                } else if query_key == 2 {
                     make_result::<Q>(operation, Box::new(data_multi))
                 } else {
                     panic!("Exchange got called with invalid query {}", query_key)
@@ -354,11 +356,8 @@ mod tests {
         let variables = Variables {
             id: "1".to_string()
         };
-        let operation_single = make_operation(GetConference, variables);
-        let operation_multiple = make_operation(
-            GetConferences,
-            get_conferences::Variables
-        );
+        let operation_single = make_operation(GetConference, variables, 1);
+        let operation_multiple = make_operation(GetConferences, get_conferences::Variables, 2);
 
         let client = DummyClient {
             called: Counter::sync()
@@ -372,13 +371,25 @@ mod tests {
             .run::<GetConference, _>(operation_single, client.clone())
             .await;
         assert!(res.is_ok());
-        assert_eq!(dummy_exchange.was_called(), 1, "Exchange was called more than once");
+        assert_eq!(
+            dummy_exchange.was_called(),
+            1,
+            "Exchange was called more than once"
+        );
 
         let res = exchange
             .run::<GetConferences, _>(operation_multiple, client.clone())
             .await;
         assert!(res.is_ok());
-        assert_eq!(dummy_exchange.was_called(), 2, "Exchange was called more than twice");
-        assert_eq!(client.was_called(), 1, "Rerun queries was called more than once");
+        assert_eq!(
+            dummy_exchange.was_called(),
+            2,
+            "Exchange was called more than twice"
+        );
+        assert_eq!(
+            client.was_called(),
+            1,
+            "Rerun queries was called more than once"
+        );
     }
 }
