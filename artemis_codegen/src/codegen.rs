@@ -43,7 +43,8 @@ pub(crate) fn response_for_query(
         schema,
         options.deprecation_strategy(),
         options.normalization(),
-        options.include_query_info
+        options.include_query_info,
+        options.wasm_bindgen
     );
 
     if let Some(derives) = options.variables_derives() {
@@ -180,8 +181,20 @@ pub(crate) fn response_for_query(
         quote!()
     };
 
+    let wasm_imports = if context.wasm_bindgen {
+        quote! {
+            #[cfg(target_arch = "wasm32")]
+            use wasm_typescript_definition::TypescriptDefinition;
+            #[cfg(target_arch = "wasm32")]
+            use wasm_bindgen::prelude::*;
+        }
+    } else {
+        quote!()
+    };
+
     let tokens = quote! {
         use serde::{Serialize, Deserialize};
+        #wasm_imports
 
         #[allow(dead_code)]
         type Boolean = bool;
@@ -205,7 +218,6 @@ pub(crate) fn response_for_query(
         #variables_struct
 
         #response_derives
-        #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
         pub struct ResponseData {
             #(#response_data_fields,)*
         }

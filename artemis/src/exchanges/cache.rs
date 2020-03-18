@@ -15,8 +15,10 @@ type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
 
 pub struct CacheExchange;
-impl<TNext: Exchange> ExchangeFactory<CacheExchangeImpl<TNext>, TNext> for CacheExchange {
-    fn build(self, next: TNext) -> CacheExchangeImpl<TNext> {
+impl<TNext: Exchange> ExchangeFactory<TNext> for CacheExchange {
+    type Output = CacheExchangeImpl<TNext>;
+
+    fn build(self, next: TNext) -> Self::Output {
         CacheExchangeImpl {
             result_cache: Arc::new(Mutex::new(HashMap::new())),
             operation_cache: Arc::new(Mutex::new(HashMap::new())),
@@ -42,10 +44,10 @@ fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
 impl<TNext: Exchange> CacheExchangeImpl<TNext> {
     fn is_operation_cached<Q: GraphQLQuery>(&self, operation: &Operation<Q::Variables>) -> bool {
         let OperationMeta {
-            key,
             operation_type,
             ..
         } = &operation.meta;
+        let key = operation.key;
         let request_policy = &operation.options.request_policy;
 
         operation_type == &OperationType::Query
@@ -63,15 +65,15 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         }
 
         let OperationMeta {
-            key,
             involved_types,
             ..
         } = &operation_result.meta;
+        let key = operation_result.key;
 
         {
             let mut result_cache = self.result_cache.lock().unwrap();
             let data = operation_result.response.data.as_ref().unwrap().clone();
-            result_cache.insert(key.clone(), Box::new(data));
+            result_cache.insert(key, Box::new(data));
         }
         {
             let mut operation_cache = self.operation_cache.lock().unwrap();
@@ -80,11 +82,11 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
                 operation_cache
                     .entry(involved_type)
                     .and_modify(|entry| {
-                        entry.insert(key.clone());
+                        entry.insert(key);
                     })
                     .or_insert_with(|| {
                         let mut set = HashSet::with_capacity(1);
-                        set.insert(key.clone());
+                        set.insert(key);
                         set
                     });
             }
@@ -103,10 +105,10 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         }
 
         let OperationMeta {
-            key,
             involved_types,
             ..
         } = &operation_result.meta;
+        let key = operation_result.key;
 
         let ops_to_remove: HashSet<u64> = {
             let cache = self.operation_cache.lock().unwrap();
@@ -117,7 +119,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
                     ops.extend(ops_for_type)
                 }
             }
-            ops.insert(key.clone());
+            ops.insert(key);
             ops
         };
         {
@@ -153,7 +155,7 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
                 _ => Ok(res)
             }
         } else {
-            let OperationMeta { key, .. } = &operation.meta;
+            let key = &operation.key;
 
             let cached_result = {
                 let cache = self.result_cache.lock().unwrap();
@@ -165,6 +167,7 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
 
             if let Some(cached) = cached_result {
                 let result = OperationResult {
+                    key: operation.key,
                     meta: operation.meta,
                     response: Response {
                         debug_info: Some(DebugInfo {

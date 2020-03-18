@@ -1,4 +1,4 @@
 mod data;
 mod store;
 
-pub use store::Store;
+pub use store::{QueryStore, Store};

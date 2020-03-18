@@ -31,6 +31,20 @@ impl<'schema> GqlEnum<'schema> {
         query_context: &crate::query::QueryContext<'_, '_>
     ) -> TokenStream {
         let derives = query_context.response_enum_derives();
+        let wasm_derives = if query_context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Serialize", "TypescriptDefinition"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !query_context.response_derives.contains(def))
+                .collect();
+            if filtered.len() > 0 {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
         let norm = query_context.normalization;
         let variant_names: Vec<TokenStream> = self
             .variants
@@ -83,7 +97,7 @@ impl<'schema> GqlEnum<'schema> {
 
         quote! {
             #derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_derives
             pub enum #name {
                 #(#variant_names,)*
                 Other(String),

@@ -1,7 +1,4 @@
-use crate::{
-    Exchange, GraphQLQuery, HeaderPair, Operation, OperationMeta, QueryBody, QueryError,
-    QueryOptions, RequestPolicy, Response, Url
-};
+use crate::{Exchange, GraphQLQuery, HeaderPair, Operation, OperationMeta, QueryBody, QueryError, QueryOptions, RequestPolicy, Response, Url, progressive_hash};
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc, vec};
 
@@ -53,9 +50,7 @@ impl<M: Exchange> ClientImpl<M> {
         _query: Q,
         variables: Q::Variables
     ) -> Result<Response<Q::ResponseData>, QueryError> {
-        let (query, meta) = Q::build_query(variables);
-        let operation = self.create_request_operation::<Q>(query, meta, QueryOptions::default());
-        self.execute_request_operation::<Q>(operation).await
+        self.query_with_options(_query, variables, QueryOptions::default()).await
     }
 
     pub async fn query_with_options<Q: GraphQLQuery>(
@@ -103,7 +98,10 @@ impl<M: Exchange> ClientImpl<M> {
             None
         };
 
+        let key = progressive_hash(meta.query_key, &query.variables);
+
         let operation = Operation {
+            key,
             meta,
             query,
             options: OperationOptions {

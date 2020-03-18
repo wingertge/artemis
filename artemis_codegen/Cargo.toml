@@ -12,7 +12,7 @@ lazy_static = "1.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 proc-macro2 = { version = "1", features = [] }
-syn = "1"
+syn = { version = "1", features = ["full", "clone-impls"] }
 quote = "1"
 heck = "0.3"
 

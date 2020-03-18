@@ -130,9 +130,9 @@ impl ::artemis::GraphQLQuery for GetConference {
         ::artemis::OperationMeta
     ) {
         let meta = ::artemis::OperationMeta {
-            key: ::artemis::progressive_hash(8181565099941403168u64, &variables),
+            query_key: ::artemis::progressive_hash(8181565099941403168u64, &variables),
             operation_type: ::artemis::OperationType::Query,
-            involved_types: vec!["Conference", "Person", "Talk"]
+            involved_types: vec!["Talk", "Conference", "Person"]
         };
         let body = ::artemis::QueryBody {
             variables,

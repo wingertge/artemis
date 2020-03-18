@@ -127,6 +127,20 @@ impl<'schema> GqlObject<'schema> {
         prefix: &str
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let derives = query_context.response_derives();
+        let wasm_derives = if query_context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Serialize", "TypescriptDefinition"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !query_context.response_derives.contains(def))
+                .collect();
+            if filtered.len() > 0 {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
         let name = Ident::new(prefix, Span::call_site());
         let (field_infos, fields) =
             self.response_fields_for_selection(query_context, selection, prefix)?;
@@ -158,7 +172,7 @@ impl<'schema> GqlObject<'schema> {
             #(#field_impls)*
 
             #derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_derives
             #description
             pub struct #name {
                 #(#fields,)*

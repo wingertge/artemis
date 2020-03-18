@@ -14,8 +14,9 @@ pub(crate) struct QueryContext<'query, 'schema: 'query> {
     pub deprecation_strategy: DeprecationStrategy,
     pub normalization: Normalization,
     pub include_query_info: bool,
-    variables_derives: Vec<Ident>,
-    response_derives: Vec<Ident>
+    pub wasm_bindgen: bool,
+    pub variables_derives: Vec<Ident>,
+    pub response_derives: Vec<Ident>
 }
 
 impl<'query, 'schema> QueryContext<'query, 'schema> {
@@ -24,7 +25,8 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         schema: &'schema Schema<'schema>,
         deprecation_strategy: DeprecationStrategy,
         normalization: Normalization,
-        include_query_info: bool
+        include_query_info: bool,
+        wasm_bindgen: bool
     ) -> QueryContext<'query, 'schema> {
         QueryContext {
             fragments: BTreeMap::new(),
@@ -39,7 +41,8 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
             response_derives: vec![
                 Ident::new("Deserialize", Span::call_site()),
                 Ident::new("Clone", Span::call_site()),
-            ]
+            ],
+            wasm_bindgen
         }
     }
 
@@ -66,7 +69,8 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
             response_derives: vec![
                 Ident::new("Deserialize", Span::call_site()),
                 Ident::new("Clone", Span::call_site()),
-            ]
+            ],
+            wasm_bindgen: false
         }
     }
 
@@ -116,12 +120,6 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         &mut self,
         attribute_value: &str
     ) -> Result<(), CodegenError> {
-        if self.response_derives.len() > 2 {
-            return Err(CodegenError::InternalError(format!(
-                "ingest_response_derives should only be called once"
-            )));
-        }
-
         self.response_derives.extend(
             attribute_value
                 .split(',')
@@ -135,12 +133,6 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         &mut self,
         attribute_value: &str
     ) -> Result<(), CodegenError> {
-        if self.variables_derives.len() > 2 {
-            return Err(CodegenError::InternalError(format!(
-                "ingest_variables_derives should only be called once"
-            )));
-        }
-
         self.variables_derives.extend(
             attribute_value
                 .split(',')

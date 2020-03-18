@@ -6,8 +6,10 @@ use crate::{
 };
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct ClientBuilder<M: Exchange = DummyExchange> {
     exchange: M,
     url: Url,
@@ -15,9 +17,9 @@ pub struct ClientBuilder<M: Exchange = DummyExchange> {
     request_policy: RequestPolicy
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl ClientBuilder<DummyExchange> {
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
+    //#[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new<U: Into<String>>(url: U) -> Self {
         let url = url
             .into()
@@ -32,7 +34,7 @@ impl ClientBuilder<DummyExchange> {
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl<M: Exchange> ClientBuilder<M> {
     /// Add the default exchanges to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
     #[cfg(feature = "default-exchanges")]
@@ -42,11 +44,13 @@ impl<M: Exchange> ClientBuilder<M> {
             .with_exchange(DedupExchange)
     }
 
-    /// Add a middleware to the chain. Keep in mind that exchanges are executed bottom to top, so the first one added will be the last one executed.
+    /// Add a middleware to the chain.
+    /// Keep in mind that exchanges are executed bottom to top,
+    /// so the first one added will be the last one executed.
     pub fn with_exchange<TResult, F>(self, exchange_factory: F) -> ClientBuilder<TResult>
     where
         TResult: Exchange + Send + Sync,
-        F: ExchangeFactory<TResult, M>
+        F: ExchangeFactory<M, Output = TResult>
     {
         let exchange = exchange_factory.build(self.exchange);
         ClientBuilder {
@@ -57,11 +61,20 @@ impl<M: Exchange> ClientBuilder<M> {
         }
     }
 
-    pub fn with_extra_headers<F: Fn() -> Vec<HeaderPair> + Send + Sync + 'static>(
+    pub fn with_extra_headers(
         mut self,
-        header_fn: F
+        header_fn: impl Fn() -> Vec<HeaderPair> + Send + Sync + 'static
     ) -> Self {
         self.extra_headers = Some(Arc::new(header_fn));
+        self
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn with_js_extra_headers(
+        mut self,
+        header_fn: js_sys::Function
+    ) -> Self {
+        self.extra_headers = Some(crate::wasm::convert_header_fn(header_fn));
         self
     }
 

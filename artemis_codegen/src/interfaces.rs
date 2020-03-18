@@ -143,6 +143,20 @@ impl<'schema> GqlInterface<'schema> {
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let name = Ident::new(&prefix, Span::call_site());
         let derives = query_context.response_derives();
+        let wasm_derives = if query_context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Serialize", "TypescriptDefinition"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !query_context.response_derives.contains(def))
+                .collect();
+            if filtered.len() > 0 {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
 
         selection.extract_typename(query_context).ok_or_else(|| {
             CodegenError::InternalError(format!(
@@ -187,6 +201,7 @@ impl<'schema> GqlInterface<'schema> {
             if selection.extract_typename(query_context).is_some() {
                 let attached_enum = quote! {
                     #derives
+                    #wasm_derives
                     #[serde(tag = "__typename")]
                     pub enum #attached_enum_name {
                         #(#union_variants,)*
@@ -227,7 +242,7 @@ impl<'schema> GqlInterface<'schema> {
             #attached_enum
 
             #derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_derives
             pub struct #name {
                 #(#object_fields,)*
                 #last_object_field

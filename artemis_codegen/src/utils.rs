@@ -1,10 +1,11 @@
 use std::num::Wrapping;
 
-pub fn hash(x: &&str) -> u64 {
+// TODO: Figure out why this gives different results on different OS
+pub fn hash(x: &str) -> u32 {
     let x = x.as_bytes();
-    let mut h = Wrapping(5381u64);
+    let mut h = Wrapping(5381);
     for i in 0..x.len() {
-        h = (h << 5) + h + Wrapping(x[i] as u64)
+        h = (h << 5) + h + Wrapping(x[i] as u32)
     }
 
     h.0

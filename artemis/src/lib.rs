@@ -15,17 +15,20 @@ pub mod exchanges;
 pub mod types;
 mod utils;
 
+pub use artemis_codegen_proc_macro::wasm_client;
 pub use client::{Client, ClientBuilder};
 pub use error::QueryError;
-pub use exchanges::FetchExchange;
 use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
-pub use types::{
-    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, HeaderPair, Operation,
-    OperationMeta, OperationResult, OperationType, QueryInfo, QueryOptions, RequestPolicy,
-    ResultSource
-};
+pub use types::*;
 pub use utils::progressive_hash;
+#[cfg(target_arch = "wasm32")]
+pub use utils::wasm;
+
+use crate::client::ClientImpl;
+use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]
@@ -271,15 +274,6 @@ impl Display for Error {
     }
 }
 
-/// Represents a location inside a query string. Used in errors. See [`Error`].
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-pub struct Location {
-    /// The line number in the query string where the error originated (starting from 1).
-    pub line: i32,
-    /// The column number in the query string where the error originated (starting from 1).
-    pub column: i32
-}
-
 /// Part of a path in a query. It can be an object key or an array index. See [`Error`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
@@ -288,6 +282,16 @@ pub enum PathFragment {
     Key(String),
     /// An index inside an array
     Index(i32)
+}
+
+/// Represents a location inside a query string. Used in errors. See [`Error`].
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+pub struct Location {
+    /// The line number in the query string where the error originated (starting from 1).
+    pub line: i32,
+    /// The column number in the query string where the error originated (starting from 1).
+    pub column: i32
 }
 
 impl Display for PathFragment {

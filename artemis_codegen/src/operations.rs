@@ -43,10 +43,25 @@ impl<'query> Operation<'query> {
     pub(crate) fn expand_variables(&self, context: &QueryContext<'_, '_>) -> TokenStream {
         let variables = &self.variables;
         let variables_derives = context.variables_derives();
+        let wasm_variable_derives = if context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Deserialize", "TypescriptDefinition"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !context.variables_derives.contains(def))
+                .collect();
+            if filtered.len() > 0 {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
 
         if variables.is_empty() {
             return quote! {
                 #variables_derives
+                #wasm_variable_derives
                 pub struct Variables;
             };
         }
@@ -68,7 +83,7 @@ impl<'query> Operation<'query> {
 
         quote! {
             #variables_derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_variable_derives
             pub struct Variables {
                 #(#fields,)*
             }

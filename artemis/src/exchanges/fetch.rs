@@ -4,6 +4,7 @@ use crate::{
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, Response, ResultSource
 };
 use std::{error::Error, fmt, sync::Arc};
+use surf::http::header::HeaderName;
 
 #[derive(Debug)]
 pub enum FetchError {
@@ -23,8 +24,10 @@ impl fmt::Display for FetchError {
 
 pub struct FetchExchange;
 
-impl<TNext: Exchange> ExchangeFactory<FetchExchange, TNext> for FetchExchange {
-    fn build(self, _next: TNext) -> FetchExchange {
+impl<TNext: Exchange> ExchangeFactory<TNext> for FetchExchange {
+    type Output = FetchExchange;
+
+    fn build(self, _next: TNext) -> Self::Output {
         FetchExchange
     }
 }
@@ -48,7 +51,8 @@ impl Exchange for FetchExchange {
             .body_json(&operation.query)?;
 
         for HeaderPair(key, value) in extra_headers {
-            request = request.set_header(key, value)
+            let header_name: HeaderName = key.parse().unwrap();
+            request = request.set_header(header_name, value);
         }
 
         let mut response: Response<Q::ResponseData> = request
@@ -67,6 +71,7 @@ impl Exchange for FetchExchange {
         response.debug_info = debug_info;
 
         Ok(OperationResult {
+            key: operation.key,
             meta: operation.meta,
             response
         })

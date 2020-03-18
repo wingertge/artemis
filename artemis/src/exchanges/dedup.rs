@@ -20,8 +20,10 @@ pub struct DedupExchangeImpl<TNext: Exchange> {
     in_flight_operations: InFlightCache
 }
 
-impl<TNext: Exchange> ExchangeFactory<DedupExchangeImpl<TNext>, TNext> for DedupExchange {
-    fn build(self, next: TNext) -> DedupExchangeImpl<TNext> {
+impl<TNext: Exchange> ExchangeFactory<TNext> for DedupExchange {
+    type Output = DedupExchangeImpl<TNext>;
+
+    fn build(self, next: TNext) -> Self::Output {
         DedupExchangeImpl {
             next,
             in_flight_operations: InFlightCache::default()
@@ -80,7 +82,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
             return self.next.run::<Q, _>(operation, _client).await;
         }
 
-        let key = operation.meta.key.clone();
+        let key = operation.key;
         let rcv = {
             let mut cache = self.in_flight_operations.lock().unwrap();
             if let Some(listeners) = cache.get_mut(&key) {
@@ -88,7 +90,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
                 listeners.push(sender);
                 Some(receiver)
             } else {
-                cache.insert(key.clone(), Vec::new());
+                cache.insert(key, Vec::new());
                 None
             }
         };
@@ -182,7 +184,7 @@ mod test {
 
     fn build_query(variables: Variables) -> (QueryBody<Variables>, OperationMeta) {
         let meta = OperationMeta {
-            key: 1354603040u64,
+            query_key: 1354603040u64,
             operation_type: OperationType::Query,
             involved_types: vec!["Conference", "Person", "Talk"]
         };

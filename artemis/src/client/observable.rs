@@ -1,7 +1,4 @@
-use crate::{
-    client::ClientImpl, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions,
-    Response
-};
+use crate::{client::ClientImpl, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions, Response, progressive_hash};
 use futures::{channel::mpsc::Sender, SinkExt};
 use stable_vec::StableVec;
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
@@ -25,7 +22,7 @@ pub async fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
 ) -> super::observable::OperationObservable<Q, M> {
     let (query, meta) = Q::build_query(variables.clone());
     let (mut sender, receiver) = futures::channel::mpsc::channel(8);
-    let key = meta.key.clone();
+    let key = progressive_hash(meta.query_key, &variables);
 
     let operation = client.create_request_operation::<Q>(query, meta, options.clone());
 
@@ -85,5 +82,15 @@ pub fn rerun_query<M: Exchange>(client: &Arc<ClientImpl<M>>, id: u64) {
             }
         }
     };
+    spawn(fut);
+}
+
+#[cfg(target_arch = "wasm32")]
+fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
+    wasm_bindgen_futures::spawn_local(fut);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(fut);
 }

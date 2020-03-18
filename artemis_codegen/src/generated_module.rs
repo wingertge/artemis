@@ -58,7 +58,13 @@ impl<'a> GeneratedModule<'a> {
         let operation_type = quote!(::artemis::OperationType::#operation_type);
 
         let struct_declaration: Option<_> = match self.options.mode {
-            CodegenMode::Cli => Some(quote!(#module_visibility struct #operation_name_ident;)),
+            CodegenMode::Cli => Some(quote! {
+                #[cfg(target_arch = "wasm32")]
+                use wasm_bindgen::prelude::*;
+
+                #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+                #module_visibility struct #operation_name_ident;
+            }),
             // The struct is already present in derive mode.
             CodegenMode::Derive => None
         };
@@ -86,7 +92,7 @@ impl<'a> GeneratedModule<'a> {
 
                 fn build_query(variables: Self::Variables) -> (::artemis::QueryBody<Self::Variables>, ::artemis::OperationMeta) {
                     let meta = ::artemis::OperationMeta {
-                        key: ::artemis::progressive_hash(#query_string_hash, &variables),
+                        query_key: #query_string_hash,
                         operation_type: #operation_type,
                         involved_types: #involved_types
                     };

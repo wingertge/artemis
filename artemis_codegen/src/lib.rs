@@ -1,5 +1,5 @@
 #![recursion_limit = "128"]
-#![deny(missing_docs)]
+//#![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
 #![deny(warnings)]
 
@@ -37,6 +37,8 @@ mod shared;
 mod unions;
 mod utils;
 mod variables;
+///
+pub mod wasm;
 
 #[cfg(test)]
 mod tests;
@@ -47,6 +49,8 @@ pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
 
 use crate::unions::UnionError;
 use std::{collections::HashMap, error::Error, fmt, io::Read};
+use syn::export::Span;
+use crate::utils::hash;
 
 type CacheMap<T> = std::sync::Mutex<HashMap<std::path::PathBuf, T>>;
 
@@ -109,12 +113,107 @@ impl From<UnionError> for CodegenError {
     }
 }
 
+/// a
+pub fn generate_root_token_stream(
+    modules: Vec<String>,
+    enum_variants: Vec<(syn::Ident, u32)>,
+    options: GraphQLClientCodegenOptions
+) -> TokenStream {
+    let modules: Vec<_> = modules
+        .iter()
+        .map(|module_name| syn::Ident::new(module_name, Span::call_site()))
+        .collect();
+    let module_tokens = {
+        let modules = modules.iter();
+        quote! {
+            #(pub mod #modules;)*
+        }
+    };
+    let query_idents: Vec<_> = enum_variants.iter()
+        .map(|(ident, _)| ident)
+        .collect();
+    let enum_variants: Vec<_> = enum_variants
+        .iter()
+        .map(|(ident, key)| quote!(#ident = #key))
+        .collect();
+    let wasm_mod = if options.wasm_bindgen {
+        let enum_ = quote! {
+            #[wasm_bindgen]
+            #[derive(Copy, Clone, PartialEq)]
+            #[repr(u32)]
+            pub enum Queries {
+                #(#enum_variants),*
+            }
+
+            impl QueryCollection for Queries {
+                fn query<M: Exchange>(self, client: Arc<ClientImpl<M>>, variables: JsValue, options: QueryOptions)
+                 -> ::futures::future::BoxFuture<'static, Result<JsValue, JsValue>> {
+                    let fut = Box::pin(async move {
+                        match self {
+                            #(Queries::#query_idents => {
+                                let variables = serde_wasm_bindgen::from_value
+                                    ::<<#query_idents as GraphQLQuery>::Variables>(variables)
+                                    .unwrap();
+                                let response = client.query_with_options(#query_idents, variables, options).await;
+                                response
+                                    .map(|response| serde_wasm_bindgen::to_value(&response).unwrap())
+                                    .map_err(|e| serde_wasm_bindgen::to_value(&JsQueryError::from(e)).unwrap())
+                            }),*
+                        }
+                    });
+
+                    Box::pin(::artemis::wasm::UnsafeSendFuture::new(fut))
+                }
+
+                fn subscribe<M: Exchange>(self, client: Arc<ClientImpl<M>>, variables: JsValue, callback: js_sys::Function, options: QueryOptions)
+                 -> ::futures::future::BoxFuture<'static, ()> {
+                    let fut = Box::pin(async move {
+                        match self {
+                            #(Queries::#query_idents => {
+                                let variables = serde_wasm_bindgen
+                                    ::from_value::<<#query_idents as GraphQLQuery>::Variables>(variables)
+                                    .unwrap();
+                                let observable = client.subscribe_with_options(#query_idents, variables, options).await;
+                                ::artemis::wasm::bind_stream(observable, callback);
+                            }),*
+                        }
+                    });
+
+                    Box::pin(::artemis::wasm::UnsafeSendFuture::new(fut))
+                }
+            }
+        };
+        let tokens = quote! {
+            #[cfg(target_arch = "wasm32")]
+            pub mod wasm {
+                use wasm_bindgen::prelude::*;
+                use std::sync::Arc;
+                use artemis::{client::ClientImpl, GraphQLQuery, QueryOptions, Exchange, wasm::{JsQueryError, QueryCollection}};
+                #(use super::#modules::*;)*
+
+                #enum_
+            }
+        };
+
+        //println!("{}", tokens);
+
+        tokens
+    } else {
+        quote!()
+    };
+
+    quote! {
+        #module_tokens
+        #wasm_mod
+    }
+}
+
 /// Generates Rust code given a query document, a schema and options.
 pub fn generate_module_token_stream(
     query_path: std::path::PathBuf,
     schema_path: &std::path::Path,
     options: GraphQLClientCodegenOptions
-) -> Result<TokenStream, CodegenError> {
+) -> Result<(TokenStream, Vec<(syn::Ident, u32)>), CodegenError> {
     use std::collections::hash_map;
     // We need to qualify the query with the path to the crate it is part of
     let (query_string, query) = {
@@ -183,8 +282,20 @@ pub fn generate_module_token_stream(
 
     // The generated modules.
     let mut modules = Vec::with_capacity(operations.len());
+    let mut variants = if options.wasm_bindgen {
+        Vec::with_capacity(operations.len())
+    } else {
+        Vec::new()
+    };
 
     for operation in &operations {
+        if options.wasm_bindgen {
+            let operation_name_ident = options.normalization().operation(&operation.name);
+            let key = hash(query_string.as_str());
+            let variant_ident = syn::Ident::new(&operation_name_ident, Span::call_site());
+            variants.push((variant_ident, key));
+        }
+
         let generated = generated_module::GeneratedModule {
             query_string: query_string.as_str(),
             schema: &schema,
@@ -198,7 +309,7 @@ pub fn generate_module_token_stream(
 
     let modules = quote! { #(#modules)* };
 
-    Ok(modules)
+    Ok((modules, variants))
 }
 
 fn read_file(path: &std::path::Path) -> Result<String, CodegenError> {

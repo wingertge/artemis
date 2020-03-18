@@ -91,6 +91,20 @@ impl<'schema> GqlInput<'schema> {
             quote!(#rename pub #name: #ty)
         });
         let variables_derives = context.variables_derives();
+        let wasm_variables_derives = if context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Deserialize", "TypescriptDefinition"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !context.response_derives.contains(def))
+                .collect();
+            if filtered.len() > 0 {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
 
         // Prevent generated code like "pub struct crate" for a schema input like "input crate { ... }"
         // This works in tandem with renamed struct Variables field types, eg: pub struct Variables { pub criteria : crate_ , }
@@ -99,6 +113,7 @@ impl<'schema> GqlInput<'schema> {
         let name = Ident::new(&name, Span::call_site());
         Ok(quote! {
             #variables_derives
+            #wasm_variables_derives
             #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
             pub struct #name {
                 #(#fields,)*

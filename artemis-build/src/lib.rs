@@ -1,6 +1,6 @@
 use artemis_codegen::{
-    deprecation::DeprecationStrategy, generate_module_token_stream, CodegenError, CodegenMode,
-    GraphQLClientCodegenOptions
+    deprecation::DeprecationStrategy, generate_module_token_stream, generate_root_token_stream,
+    CodegenError, CodegenMode, GraphQLClientCodegenOptions
 };
 use std::{
     env,
@@ -135,27 +135,21 @@ impl CodegenBuilder {
                 ))
             })?;
 
-        for query_path in self.query_paths {
-            let schema_path = schema_path.clone();
-            let params = CodegenParams {
-                query_path,
-                schema_path,
-                selected_operation: None,
-                variables_derives: self.variable_derives.clone(),
-                response_derives: self.response_derives.clone(),
-                deprecation_strategy: self.deprecation_strategy.clone(),
-                output_directory: output_directory.clone()
-            };
-            println!("{:#?}", params);
-            generate_code(params)?;
-        }
+        let params = CodegenParams {
+            schema_path,
+            selected_operation: None,
+            variables_derives: self.variable_derives.clone(),
+            response_derives: self.response_derives.clone(),
+            deprecation_strategy: self.deprecation_strategy.clone(),
+            output_directory: output_directory.clone()
+        };
+        generate_code(self.query_paths, params)?;
         Ok(())
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct CodegenParams {
-    pub query_path: PathBuf,
     pub schema_path: PathBuf,
     pub selected_operation: Option<String>,
     pub variables_derives: Option<String>,
@@ -164,13 +158,15 @@ pub(crate) struct CodegenParams {
     pub output_directory: PathBuf
 }
 
-pub(crate) fn generate_code(params: CodegenParams) -> Result<(), BuildError> {
+pub(crate) fn generate_code(
+    query_paths: Vec<PathBuf>,
+    params: CodegenParams
+) -> Result<(), BuildError> {
     let CodegenParams {
         variables_derives,
         response_derives,
         deprecation_strategy,
         output_directory,
-        query_path,
         schema_path,
         selected_operation
     } = params;
@@ -200,30 +196,38 @@ pub(crate) fn generate_code(params: CodegenParams) -> Result<(), BuildError> {
         options.set_deprecation_strategy(deprecation_strategy);
     }
 
-    let gen = generate_module_token_stream(query_path.clone(), &schema_path, options)?;
+    let mut all_queries = Vec::new();
+    let mut modules = Vec::new();
 
-    let generated_code = gen.to_string();
-    let generated_code = generated_code;
-    // TODO: Add formatting
-    /*    let generated_code = if cfg!(feature = "rustfmt") && !no_formatting {
-        format(&generated_code)
-    } else {
-        generated_code
-    };*/
+    for query_path in query_paths {
+        let (module, variants) =
+            generate_module_token_stream(query_path.clone(), &schema_path, options.clone())?;
+        let module = module.to_string();
 
-    let query_file_name: ::std::ffi::OsString = query_path
-        .file_name()
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| {
+        let query_file_name: ::std::ffi::OsString = query_path
+            .file_name()
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| {
             CodegenError::InputError(format!(
                 "Failed to find a file name in the provided query path."
             ))
         })?;
+        let module_name = query_file_name.clone().into_string().unwrap();
+        let module_name = module_name.splitn(2, ".").next().unwrap().to_string();
+        modules.push(module_name);
 
-    let dest_file_path: PathBuf = output_directory.join(query_file_name).with_extension("rs");
+        let dest_file_path: PathBuf = output_directory.join(query_file_name).with_extension("rs");
 
+        let mut file = File::create(dest_file_path)?;
+        write!(file, "{}", module)?;
+
+        all_queries.extend(variants)
+    }
+
+    let tokens = generate_root_token_stream(modules, all_queries, options);
+    let dest_file_path: PathBuf = output_directory.join("mod").with_extension("rs");
     let mut file = File::create(dest_file_path)?;
-    write!(file, "{}", generated_code)?;
+    write!(file, "{}", tokens.to_string())?;
 
     Ok(())
 }
