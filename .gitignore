@@ -6,3 +6,4 @@ perf.*
 stacks.folded
 flamegraph.svg
 node_modules
+package-lock.json
