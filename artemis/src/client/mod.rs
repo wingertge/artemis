@@ -7,11 +7,15 @@ mod observable;
 
 use crate::{exchanges::DummyExchange, Exchange, GraphQLQuery, QueryError, QueryOptions, Response};
 pub use builder::ClientBuilder;
+use futures::{TryFutureExt, TryStreamExt};
 pub use r#impl::ClientImpl;
+#[cfg(target_arch = "wasm32")]
+mod wasm;
+#[cfg(target_arch = "wasm32")]
+pub use wasm::*;
 
 #[derive(Clone)]
 #[repr(transparent)]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct Client<M: Exchange = DummyExchange>(pub Arc<ClientImpl<M>>);
 
 impl Client {
@@ -20,7 +24,6 @@ impl Client {
     }
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl<M: Exchange> Client<M> {
     pub async fn query<Q: GraphQLQuery>(
         &self,
@@ -39,24 +42,22 @@ impl<M: Exchange> Client<M> {
         self.0.query_with_options(_query, variables, options).await
     }
 
-    #[cfg(feature = "observable")]
-    pub async fn subscribe<Q: GraphQLQuery + 'static>(
+    #[cfg(all(not(target_arch = "wasm32"), feature = "observable"))]
+    pub fn subscribe<Q: GraphQLQuery + 'static>(
         &self,
         query: Q,
         variables: Q::Variables
     ) -> observable::OperationObservable<Q, M> {
-        self.0.subscribe(query, variables).await
+        self.0.subscribe(query, variables)
     }
 
-    #[cfg(feature = "observable")]
-    pub async fn subscribe_with_options<Q: GraphQLQuery + 'static>(
+    #[cfg(all(not(target_arch = "wasm32"), feature = "observable"))]
+    pub fn subscribe_with_options<Q: GraphQLQuery + 'static>(
         &self,
         _query: Q,
         variables: Q::Variables,
         options: QueryOptions
     ) -> observable::OperationObservable<Q, M> {
-        self.0
-            .subscribe_with_options(_query, variables, options)
-            .await
+        self.0.subscribe_with_options(_query, variables, options)
     }
 }

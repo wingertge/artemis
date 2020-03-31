@@ -3,7 +3,10 @@ use parking_lot::Mutex;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-    sync::Arc
+    sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc
+    }
 };
 
 type FlurryMap<K, V> = flurry::HashMap<K, V>;
@@ -24,13 +27,14 @@ impl<V: 'static + Send> Default for OptimisticMap<V> {
 
 type Records = OptimisticMap<serde_json::Value>;
 type Links = OptimisticMap<Link>;
-type QueryKeys = FlurryMap<u64, String>;
 type Dependents = Arc<Mutex<HashMap<String, HashSet<u64>>>>;
+type RefCounts = FlurryMap<String, AtomicIsize>;
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub enum Link {
     Single(String),
-    List(Vec<String>)
+    List(Vec<String>),
+    Null
 }
 
 pub struct SerializedData {
@@ -40,21 +44,18 @@ pub struct SerializedData {
     links: HashMap<String, HashMap<String, Link>>
 }
 
+#[derive(Default)]
 pub struct InMemoryData {
     records: Records,
     links: Links,
-    query_keys: QueryKeys,
-    dependencies: Dependents
+    dependencies: Dependents,
+    ref_counts: RefCounts,
+    gc_queue: FlurryMap<String, ()>
 }
 
 impl InMemoryData {
     pub fn new() -> Self {
-        Self {
-            records: Records::default(),
-            links: Links::default(),
-            query_keys: QueryKeys::default(),
-            dependencies: Dependents::default()
-        }
+        Self::default()
     }
 
     pub fn set_dependencies(&self, query_key: u64, dependencies: HashSet<String>) {
@@ -72,18 +73,18 @@ impl InMemoryData {
         }
     }
 
-    pub fn get_dependencies(&self, entity_key: &String) -> Vec<u64> {
+    pub fn get_dependencies(&self, entity_key: &str) -> Vec<u64> {
         let dependencies = self.dependencies.lock();
         dependencies
             .get(entity_key)
             .map(|entity| entity.iter().cloned().collect())
-            .unwrap_or_else(|| Vec::new())
+            .unwrap_or_else(Vec::new)
     }
 
     pub fn read_record<'g>(
         &'g self,
-        entity_key: &String,
-        field_key: &String,
+        entity_key: &str,
+        field_key: &str,
         guard: &'g Guard
     ) -> Option<serde_json::Value> {
         self.records
@@ -101,15 +102,15 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| entity.lock().get(field_key).cloned())
-                    .map(|res| Some(res))
+                    .map(Option::Some)
             })
             .and_then(|res| res)
     }
 
     pub fn read_link<'g>(
         &'g self,
-        entity_key: &String,
-        field_key: &String,
+        entity_key: &str,
+        field_key: &str,
         guard: &'g Guard
     ) -> Option<Link> {
         self.links
@@ -125,7 +126,7 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| entity.lock().get(field_key).cloned())
-                    .map(|res| Some(res))
+                    .map(Option::Some)
             })
             .and_then(|res| res)
     }
@@ -145,22 +146,21 @@ impl InMemoryData {
                 entity.insert(field_key, value);
             } else {
                 entity.remove(&field_key);
+                self.remove_link(&entity_key, &field_key);
             }
-        } else {
-            if let Some(value) = value {
-                let mut entity = HashMap::new();
-                entity.insert(field_key, value);
-                self.records
-                    .base
-                    .insert(entity_key, Mutex::new(entity), &guard);
-            }
+        } else if let Some(value) = value {
+            let mut entity = HashMap::new();
+            entity.insert(field_key, value);
+            self.records
+                .base
+                .insert(entity_key, Mutex::new(entity), &guard);
         }
     }
 
-    pub fn clear_optimistic_layer(&self, optimistic_key: &u64) {
+    pub fn clear_optimistic_layer(&self, optimistic_key: u64) {
         let guard = epoch::pin();
-        self.records.optimistic.remove(optimistic_key, &guard);
-        self.links.optimistic.remove(optimistic_key, &guard);
+        self.records.optimistic.remove(&optimistic_key, &guard);
+        self.links.optimistic.remove(&optimistic_key, &guard);
     }
 
     pub fn write_record_optimistic(
@@ -206,13 +206,60 @@ impl InMemoryData {
 
         if let Some(entity) = entity {
             let mut entity = entity.lock();
+            self.update_link_ref_count(entity.get(&field_key), -1, &guard);
+            self.update_link_ref_count(Some(&link), 1, &guard);
             entity.insert(field_key, link);
         } else {
             let mut entity_links = HashMap::new();
+            self.update_link_ref_count(Some(&link), 1, &guard);
             entity_links.insert(field_key, link);
             self.links
                 .base
                 .insert(entity_key, Mutex::new(entity_links), &guard);
+        }
+    }
+
+    fn update_link_ref_count<'g>(&self, link: Option<&'g Link>, by: isize, guard: &'g Guard) {
+        match link {
+            Some(Link::Single(entity)) => self.update_ref_count(entity, by, guard),
+            Some(Link::List(entities)) => {
+                for entity in entities {
+                    self.update_ref_count(entity, by, guard);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn update_link_ref_count_optimistic<'g>(
+        &self,
+        entity_key: &str,
+        field_key: &str,
+        link: Option<&'g Link>,
+        by: isize,
+        guard: &'g Guard
+    ) {
+        if let Some(link) = link {
+            match link {
+                Link::Single(entity) => self.update_ref_count(entity, by, guard),
+                Link::List(entities) => {
+                    for entity in entities {
+                        self.update_ref_count(entity, by, guard);
+                    }
+                }
+                _ => {}
+            }
+        } else {
+            let existing = self.read_link(entity_key, field_key, guard);
+            match existing {
+                Some(Link::Single(entity)) => self.update_ref_count(&entity, -by, guard),
+                Some(Link::List(entities)) => {
+                    for entity in entities {
+                        self.update_ref_count(&entity, -by, guard);
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
@@ -228,15 +275,45 @@ impl InMemoryData {
         if let Some(layer) = layer {
             if let Some(entity) = layer.get(&entity_key, &guard) {
                 let mut entity = entity.lock();
+                if let Some(field) = entity.get(&field_key) {
+                    self.update_link_ref_count_optimistic(
+                        &entity_key,
+                        &field_key,
+                        field.as_ref(),
+                        -1,
+                        &guard
+                    );
+                }
+                self.update_link_ref_count_optimistic(
+                    &entity_key,
+                    &field_key,
+                    link.as_ref(),
+                    1,
+                    &guard
+                );
                 entity.insert(field_key, link);
             } else {
                 let mut entity = HashMap::new();
+                self.update_link_ref_count_optimistic(
+                    &entity_key,
+                    &field_key,
+                    link.as_ref(),
+                    1,
+                    &guard
+                );
                 entity.insert(field_key, link);
                 layer.insert(entity_key, Mutex::new(entity), &guard);
             }
         } else {
             let layer = FlurryMap::new();
             let mut entity = HashMap::new();
+            self.update_link_ref_count_optimistic(
+                &entity_key,
+                &field_key,
+                link.as_ref(),
+                1,
+                &guard
+            );
             entity.insert(field_key, link);
             layer.insert(entity_key, Mutex::new(entity), &guard);
             self.links
@@ -245,29 +322,38 @@ impl InMemoryData {
         }
     }
 
-    /*    pub fn remove_link(&self, entity_key: &String, field_key: &String) -> Option<Link> {
+    pub fn remove_link(&self, entity_key: &str, field_key: &str) {
         let guard = epoch::pin();
-        self.links.get(entity_key, &guard).and_then(|entity_links| {
+        if let Some(entity_links) = self.links.base.get(entity_key, &guard) {
             let mut entity_links = entity_links.lock();
-            let target_key = entity_links.get(field_key).cloned();
-            if target_key.is_some() {
-                entity_links.remove(field_key);
+            if entity_links.remove(field_key).is_some() {
+                self.update_ref_count(entity_key, -1, &guard);
             }
-            target_key
-        })
-    }*/
-
-    pub fn get_entity_key_for_query<'g>(
-        &'g self,
-        query_key: &u64,
-        guard: &'g Guard
-    ) -> Option<&'g String> {
-        self.query_keys.get(query_key, guard)
+        }
     }
 
-    pub fn set_entity_key_for_query(&self, query_key: u64, entity_key: String) {
+    pub fn collect_garbage(&self) {
         let guard = epoch::pin();
-        self.query_keys.insert(query_key, entity_key, &guard);
+        for key in self.gc_queue.keys(&guard) {
+            self.records.base.remove(key, &guard);
+            self.gc_queue.remove(key, &guard);
+        }
+    }
+
+    pub fn update_ref_count(&self, key: &str, by: isize, guard: &Guard) {
+        if let Some(ref_count) = self.ref_counts.get(key, guard) {
+            let new_val = ref_count.fetch_add(by, Ordering::SeqCst) + by;
+            if new_val <= 0 {
+                self.gc_queue.insert(key.to_string(), (), guard);
+            } else {
+                self.gc_queue.remove(key, guard);
+            }
+        } else if by >= 0 {
+            self.ref_counts
+                .insert(key.to_string(), AtomicIsize::new(by), guard);
+        } else {
+            panic!("Tried to decrease ref count of non-existing entity {}. This is an error with the cache code.", key);
+        }
     }
 
     #[allow(unused)]

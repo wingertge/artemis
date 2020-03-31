@@ -61,6 +61,36 @@ impl<'schema> GqlInput<'schema> {
         self.contains_type_without_indirection(context, &self.name)
     }
 
+    pub(crate) fn to_typescript(
+        &self,
+        context: &QueryContext<'_, '_>
+    ) -> Result<String, CodegenError> {
+        let mut fields: Vec<&GqlObjectField<'_>> = self.fields.values().collect();
+        fields.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+        let fields: Vec<String> = fields
+            .iter()
+            .map(|field| {
+                let ty = field.type_.to_typescript(&context, "");
+
+                context.schema.require(&field.type_.inner_name_str());
+
+                format!("{}: {}", field.name, ty)
+            })
+            .collect();
+
+        let name = self.name;
+
+        Ok(format!(
+            r#"
+        export interface {name} {{
+            {fields}
+        }}
+        "#,
+            name = name,
+            fields = fields.join(",\n")
+        ))
+    }
+
     pub(crate) fn to_rust(
         &self,
         context: &QueryContext<'_, '_>
@@ -91,6 +121,20 @@ impl<'schema> GqlInput<'schema> {
             quote!(#rename pub #name: #ty)
         });
         let variables_derives = context.variables_derives();
+        let wasm_variables_derives = if context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Deserialize"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !context.response_derives.contains(def))
+                .collect();
+            if !filtered.is_empty() {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
 
         // Prevent generated code like "pub struct crate" for a schema input like "input crate { ... }"
         // This works in tandem with renamed struct Variables field types, eg: pub struct Variables { pub criteria : crate_ , }
@@ -99,7 +143,7 @@ impl<'schema> GqlInput<'schema> {
         let name = Ident::new(&name, Span::call_site());
         Ok(quote! {
             #variables_derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_variables_derives
             pub struct #name {
                 #(#fields,)*
             }
@@ -112,7 +156,7 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::InputObjectTyp
 {
     fn from(schema_input: &'schema graphql_parser::schema::InputObjectType) -> GqlInput<'schema> {
         GqlInput {
-            description: schema_input.description.as_ref().map(String::as_str),
+            description: schema_input.description.as_deref(),
             name: &schema_input.name,
             fields: schema_input
                 .fields
@@ -136,12 +180,8 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::InputObjectTyp
 impl<'schema> std::convert::From<&'schema introspection_response::FullType> for GqlInput<'schema> {
     fn from(schema_input: &'schema introspection_response::FullType) -> GqlInput<'schema> {
         GqlInput {
-            description: schema_input.description.as_ref().map(String::as_str),
-            name: schema_input
-                .name
-                .as_ref()
-                .map(String::as_str)
-                .expect("unnamed input object"),
+            description: schema_input.description.as_deref(),
+            name: schema_input.name.as_deref().expect("unnamed input object"),
             fields: schema_input
                 .input_fields
                 .as_ref()

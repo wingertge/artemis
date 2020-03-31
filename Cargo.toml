@@ -6,7 +6,8 @@ members = [
     "artemis-build",
     "artemis-test",
     "artemis-load-gen",
-    "artemis-normalized-cache"
+    "artemis-normalized-cache",
+    "artemis-codegen-proc-macro"
 ]
 
 [profile.release]

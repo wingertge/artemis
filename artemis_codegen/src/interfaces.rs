@@ -4,7 +4,7 @@ use crate::{
     query::QueryContext,
     selection::{Selection, SelectionField, SelectionFragmentSpread, SelectionItem},
     shared::*,
-    unions::union_variants,
+    unions::{union_variants, union_variants_typescript},
     CodegenError
 };
 use proc_macro2::{Ident, Span, TokenStream};
@@ -103,6 +103,18 @@ impl<'schema> GqlInterface<'schema> {
         }
     }
 
+    pub(crate) fn typescript_definitions_for_selection(
+        &self,
+        context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>
+    ) -> Result<Vec<String>, CodegenError> {
+        crate::shared::typescript_definitions_for_selection(
+            &self.fields,
+            context,
+            &self.object_selection(selection, context)
+        )
+    }
+
     /// The generated code for each of the selected field's types. See [shared::field_impls_for_selection].
     pub(crate) fn field_impls_for_selection(
         &self,
@@ -111,6 +123,21 @@ impl<'schema> GqlInterface<'schema> {
         prefix: &str
     ) -> Result<(Vec<TokenStream>, HashSet<String>), CodegenError> {
         crate::shared::field_impls_for_selection(
+            &self.fields,
+            context,
+            &self.object_selection(selection, context),
+            prefix
+        )
+    }
+
+    pub(crate) fn typescript_fields_for_selection(
+        &self,
+        context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>,
+        prefix: &str
+    ) -> Result<Vec<String>, CodegenError> {
+        typescript_fields_for_selection(
+            &self.name,
             &self.fields,
             context,
             &self.object_selection(selection, context),
@@ -134,6 +161,95 @@ impl<'schema> GqlInterface<'schema> {
         )
     }
 
+    pub(crate) fn typescript_for_selection(
+        &self,
+        query_context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>,
+        prefix: &str
+    ) -> Result<String, CodegenError> {
+        selection.extract_typename(query_context).ok_or_else(|| {
+            CodegenError::InternalError(format!(
+                "Missing __typename in selection for the {} interface (type: {})",
+                prefix, self.name
+            ))
+        })?;
+
+        let object_fields =
+            self.typescript_fields_for_selection(query_context, &selection, prefix)?;
+
+        let object_children =
+            self.typescript_definitions_for_selection(query_context, &selection)?;
+
+        let union_selection = self.union_selection(&selection, &query_context);
+
+        let (mut union_variants, union_children, used_variants) =
+            union_variants_typescript(&union_selection, query_context, prefix, &self.name)?;
+
+        for used_variant in used_variants.iter() {
+            if !self.implemented_by.contains(used_variant) {
+                return Err(CodegenError::TypeError(format!(
+                    "Type {} does not implement the {} interface",
+                    used_variant, self.name,
+                )));
+            }
+        }
+
+        // Add the non-selected variants to the generated enum's variants.
+        union_variants.extend(
+            self.implemented_by
+                .iter()
+                .filter(|obj| used_variants.iter().find(|v| v == obj).is_none())
+                .map(|v| (*v).to_string())
+        );
+
+        let attached_enum_name = format!("{}On", prefix);
+        let attached_enum = if selection.extract_typename(query_context).is_some() {
+            format!(
+                "export type {name} = {variants}",
+                name = attached_enum_name,
+                variants = union_variants.join(" | ")
+            )
+        } else {
+            format!("")
+        };
+
+        let type_name = self.name;
+
+        let children = if object_children.len() + union_children.len() > 0 {
+            format!(
+                r#"
+                export namespace {name} {{
+                    {objects}
+                    {unions}
+                }}
+                "#,
+                name = prefix,
+                objects = object_children.join("\n"),
+                unions = union_children.join("\n")
+            )
+        } else {
+            format!("")
+        };
+
+        let tokens = format!(
+            r#"
+            {children}
+
+            {_enum}
+
+            export interface {name} {{
+                {fields}
+            }}
+        "#,
+            children = children,
+            _enum = attached_enum,
+            name = type_name,
+            fields = object_fields.join(",\n")
+        );
+
+        Ok(tokens)
+    }
+
     /// Generate all the code for the interface.
     pub(crate) fn response_for_selection(
         &self,
@@ -143,6 +259,20 @@ impl<'schema> GqlInterface<'schema> {
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let name = Ident::new(&prefix, Span::call_site());
         let derives = query_context.response_derives();
+        let wasm_derives = if query_context.wasm_bindgen {
+            let filtered: Vec<_> = vec!["Serialize"]
+                .into_iter()
+                .map(|def| syn::Ident::new(def, Span::call_site()))
+                .filter(|def| !query_context.response_derives.contains(def))
+                .collect();
+            if !filtered.is_empty() {
+                quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
+            } else {
+                quote!()
+            }
+        } else {
+            quote!()
+        };
 
         selection.extract_typename(query_context).ok_or_else(|| {
             CodegenError::InternalError(format!(
@@ -187,6 +317,7 @@ impl<'schema> GqlInterface<'schema> {
             if selection.extract_typename(query_context).is_some() {
                 let attached_enum = quote! {
                     #derives
+                    #wasm_derives
                     #[serde(tag = "__typename")]
                     pub enum #attached_enum_name {
                         #(#union_variants,)*
@@ -198,26 +329,6 @@ impl<'schema> GqlInterface<'schema> {
                 (None, None)
             };
 
-        let type_name = self.name;
-        let query_info = if query_context.include_query_info {
-            quote! {
-                impl ::artemis::QueryInfo<Variables> for #name {
-                    fn typename(&self) -> &'static str {
-                        #type_name
-                    }
-
-                    #[allow(unused_variables)]
-                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
-                        vec![
-                            #(#selection_fields,)*
-                        ]
-                    }
-                }
-            }
-        } else {
-            quote!()
-        };
-
         let tokens = quote! {
 
             #(#object_children)*
@@ -227,13 +338,20 @@ impl<'schema> GqlInterface<'schema> {
             #attached_enum
 
             #derives
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+            #wasm_derives
             pub struct #name {
                 #(#object_fields,)*
                 #last_object_field
             }
 
-            #query_info
+            impl #name {
+                #[allow(unused_variables)]
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![
+                        #(#selection_fields,)*
+                    ]
+                }
+            }
         };
 
         Ok((tokens, types))

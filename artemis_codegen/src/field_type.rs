@@ -55,6 +55,77 @@ impl<'a> FieldType<'a> {
         }
     }
 
+    pub(crate) fn to_typescript(&self, context: &QueryContext<'_, '_>, prefix: &str) -> String {
+        let prefix: &str = if prefix.is_empty() {
+            self.inner_name_str()
+        } else {
+            prefix
+        };
+
+        let full_name = {
+            if context
+                .schema
+                .scalars
+                .get(&self.name)
+                .map(|s| s.is_required.set(true))
+                .is_some()
+                || DEFAULT_SCALARS.iter().any(|elem| elem == &self.name)
+            {
+                self.name.to_string()
+            } else if context
+                .schema
+                .enums
+                .get(&self.name)
+                .map(|enm| enm.is_required.set(true))
+                .is_some()
+            {
+                format!("{}.{}", ENUMS_PREFIX, self.name)
+            } else {
+                if prefix.is_empty() {
+                    panic!("Empty prefix for {:?}", self);
+                }
+
+                prefix.to_string()
+            }
+        };
+
+        let mut qualified = full_name;
+
+        let mut non_null = false;
+
+        // Note: we iterate over qualifiers in reverse because it is more intuitive. This
+        // means we start from the _inner_ type and make our way to the outside.
+        for qualifier in self.qualifiers.iter().rev() {
+            match (non_null, qualifier) {
+                // We are in non-null context, and we wrap the non-null type into a list.
+                // We switch back to null context.
+                (true, GraphqlTypeQualifier::List) => {
+                    qualified = format!("Array<{}>", qualified);
+                    non_null = false;
+                }
+                // We are in nullable context, and we wrap the nullable type into a list.
+                (false, GraphqlTypeQualifier::List) => {
+                    qualified = format!("Array<Maybe<{}>>", qualified);
+                }
+                // We are in non-nullable context, but we can't double require a type
+                // (!!).
+                (true, GraphqlTypeQualifier::Required) => panic!("double required annotation"),
+                // We are in nullable context, and we switch to non-nullable context.
+                (false, GraphqlTypeQualifier::Required) => {
+                    non_null = true;
+                }
+            }
+        }
+
+        // If we are in nullable context at the end of the iteration, we wrap the whole
+        // type with an Option.
+        if !non_null {
+            qualified = format!("Maybe<{}>", qualified);
+        }
+
+        qualified
+    }
+
     /// Takes a field type with its name.
     pub(crate) fn to_rust(
         &self,
@@ -82,7 +153,7 @@ impl<'a> FieldType<'a> {
             {
                 let args = Self::args_as_string(arguments.to_rust());
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(String::from(#field_name), #args)
+                    ::artemis::FieldSelector::Scalar(#field_name, #args)
                 };
                 self.name.to_string()
             } else if context
@@ -95,7 +166,7 @@ impl<'a> FieldType<'a> {
                 let args = Self::args_as_string(arguments.to_rust());
                 let name = self.name.to_string();
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(String::from(#name), #args)
+                    ::artemis::FieldSelector::Scalar(#name, #args)
                 };
                 format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
@@ -105,35 +176,18 @@ impl<'a> FieldType<'a> {
                 let args = Self::args_as_string(arguments.to_rust());
                 let type_ident = Ident::new(prefix, Span::call_site());
 
-                if let Some(union) = context.schema.unions.get(&self.name) {
-                    let required = union.is_required.get();
-                    let selection_fn =
-                        quote! { Box::new(|typename| #type_ident::selection(typename, variables)) };
+                if context.schema.unions.get(&self.name).is_some() {
+                    let selection_fn = quote! { ::std::sync::Arc::new(|typename| #type_ident::selection(typename, variables)) };
 
                     field_selector = quote! {
-                        ::artemis::FieldSelector::Union(String::from(#field_name), #args, #required, #selection_fn)
+                        ::artemis::FieldSelector::Union(#field_name, #args, #selection_fn)
                     }
                 } else {
-                    let required = context
-                        .schema
-                        .objects
-                        .get(&self.name)
-                        .map(|object| object.is_required.get())
-                        .or_else(|| {
-                            context
-                                .schema
-                                .interfaces
-                                .get(&self.name)
-                                .map(|interface| interface.is_required.get())
-                        });
+                    let typename = self.name;
 
-                    if let Some(required) = required {
-                        field_selector = quote! {
-                            ::artemis::FieldSelector::Object(String::from(#field_name), #args, #required, #type_ident::selection(variables))
-                        };
-                    } else {
-                        field_selector = quote!()
-                    }
+                    field_selector = quote! {
+                        ::artemis::FieldSelector::Object(#field_name, #args, #typename, #type_ident::selection(variables))
+                    };
                 }
 
                 prefix.to_string()
