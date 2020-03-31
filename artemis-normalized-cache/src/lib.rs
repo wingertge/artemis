@@ -1,4 +1,6 @@
 #![deny(warnings)]
+#![allow(unused_parens)]
+#![feature(proc_macro_hygiene)]
 
 #[macro_use]
 extern crate async_trait;
@@ -9,5 +11,5 @@ mod cache_exchange;
 mod store;
 mod types;
 
-pub use store::Store;
+pub use store::{QueryStore, Store};
 pub use types::{NormalizedCacheExtension, NormalizedCacheOptions};

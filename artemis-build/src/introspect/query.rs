@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-pub const OPERATION_NAME: &'static str = "IntrospectionQuery";
-pub const QUERY: &'static str = r#"
+pub const OPERATION_NAME: &str = "IntrospectionQuery";
+pub const QUERY: &str = r#"
 query IntrospectionQuery {
   __schema {
     queryType {

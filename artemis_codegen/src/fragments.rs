@@ -34,6 +34,23 @@ pub(crate) struct GqlFragment<'query> {
 }
 
 impl<'query> GqlFragment<'query> {
+    pub(crate) fn to_typescript(
+        &self,
+        context: &QueryContext<'_, '_>
+    ) -> Result<String, CodegenError> {
+        match self.on {
+            FragmentTarget::Object(obj) => {
+                obj.typescript_for_selection(context, &self.selection, &self.name, false)
+            }
+            FragmentTarget::Interface(iface) => {
+                iface.typescript_for_selection(context, &self.selection, &self.name)
+            }
+            FragmentTarget::Union(_) => {
+                unreachable!("Wrong code path. Fragment on unions are treated differently.")
+            }
+        }
+    }
+
     /// Generate all the Rust code required by the fragment's object selection.
     pub(crate) fn to_rust(
         &self,

@@ -20,8 +20,10 @@ pub struct DedupExchangeImpl<TNext: Exchange> {
     in_flight_operations: InFlightCache
 }
 
-impl<TNext: Exchange> ExchangeFactory<DedupExchangeImpl<TNext>, TNext> for DedupExchange {
-    fn build(self, next: TNext) -> DedupExchangeImpl<TNext> {
+impl<TNext: Exchange> ExchangeFactory<TNext> for DedupExchange {
+    type Output = DedupExchangeImpl<TNext>;
+
+    fn build(self, next: TNext) -> Self::Output {
         DedupExchangeImpl {
             next,
             in_flight_operations: InFlightCache::default()
@@ -59,9 +61,9 @@ fn make_deduped_result<Q: GraphQLQuery>(
 }
 
 impl<TNext: Exchange> DedupExchangeImpl<TNext> {
-    fn notify_listeners<Q: GraphQLQuery>(&self, key: &u64, res: &ExchangeResult<Q::ResponseData>) {
+    fn notify_listeners<Q: GraphQLQuery>(&self, key: u64, res: &ExchangeResult<Q::ResponseData>) {
         let mut cache = self.in_flight_operations.lock().unwrap();
-        let to_be_notified = cache.remove(key).unwrap();
+        let to_be_notified = cache.remove(&key).unwrap();
         for sender in to_be_notified {
             let res = make_deduped_result::<Q>(res);
             sender.send(res).unwrap();
@@ -80,7 +82,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
             return self.next.run::<Q, _>(operation, _client).await;
         }
 
-        let key = operation.meta.key.clone();
+        let key = operation.key;
         let rcv = {
             let mut cache = self.in_flight_operations.lock().unwrap();
             if let Some(listeners) = cache.get_mut(&key) {
@@ -88,7 +90,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
                 listeners.push(sender);
                 Some(receiver)
             } else {
-                cache.insert(key.clone(), Vec::new());
+                cache.insert(key, Vec::new());
                 None
             }
         };
@@ -99,13 +101,13 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
             Ok(res)
         } else {
             let res = self.next.run::<Q, _>(operation, _client).await;
-            self.notify_listeners::<Q>(&key, &res);
+            self.notify_listeners::<Q>(key, &res);
             res
         }
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod test {
     use super::DedupExchangeImpl;
     use crate::{
@@ -138,7 +140,9 @@ mod test {
 
     struct FakeFetchExchange;
 
-    impl<TNext: Exchange> ExchangeFactory<FakeFetchExchange, TNext> for FakeFetchExchange {
+    impl<TNext: Exchange> ExchangeFactory<TNext> for FakeFetchExchange {
+        type Output = FakeFetchExchange;
+
         fn build(self, _next: TNext) -> FakeFetchExchange {
             Self
         }
@@ -153,6 +157,7 @@ mod test {
         ) -> ExchangeResult<Q::ResponseData> {
             delay_for(Duration::from_millis(10)).await;
             let res = OperationResult {
+                key: operation.key,
                 meta: operation.meta,
                 response: Response {
                     debug_info: Some(DebugInfo {
@@ -169,6 +174,7 @@ mod test {
 
     fn make_operation(query: QueryBody<Variables>, meta: OperationMeta) -> Operation<Variables> {
         Operation {
+            key: meta.query_key as u64,
             meta,
             query,
             options: OperationOptions {
@@ -182,7 +188,7 @@ mod test {
 
     fn build_query(variables: Variables) -> (QueryBody<Variables>, OperationMeta) {
         let meta = OperationMeta {
-            key: 1354603040u64,
+            query_key: 13543040u32,
             operation_type: OperationType::Query,
             involved_types: vec!["Conference", "Person", "Talk"]
         };

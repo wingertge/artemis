@@ -57,14 +57,14 @@ pub(crate) fn introspect(
         variables: query::Variables
     };
 
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
     let mut req_builder = client.post(location).headers(construct_headers(headers));
 
     if let Some(token) = authorization {
         req_builder = req_builder.bearer_auth(token.as_str())
     }
 
-    let mut res = req_builder
+    let res = req_builder
         .json(&request_body)
         .send()
         .map_err(IntrospectionError::NetworkError)?;

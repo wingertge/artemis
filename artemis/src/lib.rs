@@ -15,17 +15,20 @@ pub mod exchanges;
 pub mod types;
 mod utils;
 
+pub use artemis_codegen_proc_macro::wasm_client;
 pub use client::{Client, ClientBuilder};
 pub use error::QueryError;
-pub use exchanges::FetchExchange;
 use serde::{de::DeserializeOwned, Serialize};
 pub use surf::url::Url;
-pub use types::{
-    DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector, HeaderPair, Operation,
-    OperationMeta, OperationResult, OperationType, QueryInfo, QueryOptions, RequestPolicy,
-    ResultSource
-};
+pub use types::*;
 pub use utils::progressive_hash;
+#[cfg(target_arch = "wasm32")]
+pub use utils::wasm;
+
+use crate::client::ClientImpl;
+use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]
@@ -80,7 +83,7 @@ pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
 ///     Ok(())
 /// }
 /// ```
-pub trait GraphQLQuery: Send + Sync {
+pub trait GraphQLQuery: Send + Sync + 'static {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
     type Variables: Serialize + Send + Sync + Clone + 'static;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
@@ -152,10 +155,11 @@ pub trait GraphQLQuery: Send + Sync {
 /// #     Ok(())
 /// # }
 /// ```
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Response<Data: Clone> {
     /// The debug info if in test config, an empty struct otherwise
-    #[serde(skip)]
+    #[serde(skip_deserializing, rename = "debugInfo")]
     pub debug_info: Option<DebugInfo>,
     /// The absent, partial or complete response data.
     pub data: Option<Data>,
@@ -271,15 +275,6 @@ impl Display for Error {
     }
 }
 
-/// Represents a location inside a query string. Used in errors. See [`Error`].
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-pub struct Location {
-    /// The line number in the query string where the error originated (starting from 1).
-    pub line: i32,
-    /// The column number in the query string where the error originated (starting from 1).
-    pub column: i32
-}
-
 /// Part of a path in a query. It can be an object key or an array index. See [`Error`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
@@ -288,6 +283,15 @@ pub enum PathFragment {
     Key(String),
     /// An index inside an array
     Index(i32)
+}
+
+/// Represents a location inside a query string. Used in errors. See [`Error`].
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+pub struct Location {
+    /// The line number in the query string where the error originated (starting from 1).
+    pub line: i32,
+    /// The column number in the query string where the error originated (starting from 1).
+    pub column: i32
 }
 
 impl Display for PathFragment {

@@ -1,14 +1,20 @@
 use crate::store::data::{InMemoryData, Link};
 use artemis::{
-    exchanges::Client, FieldSelector, GraphQLQuery, Operation, OperationResult, QueryError,
-    QueryInfo
+    exchanges::Client, progressive_hash, types::OperationOptions, FieldSelector, GraphQLQuery,
+    Operation, OperationResult, QueryError, RequestPolicy, Response
 };
 use flurry::{epoch, epoch::Guard};
+#[cfg(target_arch = "wasm32")]
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
-    fmt
+    fmt,
+    sync::Arc
 };
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
@@ -17,7 +23,6 @@ pub struct Store {
 
 #[derive(Debug)]
 pub enum StoreError {
-    InvalidSelection(String),
     InvalidMetadata(String)
 }
 impl Error for StoreError {}
@@ -25,7 +30,6 @@ impl Error for StoreError {}
 impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StoreError::InvalidSelection(msg) => write!(f, "Invalid selection: {}", msg),
             StoreError::InvalidMetadata(msg) => write!(f, "Invalid metadata: {}", msg)
         }
     }
@@ -39,7 +43,92 @@ pub fn is_root(typename: &str) -> bool {
     typename == "Query" || typename == "Mutation" || typename == "Subscription"
 }
 
+#[derive(Clone)]
+pub struct QueryStore {
+    pub(crate) store: Arc<Store>
+}
+
+impl QueryStore {
+    pub fn update_query<Q: GraphQLQuery, F>(
+        &self,
+        _query: Q,
+        variables: Q::Variables,
+        updater_fn: F,
+        dependencies: &mut HashSet<String>
+    ) where
+        F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
+    {
+        self.store
+            .update_query::<Q, _>(variables, updater_fn, dependencies);
+    }
+}
+
+impl From<Arc<Store>> for QueryStore {
+    fn from(store: Arc<Store>) -> Self {
+        Self { store }
+    }
+}
+
 impl Store {
+    pub fn update_query<Q: GraphQLQuery, F>(
+        &self,
+        variables: Q::Variables,
+        updater_fn: F,
+        dependencies: &mut HashSet<String>
+    ) where
+        F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
+    {
+        let (query, meta) = Q::build_query(variables.clone());
+        let key = progressive_hash(meta.query_key, &variables);
+        let op = Operation {
+            key,
+            query,
+            meta: meta.clone(),
+            options: OperationOptions {
+                extensions: None,
+                extra_headers: None,
+                request_policy: RequestPolicy::CacheOnly,
+                url: "http://0.0.0.0".parse().unwrap()
+            }
+        };
+        let data = self.read_query::<Q>(&op, dependencies);
+        let updated_data = updater_fn(data);
+        if let Some(updated_data) = updated_data {
+            let result = OperationResult {
+                key,
+                meta,
+                response: Response {
+                    data: Some(updated_data),
+                    errors: None,
+                    debug_info: None
+                }
+            };
+            self.write_query::<Q>(&result, &variables, false, dependencies)
+                .unwrap();
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn update_query_js<Q: GraphQLQuery>(
+        self: &Arc<Self>,
+        variables: Value,
+        updater_fn: js_sys::Function,
+        dependencies: *mut usize
+    ) where
+        Q::Variables: DeserializeOwned
+    {
+        let variables: Q::Variables = serde_json::from_value(variables).unwrap();
+        let updater = move |current_data: Option<Q::ResponseData>| -> Option<Q::ResponseData> {
+            let this = JsValue::NULL;
+            let current_data = serde_wasm_bindgen::to_value(&current_data).unwrap();
+            let result = updater_fn.call1(&this, &current_data);
+            serde_wasm_bindgen::from_value(result).unwrap()
+        };
+        let dependencies = dependencies as *mut _ as *mut HashSet<String>;
+        let dependencies = unsafe { &mut *dependencies };
+        self.update_query::<Q, _>(variables, updater, dependencies);
+    }
+
     pub fn new(custom_keys: HashMap<&'static str, String>) -> Self {
         Self {
             data: InMemoryData::new(),
@@ -69,135 +158,99 @@ impl Store {
         id.map(|id| format!("{}:{}", typename, id))
     }
 
-    /*    pub fn update_query<Q: GraphQLQuery, F>(&self, query: QueryBody<Q::Variables>, updater: F)
-    where
-        F: Fn(Option<serde_json::Value>) -> serde_json::Value
-    {
-    }*/
-
-    pub fn write_query<Q: GraphQLQuery, C: Client>(
+    pub fn write_query<Q: GraphQLQuery>(
         &self,
         query: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
         optimistic: bool,
-        client: &C
+        dependencies: &mut HashSet<String>
     ) -> Result<(), QueryError> {
         if query.response.data.is_none() {
             return Ok(());
         }
 
         let data: Q::ResponseData = query.response.data.as_ref().unwrap().clone();
-        let typename: &str = data.typename();
         let selection = Q::selection(variables);
         let data = serde_json::to_value(data)?;
         if !data.is_object() {
             return Ok(());
         }
         let data = data.as_object().unwrap();
-        let key = self.key_of_entity(&typename, data).ok_or_else(|| {
-            StoreError::InvalidMetadata(format!(
-                "Cache error: couldn't find root key of query {}",
-                query.meta.key
-            ))
-        })?;
-        let mut dependencies = HashSet::new();
+        let key = query.meta.operation_type.to_string();
 
         let guard = epoch::pin();
-        let optimistic_key = if optimistic {
-            Some(query.meta.key.clone())
-        } else {
-            None
-        };
+        let optimistic_key = if optimistic { Some(query.key) } else { None };
 
-        for (field_name, value) in data {
-            let args = selection
-                .iter()
-                .find_map(|selector| {
-                    let (name, args) = match selector {
-                        &FieldSelector::Scalar(ref name, ref args) => (name, args),
-                        &FieldSelector::Object(ref name, ref args, _, _) => (name, args),
-                        &FieldSelector::Union(ref name, ref args, _, _) => (name, args)
-                    };
-                    if name == field_name {
-                        Some(args)
-                    } else {
-                        None
-                    }
-                })
-                .expect(&format!(
-                    "Missing selector for returned field {}:{}",
-                    typename, field_name
-                ));
+        for field in selection {
+            let field_name = self.get_selector_field_key(&field);
+            let value = data.get(field_name).unwrap();
             self.store_data(
                 optimistic_key,
                 key.clone(),
-                field_name,
-                args,
+                &field,
                 value.clone(),
-                &selection,
-                &mut dependencies,
+                dependencies,
                 &guard
             )?;
         }
 
         if !optimistic {
-            self.data
-                .set_dependencies(query.meta.key.clone(), dependencies.clone());
-            self.data.clear_optimistic_layer(&query.meta.key);
+            self.data.set_dependencies(query.key, dependencies.clone());
+            self.data.collect_garbage();
         }
 
-        self.rerun_queries(dependencies, query.meta.key.clone(), client);
-        self.data
-            .set_entity_key_for_query(query.meta.key.clone(), key.clone());
-
         Ok(())
+    }
+
+    pub fn clear_optimistic_layer(&self, query_key: u64) {
+        self.data.clear_optimistic_layer(query_key);
     }
 
     fn store_object(
         &self,
         optimistic_key: Option<u64>,
         entity_key: String,
-        field_name: &String,
-        args: &String,
-        value: serde_json::Map<String, serde_json::Value>,
-        selection: &Vec<FieldSelector>,
+        field: &FieldSelector,
+        value: serde_json::Value,
         dependencies: &mut HashSet<String>,
         guard: &Guard
-    ) -> Result<(), QueryError> {
-        let inner_selector = self.find_selector(selection, &entity_key, field_name, guard)?;
-        let key = self.key_of_entity(&"TODO", &value).ok_or_else(|| {
+    ) -> Result<(), StoreError> {
+        let (field_name, args, typename, inner) = match field {
+            FieldSelector::Object(name, args, typename, inner) => (*name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Union(name, args, inner) => {
+                let typename = self
+                    .data
+                    .read_record(&entity_key, &TYPENAME, guard)
+                    .expect("Missing typename from union type. This is a codegen error.");
+                let typename = typename
+                    .as_str()
+                    .expect("__typename has the wrong type. Should be string.");
+                (*name, args, typename.to_string(), inner(typename))
+            }
+            _ => unreachable!()
+        };
+
+        let field_key = format!("{}{}", field_name, args);
+        if value.is_null() {
+            self.data.write_link(entity_key, field_key, Link::Null);
+            return Ok(());
+        }
+        let value = value.as_object().unwrap();
+        let key = self.key_of_entity(&typename, value).ok_or_else(|| {
             StoreError::InvalidMetadata(format!(
                 "Cache error: couldn't find index for {}:{}",
                 entity_key, field_name
             ))
         })?;
         dependencies.insert(key.clone());
-        for (field_name, value) in value.into_iter() {
-            let args = inner_selector
-                .iter()
-                .find_map(|selector| {
-                    let (name, args) = match selector {
-                        &FieldSelector::Scalar(ref name, ref args) => (name, args),
-                        &FieldSelector::Object(ref name, ref args, _, _) => (name, args),
-                        &FieldSelector::Union(ref name, ref args, _, _) => (name, args)
-                    };
-                    if name == &field_name {
-                        Some(args)
-                    } else {
-                        None
-                    }
-                })
-                .expect(&format!(
-                    "Missing selector for returned field {}:{}",
-                    "TODO", field_name
-                ));
+        for field in &inner {
+            let field_name = self.get_selector_field_key(&field);
+            let value = value.get(field_name).unwrap();
             self.store_data(
                 optimistic_key.clone(),
                 key.clone(),
-                &field_name,
-                args,
-                value,
-                &inner_selector,
+                field,
+                value.clone(),
                 dependencies,
                 guard
             )?;
@@ -211,135 +264,121 @@ impl Store {
         Ok(())
     }
 
+    fn get_selector_field_key(&self, selector: &FieldSelector) -> &'static str {
+        match selector {
+            FieldSelector::Object(name, _, _, _) => *name,
+            FieldSelector::Union(name, _, _) => *name,
+            FieldSelector::Scalar(name, _) => *name
+        }
+    }
+
     fn store_array(
         &self,
         optimistic_key: Option<u64>,
         entity_key: String,
-        field_name: &String,
-        args: &String,
-        values: Vec<serde_json::Value>,
-        selection: &Vec<FieldSelector>,
+        selector: &FieldSelector,
+        value: serde_json::Value,
         dependencies: &mut HashSet<String>,
         guard: &Guard
-    ) -> Result<(), QueryError> {
-        let field_key = format!("{}{}", field_name, args);
-        if values.len() == 0 {
-            Ok(())
-        } else if !values.iter().next().unwrap().is_object() {
-            self.write_record(optimistic_key, entity_key, field_key, Some(values.into()));
-            Ok(())
-        } else {
-            let mut keys = Vec::new();
-            for value in values {
-                let value = value.as_object().unwrap();
-                let key = self.key_of_entity(&"TODO", value).ok_or_else(|| {
-                    StoreError::InvalidMetadata(format!(
-                        "Cache error: couldn't find index for {}:{}",
-                        entity_key, field_key
-                    ))
-                })?;
-                dependencies.insert(key.clone());
-
-                let inner_selector = self.find_selector(selection, &key, field_name, guard)?;
-
-                for (field_name, value) in value {
-                    self.store_data(
-                        optimistic_key.clone(),
-                        key.clone(),
-                        field_name,
-                        args,
-                        value.clone().into(),
-                        &inner_selector,
-                        dependencies,
-                        guard
-                    )?;
-                }
-                keys.push(key);
+    ) -> Result<(), StoreError> {
+        let (field_name, args, typename, inner) = match selector {
+            FieldSelector::Scalar(field_name, args) => {
+                let field_key = format!("{}{}", *field_name, args);
+                self.write_record(optimistic_key, entity_key, field_key, Some(value));
+                return Ok(());
             }
-            self.write_link(
-                optimistic_key,
-                entity_key,
-                field_key,
-                Some(Link::List(keys))
-            );
-            Ok(())
-        }
-    }
+            FieldSelector::Object(field_name, args, typename, inner) => (*field_name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Union(field_name, args, inner) => {
+                let typename = self
+                    .data
+                    .read_record(&entity_key, &TYPENAME, guard)
+                    .expect("Missing typename from union type. This is a codegen error.");
+                let typename = typename
+                    .as_str()
+                    .expect("__typename has the wrong type. Should be string.");
+                (*field_name, args, typename.to_string(), inner(typename))
+            }
+        };
 
-    fn find_selector(
-        &self,
-        selection: &Vec<FieldSelector>,
-        entity_key: &String,
-        field_name: &String,
-        guard: &Guard
-    ) -> Result<Vec<FieldSelector>, QueryError> {
-        Ok(selection
-            .iter()
-            .find_map(|selector| {
-                if let FieldSelector::Object(name, _, _, inner) = selector {
-                    if name == field_name {
-                        Some(inner.clone())
-                    } else {
-                        None
-                    }
-                } else if let FieldSelector::Union(name, _, _, inner) = selector {
-                    if name == field_name {
-                        let typename = self
-                            .data
-                            .read_record(entity_key, &TYPENAME, guard)
-                            .expect("Missing typename from union type. This is a codegen error.");
-                        let typename = typename
-                            .as_str()
-                            .expect("__typename has the wrong type. Should be string.");
-                        Some(inner(typename))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-            .ok_or(StoreError::InvalidSelection(format!(
-                "Couldn't find returned field in selection"
-            )))?)
+        let field_key = format!("{}{}", field_name, args);
+
+        if value.is_null() {
+            self.write_link(optimistic_key, entity_key, field_key, Some(Link::Null));
+            return Ok(());
+        }
+
+        let values = value.as_array().unwrap();
+        let mut keys = Vec::new();
+        for value in values {
+            let value = value.as_object().unwrap();
+            let key = self.key_of_entity(&typename, value).ok_or_else(|| {
+                StoreError::InvalidMetadata(format!(
+                    "Cache error: couldn't find index for {}:{}",
+                    entity_key, field_key
+                ))
+            })?;
+            dependencies.insert(key.clone());
+
+            for selector in inner.iter() {
+                let field_name = self.get_selector_field_key(selector);
+                let value = value.get(field_name).unwrap();
+                self.store_data(
+                    optimistic_key.clone(),
+                    key.clone(),
+                    selector,
+                    value.clone(),
+                    dependencies,
+                    guard
+                )?;
+            }
+
+            keys.push(key);
+        }
+
+        self.write_link(
+            optimistic_key,
+            entity_key,
+            field_key,
+            Some(Link::List(keys))
+        );
+        Ok(())
     }
 
     fn store_data(
         &self,
         optimistic_key: Option<u64>,
         entity_key: String,
-        field_name: &String,
-        args: &String,
+        selector: &FieldSelector,
         data: serde_json::Value,
-        selection: &Vec<FieldSelector>,
         dependencies: &mut HashSet<String>,
         guard: &Guard
-    ) -> Result<(), QueryError> {
-        let field_key = format!("{}{}", field_name, args);
-        if let Some(values) = data.as_array() {
-            self.store_array(
-                optimistic_key,
-                entity_key,
-                field_name,
-                args,
-                values.clone(),
-                selection,
-                dependencies,
-                guard
-            )?;
-        } else if let Some(value) = data.as_object() {
-            self.store_object(
-                optimistic_key,
-                entity_key,
-                field_name,
-                args,
-                value.clone(),
-                selection,
-                dependencies,
-                guard
-            )?;
-        } else {
-            self.write_record(optimistic_key, entity_key, field_key, Some(data));
+    ) -> Result<(), StoreError> {
+        match selector {
+            FieldSelector::Object(_, _, _, _) | FieldSelector::Union(_, _, _) => {
+                if data.is_array() {
+                    self.store_array(
+                        optimistic_key,
+                        entity_key,
+                        selector,
+                        data,
+                        dependencies,
+                        guard
+                    )?;
+                } else {
+                    self.store_object(
+                        optimistic_key,
+                        entity_key,
+                        selector,
+                        data,
+                        dependencies,
+                        guard
+                    )?;
+                }
+            }
+            FieldSelector::Scalar(field_name, args) => {
+                let field_key = format!("{}{}", *field_name, args);
+                self.write_record(optimistic_key, entity_key, field_key, Some(data));
+            }
         }
         Ok(())
     }
@@ -377,94 +416,93 @@ impl Store {
 
     pub fn read_query<Q: GraphQLQuery>(
         &self,
-        query: &Operation<Q::Variables>
+        query: &Operation<Q::Variables>,
+        dependencies: &mut HashSet<String>
     ) -> Option<Q::ResponseData> {
-        let guard = epoch::pin();
-        let root_key = self.data.get_entity_key_for_query(&query.meta.key, &guard);
-        if let Some(root_key) = root_key {
-            let selection = Q::selection(&query.query.variables);
-            let value = self.read_entity(root_key, &selection)?;
-            let data: Q::ResponseData =
-                serde_json::from_value(value).expect("Cache result didn't match type");
-            Some(data)
-        } else {
-            None
-        }
+        let root_key = query.meta.operation_type.to_string();
+        let selection = Q::selection(&query.query.variables);
+        let value = self.read_entity(&root_key, &selection, dependencies)?;
+        let data: Q::ResponseData =
+            serde_json::from_value(value).expect("Cache result didn't match type");
+        Some(data)
     }
 
     fn read_entity(
         &self,
-        entity_key: &String,
-        selection: &Vec<FieldSelector>
+        entity_key: &str,
+        selection: &[FieldSelector],
+        dependencies: &mut HashSet<String>
     ) -> Option<serde_json::Value> {
+        if entity_key != "Query" {
+            dependencies.insert(entity_key.to_string());
+        }
+
         let guard = epoch::pin();
         let mut result = serde_json::Map::new();
         for field in selection {
             match field {
-                &FieldSelector::Scalar(ref field_name, ref args) => {
+                FieldSelector::Scalar(ref field_name, ref args) => {
                     let value = self.data.read_record(
                         entity_key,
                         &format!("{}{}", field_name, args),
                         &guard
                     )?;
-                    result.insert(field_name.clone(), value.clone());
+                    result.insert(field_name.to_string(), value.clone());
                 }
-                &FieldSelector::Object(ref field_name, ref args, optional, ref inner) => {
-                    let link =
-                        self.data
-                            .read_link(entity_key, &format!("{}{}", field_name, args), &guard);
-                    if let Some(link) = link {
-                        match link {
-                            Link::Single(ref entity_key) => {
-                                let value = self.read_entity(entity_key, inner)?;
-                                result.insert(field_name.clone(), value);
-                            }
-                            Link::List(ref entity_keys) => {
-                                let values: Option<Vec<_>> = entity_keys
-                                    .iter()
-                                    .map(|entity_key| self.read_entity(entity_key, inner))
-                                    .collect();
-                                result.insert(field_name.clone(), values?.into());
-                            }
+                FieldSelector::Object(ref field_name, ref args, _, ref inner) => {
+                    let link = self.data.read_link(
+                        entity_key,
+                        &format!("{}{}", field_name, args),
+                        &guard
+                    )?;
+                    match link {
+                        Link::Single(ref entity_key) => {
+                            let value = self.read_entity(entity_key, inner, dependencies)?;
+                            result.insert(field_name.to_string(), value);
                         }
-                    } else if optional {
-                        result.insert(field_name.clone(), serde_json::Value::Null);
+                        Link::List(ref entity_keys) => {
+                            let values: Option<Vec<_>> = entity_keys
+                                .iter()
+                                .map(|entity_key| self.read_entity(entity_key, inner, dependencies))
+                                .collect();
+                            result.insert(field_name.to_string(), values?.into());
+                        }
+                        Link::Null => {
+                            result.insert(field_name.to_string(), Value::Null);
+                        }
                     }
                 }
-                &FieldSelector::Union(ref field_name, ref args, optional, ref inner) => {
+                FieldSelector::Union(ref field_name, ref args, ref inner) => {
                     let field_key = format!("{}{}", field_name, args);
-                    let link = self.data.read_link(entity_key, &field_key, &guard);
-                    if let Some(link) = link {
-                        match link {
-                            Link::Single(ref entity_key) => {
-                                let typename =
-                                    self.data.read_record(entity_key, &field_key, &guard)?;
-                                let typename = typename
-                                    .as_str()
-                                    .expect("__typename has invalid type! Should be string");
-                                let selection = inner(typename);
-                                let value = self.read_entity(entity_key, &selection)?;
-                                result.insert(field_name.clone(), value);
-                            }
-                            Link::List(ref entity_keys) => {
-                                let values: Option<Vec<_>> = entity_keys
-                                    .iter()
-                                    .map(|entity_key| {
-                                        let typename = self
-                                            .data
-                                            .read_record(entity_key, &field_key, &guard)?;
-                                        let typename = typename.as_str().expect(
-                                            "__typename has invalid type! Should be string"
-                                        );
-                                        let selection = inner(typename);
-                                        self.read_entity(entity_key, &selection)
-                                    })
-                                    .collect();
-                                result.insert(field_name.clone(), values?.into());
-                            }
+                    let link = self.data.read_link(entity_key, &field_key, &guard)?;
+                    match link {
+                        Link::Single(ref entity_key) => {
+                            let typename = self.data.read_record(entity_key, &field_key, &guard)?;
+                            let typename = typename
+                                .as_str()
+                                .expect("__typename has invalid type! Should be string");
+                            let selection = inner(typename);
+                            let value = self.read_entity(entity_key, &selection, dependencies)?;
+                            result.insert(field_name.to_string(), value);
                         }
-                    } else if optional {
-                        result.insert(field_name.clone(), serde_json::Value::Null);
+                        Link::List(ref entity_keys) => {
+                            let values: Option<Vec<_>> = entity_keys
+                                .iter()
+                                .map(|entity_key| {
+                                    let typename =
+                                        self.data.read_record(entity_key, &field_key, &guard)?;
+                                    let typename = typename
+                                        .as_str()
+                                        .expect("__typename has invalid type! Should be string");
+                                    let selection = inner(typename);
+                                    self.read_entity(entity_key, &selection, dependencies)
+                                })
+                                .collect();
+                            result.insert(field_name.to_string(), values?.into());
+                        }
+                        Link::Null => {
+                            result.insert(field_name.to_string(), Value::Null);
+                        }
                     }
                 }
             }
@@ -475,8 +513,8 @@ impl Store {
     fn invalidate_union(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: &String,
-        subselection: &Box<dyn Fn(&str) -> Vec<FieldSelector>>,
+        entity_key: &str,
+        subselection: &dyn Fn(&str) -> Vec<FieldSelector>,
         invalidated: &mut HashSet<String>,
         guard: &Guard
     ) {
@@ -495,45 +533,30 @@ impl Store {
         );
     }
 
-    pub fn invalidate_query<Q: GraphQLQuery, C: Client>(
+    pub fn invalidate_query<Q: GraphQLQuery>(
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
-        client: &C,
-        optimistic: bool
+        optimistic: bool,
+        dependencies: &mut HashSet<String>
     ) {
         if result.response.data.is_none() {
             return;
         }
-        let data: Q::ResponseData = result.response.data.as_ref().unwrap().clone();
-
-        let typename = QueryInfo::<Q::Variables>::typename(&data);
-        let data = serde_json::to_value(data).unwrap();
-        let data = data.as_object().unwrap();
-        let key = self
-            .key_of_entity(typename, data)
-            .expect(&format!("Failed to find key for {}", typename));
-        let mut invalidated = HashSet::new();
-        invalidated.insert(key.clone());
+        let key = result.meta.operation_type.to_string();
 
         let selection = Q::selection(variables);
         let guard = epoch::pin();
-        let optimistic_key = if optimistic {
-            Some(result.meta.key.clone())
-        } else {
-            None
-        };
+        let optimistic_key = if optimistic { Some(result.key) } else { None };
 
-        self.invalidate_selection(optimistic_key, &key, &selection, &mut invalidated, &guard);
+        self.invalidate_selection(optimistic_key, &key, &selection, dependencies, &guard);
 
         if !optimistic {
-            self.data.clear_optimistic_layer(&result.meta.key);
+            self.data.clear_optimistic_layer(result.key);
         }
-
-        self.rerun_queries(invalidated, result.meta.key.clone(), client);
     }
 
-    fn rerun_queries<C: Client>(
+    pub fn rerun_queries<C: Client>(
         &self,
         entities: HashSet<String>,
         originating_query: u64,
@@ -553,23 +576,25 @@ impl Store {
     fn invalidate_selection(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: &String,
-        selection: &Vec<FieldSelector>,
+        entity_key: &str,
+        selection: &[FieldSelector],
         invalidated: &mut HashSet<String>,
         guard: &Guard
     ) {
-        invalidated.insert(entity_key.clone());
+        if entity_key != "Mutation" {
+            invalidated.insert(entity_key.to_string());
+        }
         for field in selection {
             match field {
-                &FieldSelector::Scalar(ref field_name, ref args) => {
+                FieldSelector::Scalar(ref field_name, ref args) => {
                     self.write_record(
                         optimistic_key,
-                        entity_key.clone(),
+                        entity_key.to_string(),
                         format!("{}{}", field_name, args),
                         None
                     );
                 }
-                &FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
+                FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
                     if let Some(link) =
                         self.data
                             .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
@@ -593,10 +618,11 @@ impl Store {
                                     );
                                 }
                             }
+                            _ => {}
                         }
                     }
                 }
-                &FieldSelector::Union(ref field_name, ref args, _, ref subselection) => {
+                FieldSelector::Union(ref field_name, ref args, ref subselection) => {
                     if let Some(link) =
                         self.data
                             .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
@@ -605,7 +631,7 @@ impl Store {
                             Link::Single(ref entity_key) => self.invalidate_union(
                                 optimistic_key,
                                 entity_key,
-                                subselection,
+                                &**subselection,
                                 invalidated,
                                 guard
                             ),
@@ -614,12 +640,13 @@ impl Store {
                                     self.invalidate_union(
                                         optimistic_key.clone(),
                                         entity_key,
-                                        subselection,
+                                        &**subselection,
                                         invalidated,
                                         guard
                                     )
                                 }
                             }
+                            Link::Null => {}
                         }
                     }
                 }

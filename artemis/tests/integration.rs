@@ -1,14 +1,18 @@
+#[cfg(not(target_arch = "wasm32"))]
 use artemis::{Client, ClientBuilder, Exchange, ResultSource};
 
+#[cfg(not(target_arch = "wasm32"))]
 const URL: &str = "http://localhost:8080/graphql";
 
+#[cfg(not(target_arch = "wasm32"))]
 fn build_client() -> Client<impl Exchange> {
     let builder = ClientBuilder::new(URL).with_default_exchanges();
 
     builder.build()
 }
 
-#[tokio::test]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
 async fn test_query() {
     let client = build_client();
 
@@ -49,7 +53,8 @@ async fn test_query() {
     assert_eq!(speaker.name, "Simon", "Returned wrong speaker name");
 }
 
-#[tokio::test]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
 async fn test_cache() {
     let client = build_client();
 
@@ -103,7 +108,8 @@ async fn test_cache() {
     );
 }
 
-#[tokio::test]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(not(target_arch = "wasm32"), tokio::test)]
 async fn test_cache_invalidation() {
     let client = build_client();
 

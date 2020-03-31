@@ -1,23 +1,22 @@
-use crate::{
-    client::ClientImpl, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions,
-    Response
-};
+use crate::{client::ClientImpl, progressive_hash, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions, Response, OperationResult, ExchangeResult};
 use futures::{channel::mpsc::Sender, SinkExt};
 use stable_vec::StableVec;
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
+use serde::de::DeserializeOwned;
 
 pub type OperationObservable<Q, M> =
     Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
 
+type RerunFn =
+    Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Arc<dyn Any + Send + Sync>> + Send>> + Send + Sync>;
+
 pub(crate) struct Subscription {
     pub(crate) listeners: StableVec<Sender<Arc<dyn Any + Send + Sync>>>,
     // This captures the type and variables of the query without requiring generics, so we can store it in a hashmap
-    pub(crate) rerun: Arc<
-        dyn Fn() -> Pin<Box<dyn Future<Output = Arc<dyn Any + Send + Sync>> + Send>> + Send + Sync
-    >
+    pub(crate) rerun: RerunFn
 }
 
-pub async fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
+pub fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
     client: &Arc<ClientImpl<M>>,
     _query: Q,
     variables: Q::Variables,
@@ -25,9 +24,9 @@ pub async fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
 ) -> super::observable::OperationObservable<Q, M> {
     let (query, meta) = Q::build_query(variables.clone());
     let (mut sender, receiver) = futures::channel::mpsc::channel(8);
-    let key = meta.key.clone();
+    let key = progressive_hash(meta.query_key, &variables);
 
-    let operation = client.create_request_operation::<Q>(query, meta, options.clone());
+    let operation = client.create_request_operation::<Q>(query, meta, options);
 
     let observable = {
         let mut subscriptions = client.active_subscriptions.lock();
@@ -35,7 +34,6 @@ pub async fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
             subscription.listeners.push(sender.clone())
         } else {
             let client = client.clone();
-            let operation = operation.clone();
             let subscription = Subscription {
                 listeners: vec![sender.clone()].into(),
                 rerun: Arc::new(move || {
@@ -55,8 +53,7 @@ pub async fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
         super::observable::Observable::new(key, receiver, client.clone(), index)
     };
 
-    let res = client.execute_request_operation::<Q>(operation).await;
-    sender.send(Arc::new(Box::new(res))).await.unwrap();
+    rerun_query(client, key);
     observable
 }
 
@@ -85,5 +82,28 @@ pub fn rerun_query<M: Exchange>(client: &Arc<ClientImpl<M>>, id: u64) {
             }
         }
     };
+    spawn(fut);
+}
+
+pub fn push_result<R, M: Exchange>(client: &ClientImpl<M>, id: u64, result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static {
+    let mut subscriptions = client.active_subscriptions.lock();
+    let subscription = subscriptions.get_mut(&id);
+
+    let result = Arc::new(result);
+
+    if let Some(Subscription { listeners, .. }) = subscription {
+        for listener in listeners.values_mut() {
+            futures::executor::block_on(listener.send(result.clone())).unwrap()
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
+    wasm_bindgen_futures::spawn_local(fut);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn spawn(fut: impl Future<Output = ()> + Send + 'static) {
     tokio::spawn(fut);
 }

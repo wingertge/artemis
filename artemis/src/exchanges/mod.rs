@@ -8,7 +8,7 @@ mod dedup;
 #[cfg(feature = "default-exchanges")]
 mod fetch;
 
-use crate::{client::ClientImpl, ExchangeResult, GraphQLQuery};
+use crate::{client::ClientImpl, ExchangeResult, GraphQLQuery, OperationResult};
 #[cfg(feature = "default-exchanges")]
 pub use cache::CacheExchange;
 #[cfg(feature = "default-exchanges")]
@@ -16,6 +16,7 @@ pub use dedup::DedupExchange;
 #[cfg(feature = "default-exchanges")]
 pub use fetch::FetchExchange;
 use std::sync::Arc;
+use serde::de::DeserializeOwned;
 
 #[derive(Debug)]
 enum MiddlewareError {
@@ -45,4 +46,5 @@ impl Exchange for DummyExchange {
 /// Client trait passed to exchanges. Only exposes methods useful to exchanges
 pub trait Client: Clone + Send + Sync + 'static {
     fn rerun_query(&self, query_key: u64);
+    fn push_result<R>(&self, query_key: u64, result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static;
 }

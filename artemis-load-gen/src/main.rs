@@ -17,7 +17,9 @@ pub(crate) type Long = String;
 
 struct DummyFetchExchange;
 
-impl<TNext: Exchange> ExchangeFactory<DummyFetchExchange, TNext> for DummyFetchExchange {
+impl<TNext: Exchange> ExchangeFactory<TNext> for DummyFetchExchange {
+    type Output = DummyFetchExchange;
+
     fn build(self, _next: TNext) -> DummyFetchExchange {
         Self
     }
@@ -49,6 +51,7 @@ impl Exchange for DummyFetchExchange {
         let data = *data.downcast::<Q::ResponseData>().unwrap();
 
         let result = OperationResult {
+            key: operation.key,
             meta: operation.meta,
             response: Response {
                 data: Some(data),
@@ -77,6 +80,7 @@ fn end() {
 #[cfg(not(target_os = "linux"))]
 fn end() {}
 
+#[allow(clippy::infinite_iter)]
 fn main() {
     let url = "http://localhost:8080/graphql";
     let builder = ClientBuilder::new(url)

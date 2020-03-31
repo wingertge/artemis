@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use syn::Visibility;
 
 /// Which context is this code generation effort taking place.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CodegenMode {
     /// The graphql-client CLI.
     Cli,
@@ -13,6 +13,7 @@ pub enum CodegenMode {
 }
 
 /// Used to configure code generation.
+#[derive(Clone)]
 pub struct GraphQLClientCodegenOptions {
     /// Which context is this code generation effort taking place.
     pub mode: CodegenMode,
@@ -39,7 +40,9 @@ pub struct GraphQLClientCodegenOptions {
     /// Normalization pattern for query types and names.
     normalization: Normalization,
     /// Include query info? (Needed for things like normalized caching)
-    pub include_query_info: bool
+    pub include_query_info: bool,
+    /// Include wasm_bindgen utils? Requires wasm-bindgen and wasm-typescript-definition
+    pub wasm_bindgen: bool
 }
 
 impl GraphQLClientCodegenOptions {
@@ -57,7 +60,8 @@ impl GraphQLClientCodegenOptions {
             query_file: Default::default(),
             schema_file: Default::default(),
             normalization: Normalization::None,
-            include_query_info: true
+            include_query_info: true,
+            wasm_bindgen: true
         }
     }
 
@@ -81,7 +85,7 @@ impl GraphQLClientCodegenOptions {
 
     /// Comma-separated list of additional traits we want to derive for variables.
     pub fn variables_derives(&self) -> Option<&str> {
-        self.variables_derives.as_ref().map(String::as_str)
+        self.variables_derives.as_deref()
     }
 
     /// Comma-separated list of additional traits we want to derive for variables.
@@ -91,7 +95,7 @@ impl GraphQLClientCodegenOptions {
 
     /// Comma-separated list of additional traits we want to derive for responses.
     pub fn response_derives(&self) -> Option<&str> {
-        self.response_derives.as_ref().map(String::as_str)
+        self.response_derives.as_deref()
     }
 
     /// Comma-separated list of additional traits we want to derive for responses.
@@ -123,13 +127,13 @@ impl GraphQLClientCodegenOptions {
     /// A path to a file to include in the module to force Cargo to take into account changes in
     /// the schema files when recompiling.
     pub fn schema_file(&self) -> Option<&Path> {
-        self.schema_file.as_ref().map(PathBuf::as_path)
+        self.schema_file.as_deref()
     }
 
     /// A path to a file to include in the module to force Cargo to take into account changes in
     /// the query files when recompiling.
     pub fn query_file(&self) -> Option<&Path> {
-        self.query_file.as_ref().map(PathBuf::as_path)
+        self.query_file.as_deref()
     }
 
     /// The identifier to use when referring to the struct implementing GraphQLQuery, if any.
