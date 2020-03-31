@@ -7,6 +7,14 @@ pub struct QueryError {
     inner: Arc<Box<dyn Error + Send + Sync>>
 }
 
+impl PartialEq for QueryError {
+    /// This is just for testing. Wrapped Errors can't reasonably be compared,
+    /// so this will always return false
+    fn eq(&self, other: &Self) -> bool {
+        false
+    }
+}
+
 #[derive(Debug)]
 pub struct QueryErrorCompat(QueryError);
 

@@ -19,6 +19,25 @@ pub struct GqlEnum<'schema> {
 }
 
 impl<'schema> GqlEnum<'schema> {
+    pub(crate) fn to_typescript(
+        &self,
+        query_context: &crate::query::QueryContext<'_, '_>
+    ) -> String {
+        let norm = query_context.normalization;
+        let variant_names: Vec<String> = self.variants.iter().map(|v| v.name.to_string()).collect();
+        let name = norm.enum_name(format!("{}{}", ENUMS_PREFIX, self.name));
+
+        format!(
+            r#"
+        export enum {name} {{
+            {variants}
+        }}
+        "#,
+            name = name,
+            variants = variant_names.join(",\n")
+        )
+    }
+
     /**
      * About rust keyword escaping: variant_names and constructors must be escaped,
      * variant_str not.
@@ -32,12 +51,12 @@ impl<'schema> GqlEnum<'schema> {
     ) -> TokenStream {
         let derives = query_context.response_enum_derives();
         let wasm_derives = if query_context.wasm_bindgen {
-            let filtered: Vec<_> = vec!["Serialize", "TypescriptDefinition"]
+            let filtered: Vec<_> = vec!["Serialize"]
                 .into_iter()
                 .map(|def| syn::Ident::new(def, Span::call_site()))
                 .filter(|def| !query_context.response_derives.contains(def))
                 .collect();
-            if filtered.len() > 0 {
+            if filtered.is_empty() {
                 quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
             } else {
                 quote!()
@@ -75,25 +94,8 @@ impl<'schema> GqlEnum<'schema> {
         let constructors = &constructors;
         let variant_str: Vec<&str> = self.variants.iter().map(|v| v.name).collect();
         let variant_str = &variant_str;
-        let type_name = self.name;
 
         let name = name_ident;
-        let query_info = if query_context.include_query_info {
-            quote! {
-                impl ::artemis::QueryInfo<Variables> for #name {
-                    fn typename(&self) -> &'static str {
-                        #type_name
-                    }
-
-                    #[allow(unused_variables)]
-                    fn selection(variables: Variables) -> Vec<::artemis::FieldSelector> {
-                        vec![]
-                    }
-                }
-            }
-        } else {
-            quote!()
-        };
 
         quote! {
             #derives
@@ -122,8 +124,6 @@ impl<'schema> GqlEnum<'schema> {
                     }
                 }
             }
-
-            #query_info
         }
     }
 }

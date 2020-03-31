@@ -47,10 +47,9 @@ mod extensions;
 
 pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
 
-use crate::unions::UnionError;
+use crate::{unions::UnionError, utils::hash};
 use std::{collections::HashMap, error::Error, fmt, io::Read};
 use syn::export::Span;
-use crate::utils::hash;
 
 type CacheMap<T> = std::sync::Mutex<HashMap<std::path::PathBuf, T>>;
 
@@ -129,9 +128,7 @@ pub fn generate_root_token_stream(
             #(pub mod #modules;)*
         }
     };
-    let query_idents: Vec<_> = enum_variants.iter()
-        .map(|(ident, _)| ident)
-        .collect();
+    let query_idents: Vec<_> = enum_variants.iter().map(|(ident, _)| ident).collect();
     let enum_variants: Vec<_> = enum_variants
         .iter()
         .map(|(ident, key)| quote!(#ident = #key))
@@ -165,21 +162,16 @@ pub fn generate_root_token_stream(
                     Box::pin(::artemis::wasm::UnsafeSendFuture::new(fut))
                 }
 
-                fn subscribe<M: Exchange>(self, client: Arc<ClientImpl<M>>, variables: JsValue, callback: js_sys::Function, options: QueryOptions)
-                 -> ::futures::future::BoxFuture<'static, ()> {
-                    let fut = Box::pin(async move {
-                        match self {
-                            #(Queries::#query_idents => {
-                                let variables = serde_wasm_bindgen
-                                    ::from_value::<<#query_idents as GraphQLQuery>::Variables>(variables)
-                                    .unwrap();
-                                let observable = client.subscribe_with_options(#query_idents, variables, options).await;
-                                ::artemis::wasm::bind_stream(observable, callback);
-                            }),*
-                        }
-                    });
-
-                    Box::pin(::artemis::wasm::UnsafeSendFuture::new(fut))
+                fn subscribe<M: Exchange>(self, client: Arc<ClientImpl<M>>, variables: JsValue, callback: js_sys::Function, options: QueryOptions) {
+                    match self {
+                        #(Queries::#query_idents => {
+                            let variables = serde_wasm_bindgen
+                                ::from_value::<<#query_idents as GraphQLQuery>::Variables>(variables)
+                                .unwrap();
+                            let observable = client.subscribe_with_options(#query_idents, variables, options);
+                            ::artemis::wasm::bind_stream(observable, callback);
+                        }),*
+                    }
                 }
             }
         };
@@ -339,7 +331,7 @@ fn derive_operation_not_found_error(
     use graphql_parser::query::*;
 
     let operation_name = ident.map(ToString::to_string);
-    let struct_ident = operation_name.as_ref().map(String::as_str).unwrap_or("");
+    let struct_ident = operation_name.as_deref().unwrap_or("");
 
     let available_operations = query
         .definitions
@@ -363,9 +355,9 @@ fn derive_operation_not_found_error(
 
     let available_operations = available_operations.trim_end_matches(", ");
 
-    return CodegenError::TypeError(format!(
+    CodegenError::TypeError(format!(
         "The struct name does not match any defined operation in the query file.\nStruct name: {}\nDefined operations: {}",
         struct_ident,
         available_operations,
-    ));
+    ))
 }

@@ -12,8 +12,8 @@ pub fn progressive_hash<V: Serialize>(h: u32, x: &V) -> u64 {
 
     let mut h = Wrapping(h as u64);
 
-    for i in 0..x.len() {
-        h = (h << 5) + h + Wrapping(x[i] as u64)
+    for byte in x {
+        h = (h << 5) + h + Wrapping(byte as u64)
     }
 
     h.0
@@ -35,20 +35,90 @@ macro_rules! ext {
 #[cfg(all(target_arch = "wasm32", feature = "observable"))]
 pub mod wasm {
     use crate::{
-        ClientImpl, DebugInfo, Error, Exchange, GraphQLQuery, HeaderPair, QueryError, QueryOptions,
-        RequestPolicy, Response, ExtensionMap
+        ClientImpl, DebugInfo, Error, Exchange, ExtensionMap, GraphQLQuery, HeaderPair, QueryError,
+        QueryOptions, RequestPolicy, Response
     };
-    use futures::{Stream, StreamExt};
+    use futures::{future::BoxFuture, Stream, StreamExt};
     use js_sys::{Array, Function};
     use serde::Serialize;
-    use std::{any::Any, sync::Arc};
+    use std::{
+        any::Any,
+        future::Future,
+        pin::Pin,
+        sync::Arc,
+        task::{Context, Poll}
+    };
     use wasm_bindgen::{
         closure::Closure, prelude::*, JsCast, JsValue, __rt::std::collections::HashMap
     };
-    use futures::future::BoxFuture;
-    use std::future::Future;
-    use std::pin::Pin;
-    use std::task::{Context, Poll};
+
+    #[wasm_bindgen(typescript_custom_section)]
+    const TS_APPEND_CONTENT: &'static str = r#"
+export type Maybe<T> = T | null | undefined;
+
+export type Response<T> = { data: Maybe<T>, errors: Maybe<Error[]>, debugInfo: Maybe<DebugInfo> }
+
+export type Extensions = { [K: string]: any }
+
+export type Error = {
+    message: string,
+    locations?: Location[],
+    path?: PathFragment[],
+    extensions?: Extensions
+}
+
+export type PathFragment = string | number
+
+export type Location = {
+    line: number,
+    column: number
+}
+
+export type DebugInfo = {
+    source: ResultSource,
+    didDedup: boolean
+}
+
+export type ResultSource = "Cache" | "Network"
+
+export type ClientOptions = {
+    url?: string,
+    headers?: () => Headers,
+    requestPolicy?: RequestPolicy,
+    fetch?: (url: string, init: RequestInit) => Promise<any>
+};
+
+export type Headers = { [K: string]: string };
+
+export enum RequestPolicy {
+    CacheFirst = 1,
+    CacheOnly = 2,
+    NetworkOnly = 3,
+    CacheAndNetwork = 4
+}
+
+export type QueryOptions = {
+    url?: string,
+    headers?: () => Headers,
+    requestPolicy?: RequestPolicy,
+    extensions?: ExtensionMap
+};
+
+export type ExtensionMap = { [K: string]: Extension };
+
+/**
+ * This corresponds to the Rust side Extension trait.
+ * Any extension class will work here, it's just a semantic type.
+ */
+export type Extension = any;
+
+export interface ArtemisClient<Q> {
+    new (options: ClientOptions): ArtemisClient<Q>,
+    query<R = object, V = object>(query: Q, variables: V, options?: QueryOptions): Promise<Response<R>>,
+    subscribe<R = object, V = object>(query: Q, variables: V, callback: (ok: Maybe<Response<R>>, err: any) => void, options?: QueryOptions): void,
+    free(): void
+}
+"#;
 
     unsafe impl Send for JsFunction {}
     unsafe impl Sync for JsFunction {}
@@ -66,6 +136,8 @@ pub mod wasm {
         pub fn headers(this: &JsClientOptions) -> Option<Function>;
         #[wasm_bindgen(method, getter = requestPolicy, structural)]
         pub fn request_policy(this: &JsClientOptions) -> Option<u8>;
+        #[wasm_bindgen(method, getter, structural)]
+        pub fn fetch(this: &JsClientOptions) -> Option<js_sys::Function>;
 
         pub type JsQueryOptions;
 
@@ -101,9 +173,7 @@ pub mod wasm {
 
     impl<T> UnsafeSendFuture<T> {
         pub fn new(fut: Pin<Box<dyn Future<Output = T> + 'static>>) -> Self {
-            Self {
-                fut
-            }
+            Self { fut }
         }
     }
 
@@ -131,7 +201,7 @@ pub mod wasm {
             variables: JsValue,
             callback: Function,
             options: QueryOptions
-        ) -> BoxFuture<'static, ()>;
+        );
     }
 
     #[wasm_bindgen(js_name = QueryError)]

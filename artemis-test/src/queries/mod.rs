@@ -80,42 +80,36 @@ pub mod wasm {
             variables: JsValue,
             callback: js_sys::Function,
             options: QueryOptions
-        ) -> ::futures::future::BoxFuture<'static, ()> {
-            let fut = Box::pin(async move {
-                match self {
-                    Queries::GetConference => {
-                        let variables = serde_wasm_bindgen::from_value::<
-                            <GetConference as GraphQLQuery>::Variables
-                        >(variables)
-                        .unwrap();
-                        let observable = client
-                            .subscribe_with_options(GetConference, variables, options)
-                            .await;
-                        ::artemis::wasm::bind_stream(observable, callback);
-                    }
-                    Queries::GetConferences => {
-                        let variables = serde_wasm_bindgen::from_value::<
-                            <GetConferences as GraphQLQuery>::Variables
-                        >(variables)
-                        .unwrap();
-                        let observable = client
-                            .subscribe_with_options(GetConferences, variables, options)
-                            .await;
-                        ::artemis::wasm::bind_stream(observable, callback);
-                    }
-                    Queries::AddConference => {
-                        let variables = serde_wasm_bindgen::from_value::<
-                            <AddConference as GraphQLQuery>::Variables
-                        >(variables)
-                        .unwrap();
-                        let observable = client
-                            .subscribe_with_options(AddConference, variables, options)
-                            .await;
-                        ::artemis::wasm::bind_stream(observable, callback);
-                    }
+        ) {
+            match self {
+                Queries::GetConference => {
+                    let variables = serde_wasm_bindgen::from_value::<
+                        <GetConference as GraphQLQuery>::Variables
+                    >(variables)
+                    .unwrap();
+                    let observable =
+                        client.subscribe_with_options(GetConference, variables, options);
+                    ::artemis::wasm::bind_stream(observable, callback);
                 }
-            });
-            Box::pin(::artemis::wasm::UnsafeSendFuture::new(fut))
+                Queries::GetConferences => {
+                    let variables = serde_wasm_bindgen::from_value::<
+                        <GetConferences as GraphQLQuery>::Variables
+                    >(variables)
+                    .unwrap();
+                    let observable =
+                        client.subscribe_with_options(GetConferences, variables, options);
+                    ::artemis::wasm::bind_stream(observable, callback);
+                }
+                Queries::AddConference => {
+                    let variables = serde_wasm_bindgen::from_value::<
+                        <AddConference as GraphQLQuery>::Variables
+                    >(variables)
+                    .unwrap();
+                    let observable =
+                        client.subscribe_with_options(AddConference, variables, options);
+                    ::artemis::wasm::bind_stream(observable, callback);
+                }
+            }
         }
     }
 }

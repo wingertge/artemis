@@ -1,14 +1,16 @@
 use crate::{client::ClientImpl, GraphQLQuery, QueryBody, QueryError, Response};
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
+use parking_lot::RwLock;
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
+use serde_repr::Serialize_repr;
 use std::{any::Any, collections::HashMap, pin::Pin, sync::Arc, task::Poll};
 use surf::url::Url;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 use type_map::concurrent::TypeMap;
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{JsValue, JsCast};
-use parking_lot::RwLock;
+use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::{JsCast, JsValue};
+use crate::exchanges::Client;
 
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
@@ -28,7 +30,6 @@ pub trait ExchangeFactory<TNext: Exchange> {
 }
 
 pub trait QueryInfo<TVars> {
-    fn typename(&self) -> &'static str;
     fn selection(variables: &TVars) -> Vec<FieldSelector>;
 }
 
@@ -86,19 +87,18 @@ pub struct HeaderPair(pub String, pub String);
 #[derive(Clone)]
 pub enum FieldSelector {
     /// field name, arguments
-    Scalar(String, String),
-    /// field_name, arguments, optional, inner selection
-    Object(String, String, bool, Vec<FieldSelector>),
-    /// field name, arguments, optional, inner selection by type
+    Scalar(&'static str, String),
+    /// field_name, arguments, typename, inner selection
+    Object(&'static str, String, &'static str, Vec<FieldSelector>),
+    /// field name, arguments, inner selection by type
     Union(
+        &'static str,
         String,
-        String,
-        bool,
-        Arc<Box<dyn Fn(&str) -> Vec<FieldSelector>>>
+        Arc<dyn Fn(&str) -> Vec<FieldSelector>>
     )
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OperationMeta {
     pub query_key: u32,
     pub operation_type: OperationType,
@@ -110,8 +110,17 @@ pub struct OperationOptions {
     pub url: Url,
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     pub request_policy: RequestPolicy,
-    pub extensions: Option<Extensions>
+    pub extensions: Option<Extensions>,
+    #[cfg(target_arch = "wasm32")]
+    pub fetch: Option<js_sys::Function>
 }
+
+// SAFETY: JavaScript doesn't have multi-threading
+// The only non-send value is the pointer in JsValue
+unsafe impl Send for OperationOptions {}
+// SAFETY: JavaScript doesn't have multi-threading
+// The only non-send value is the pointer in JsValue
+unsafe impl Sync for OperationOptions {}
 
 #[derive(Clone)]
 pub struct Operation<V: Serialize + Clone + Send + Sync> {
@@ -121,21 +130,21 @@ pub struct Operation<V: Serialize + Clone + Send + Sync> {
     pub options: OperationOptions
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-#[derive(Clone, Debug, PartialEq, Copy)]
+//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[derive(Clone, Debug, PartialEq, Copy, Serialize)]
 pub enum ResultSource {
     Cache,
     Network
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DebugInfo {
     pub source: ResultSource,
+    #[serde(rename = "didDedup")]
     pub did_dedup: bool
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub key: u64,
     pub meta: OperationMeta,
@@ -166,6 +175,13 @@ impl<T: Clone, M: Exchange> Observable<T, M> {
             index,
             t: PhantomData
         }
+    }
+}
+
+#[cfg(feature = "observable")]
+impl<T: Clone, M: Exchange> Observable<T, M> {
+    pub fn rerun(&self) {
+        self.client.rerun_query(self.key);
     }
 }
 
@@ -215,13 +231,19 @@ unsafe impl Send for ExtensionMap {}
 // The only non-send value is the pointer in JsValue
 unsafe impl Sync for ExtensionMap {}
 
-impl ExtensionMap {
-    pub fn new() -> Self {
+impl Default for ExtensionMap {
+    fn default() -> Self {
         Self {
             rust: TypeMap::new(),
             #[cfg(target_arch = "wasm32")]
             js: JsValue::NULL
         }
+    }
+}
+
+impl ExtensionMap {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -240,15 +262,15 @@ impl ExtensionMap {
         self.rust.insert(value);
     }
 
-    pub fn get<T: Extension>(&self, js_key: impl Into<String>) -> Option<T> {
-        self.get_rust()
-            .or_else(|| self.get_js(js_key.into()))
+    pub fn get<T: Extension, S: Into<String>>(&self, js_key: S) -> Option<T> {
+        self.get_rust().or_else(|| self.get_js(js_key.into()))
     }
 
     #[cfg(target_arch = "wasm32")]
     fn get_js<T: Extension>(&self, js_key: String) -> Option<T> {
         let key: JsValue = js_key.clone().into();
-        js_sys::Reflect::get(&self.js, &key).ok()
+        js_sys::Reflect::get(&self.js, &key)
+            .ok()
             .and_then(|value| T::from_js(value))
     }
 

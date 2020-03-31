@@ -83,7 +83,7 @@ pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
 ///     Ok(())
 /// }
 /// ```
-pub trait GraphQLQuery: Send + Sync {
+pub trait GraphQLQuery: Send + Sync + 'static {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
     type Variables: Serialize + Send + Sync + Clone + 'static;
     /// The top-level shape of the response data (the `data` field in the GraphQL response). In practice this should be generated, since it is hard to write by hand without error.
@@ -155,10 +155,11 @@ pub trait GraphQLQuery: Send + Sync {
 /// #     Ok(())
 /// # }
 /// ```
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Response<Data: Clone> {
     /// The debug info if in test config, an empty struct otherwise
-    #[serde(skip)]
+    #[serde(skip_deserializing, rename = "debugInfo")]
     pub debug_info: Option<DebugInfo>,
     /// The absent, partial or complete response data.
     pub data: Option<Data>,
@@ -285,7 +286,6 @@ pub enum PathFragment {
 }
 
 /// Represents a location inside a query string. Used in errors. See [`Error`].
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub struct Location {
     /// The line number in the query string where the error originated (starting from 1).

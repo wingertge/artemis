@@ -100,9 +100,7 @@ impl Parse for WasmClientInput {
              This should correspond to the 'Queries' enum generated
              in the root of the quries module."#
         );
-        let exchange_initializers = input_struct
-            .exchange_initializers
-            .unwrap_or_else(|| Vec::new());
+        let exchange_initializers = input_struct.exchange_initializers.unwrap_or_else(Vec::new);
 
         Ok(WasmClientInput {
             exchange_idents: input_struct.exchange_idents,
@@ -114,13 +112,12 @@ impl Parse for WasmClientInput {
 }
 
 ///
+#[allow(clippy::cmp_owned)]
 pub fn wasm_client(input: WasmClientInput) -> TokenStream {
-    let exchange_ident = input
-        .exchange_idents
-        .iter()
-        .fold(quote!(::artemis::exchanges::DummyExchange), |current, item| {
-            quote!(<#item as ::artemis::ExchangeFactory<#current>>::Output)
-        });
+    let exchange_ident = input.exchange_idents.iter().fold(
+        quote!(::artemis::exchanges::DummyExchange),
+        |current, item| quote!(<#item as ::artemis::ExchangeFactory<#current>>::Output)
+    );
     let exchange_initializers = input
         .exchange_initializers
         .iter()
@@ -145,17 +142,16 @@ pub fn wasm_client(input: WasmClientInput) -> TokenStream {
     let url = if let Some(url) = url {
         quote!(with_url(unsafe { options.url() }.unwrap_or_else(|| #url)))
     } else {
-        quote!(unsafe { options.url() }
-            .expect("Must provide a URL to the client"))
+        quote!(unsafe { options.url() }.expect("Must provide a URL to the client"))
     };
 
     let tokens = quote! {
         #[wasm_bindgen]
         pub struct Client {
-            inner: ::artemis::client::JsClient<#exchange_ident, #query_collection>
+            inner: ::std::sync::Arc<::artemis::client::JsClient<#exchange_ident, #query_collection>>
         }
 
-        #[wasm_bindgen]
+        #[wasm_bindgen(skip_typescript)]
         impl Client {
             #[wasm_bindgen(constructor)]
             pub fn new(options: &::artemis::wasm::JsClientOptions) -> Self {
@@ -171,24 +167,33 @@ pub fn wasm_client(input: WasmClientInput) -> TokenStream {
                     inner_client = inner_client.with_js_extra_headers(headers);
                 }
 
+                if let Some(fetch) = unsafe { options.fetch() } {
+                    inner_client = inner_client.with_fetch(fetch);
+                }
+
                 Self {
-                    inner: ::artemis::client::JsClient::<_, #query_collection>::new(inner_client.build())
+                    inner: ::std::sync::Arc::new(
+                        ::artemis::client::JsClient::<_, #query_collection>::new(inner_client.build())
+                    )
                 }
             }
 
-            pub async fn query(self, query: #query_collection, variables: ::wasm_bindgen::JsValue, options: ::artemis::wasm::JsQueryOptions)
-             -> Result<::wasm_bindgen::JsValue, ::wasm_bindgen::JsValue> {
-                self.inner.query(query, variables, options).await
+            pub fn query(&self, query: #query_collection, variables: ::wasm_bindgen::JsValue, options: Option<::artemis::wasm::JsQueryOptions>)
+             -> js_sys::Promise {
+                let inner = self.inner.clone();
+                wasm_bindgen_futures::future_to_promise(async move {
+                    inner.query(query, variables, options).await
+                })
             }
 
-            pub async fn subscribe(
-                self,
+            pub fn subscribe(
+                &self,
                 query: #query_collection,
                 variables: ::wasm_bindgen::JsValue,
                 callback: ::js_sys::Function,
-                options: ::artemis::wasm::JsQueryOptions
+                options: Option<::artemis::wasm::JsQueryOptions>
             ) {
-                self.inner.subscribe(query, variables, callback, options).await
+                self.inner.subscribe(query, variables, callback, options)
             }
         }
     };

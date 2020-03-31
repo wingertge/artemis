@@ -73,18 +73,18 @@ impl InMemoryData {
         }
     }
 
-    pub fn get_dependencies(&self, entity_key: &String) -> Vec<u64> {
+    pub fn get_dependencies(&self, entity_key: &str) -> Vec<u64> {
         let dependencies = self.dependencies.lock();
         dependencies
             .get(entity_key)
             .map(|entity| entity.iter().cloned().collect())
-            .unwrap_or_else(|| Vec::new())
+            .unwrap_or_else(Vec::new)
     }
 
     pub fn read_record<'g>(
         &'g self,
-        entity_key: &String,
-        field_key: &String,
+        entity_key: &str,
+        field_key: &str,
         guard: &'g Guard
     ) -> Option<serde_json::Value> {
         self.records
@@ -102,15 +102,15 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| entity.lock().get(field_key).cloned())
-                    .map(|res| Some(res))
+                    .map(Option::Some)
             })
             .and_then(|res| res)
     }
 
     pub fn read_link<'g>(
         &'g self,
-        entity_key: &String,
-        field_key: &String,
+        entity_key: &str,
+        field_key: &str,
         guard: &'g Guard
     ) -> Option<Link> {
         self.links
@@ -126,7 +126,7 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| entity.lock().get(field_key).cloned())
-                    .map(|res| Some(res))
+                    .map(Option::Some)
             })
             .and_then(|res| res)
     }
@@ -148,21 +148,19 @@ impl InMemoryData {
                 entity.remove(&field_key);
                 self.remove_link(&entity_key, &field_key);
             }
-        } else {
-            if let Some(value) = value {
-                let mut entity = HashMap::new();
-                entity.insert(field_key, value);
-                self.records
-                    .base
-                    .insert(entity_key, Mutex::new(entity), &guard);
-            }
+        } else if let Some(value) = value {
+            let mut entity = HashMap::new();
+            entity.insert(field_key, value);
+            self.records
+                .base
+                .insert(entity_key, Mutex::new(entity), &guard);
         }
     }
 
-    pub fn clear_optimistic_layer(&self, optimistic_key: &u64) {
+    pub fn clear_optimistic_layer(&self, optimistic_key: u64) {
         let guard = epoch::pin();
-        self.records.optimistic.remove(optimistic_key, &guard);
-        self.links.optimistic.remove(optimistic_key, &guard);
+        self.records.optimistic.remove(&optimistic_key, &guard);
+        self.links.optimistic.remove(&optimistic_key, &guard);
     }
 
     pub fn write_record_optimistic(
@@ -235,8 +233,8 @@ impl InMemoryData {
 
     fn update_link_ref_count_optimistic<'g>(
         &self,
-        entity_key: &String,
-        field_key: &String,
+        entity_key: &str,
+        field_key: &str,
         link: Option<&'g Link>,
         by: isize,
         guard: &'g Guard
@@ -324,7 +322,7 @@ impl InMemoryData {
         }
     }
 
-    pub fn remove_link(&self, entity_key: &String, field_key: &String) {
+    pub fn remove_link(&self, entity_key: &str, field_key: &str) {
         let guard = epoch::pin();
         if let Some(entity_links) = self.links.base.get(entity_key, &guard) {
             let mut entity_links = entity_links.lock();
@@ -342,17 +340,17 @@ impl InMemoryData {
         }
     }
 
-    pub fn update_ref_count(&self, key: &String, by: isize, guard: &Guard) {
+    pub fn update_ref_count(&self, key: &str, by: isize, guard: &Guard) {
         if let Some(ref_count) = self.ref_counts.get(key, guard) {
             let new_val = ref_count.fetch_add(by, Ordering::SeqCst) + by;
             if new_val <= 0 {
-                self.gc_queue.insert(key.clone(), (), guard);
+                self.gc_queue.insert(key.to_string(), (), guard);
             } else {
                 self.gc_queue.remove(key, guard);
             }
         } else if by >= 0 {
             self.ref_counts
-                .insert(key.clone(), AtomicIsize::new(by), guard);
+                .insert(key.to_string(), AtomicIsize::new(by), guard);
         } else {
             panic!("Tried to decrease ref count of non-existing entity {}. This is an error with the cache code.", key);
         }

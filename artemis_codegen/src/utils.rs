@@ -4,8 +4,8 @@ use std::num::Wrapping;
 pub fn hash(x: &str) -> u32 {
     let x = x.as_bytes();
     let mut h = Wrapping(5381);
-    for i in 0..x.len() {
-        h = (h << 5) + h + Wrapping(x[i] as u32)
+    for byte in x {
+        h = (h << 5) + h + Wrapping(*byte as u32)
     }
 
     h.0

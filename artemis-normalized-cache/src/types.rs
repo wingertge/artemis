@@ -1,27 +1,31 @@
 use crate::QueryStore;
-use artemis::{GraphQLQuery, Extension};
+use artemis::{Extension, GraphQLQuery};
 use std::{
     any::Any,
-    collections::{HashMap, HashSet}
+    collections::{HashMap, HashSet},
+    sync::Arc
 };
-use wasm_bindgen::{JsValue, JsCast};
-use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::{JsCast, JsValue};
 
 #[derive(Default)]
 pub struct NormalizedCacheOptions {
     pub custom_keys: Option<HashMap<&'static str, String>>
 }
 
+#[allow(clippy::type_complexity)]
 #[derive(Default, Clone)]
 pub struct NormalizedCacheExtension {
     pub(crate) optimistic_result:
         Option<Arc<dyn (Fn() -> Option<Box<dyn Any + Send>>) + Send + Sync>>,
     pub(crate) update:
         Option<Arc<dyn Fn(&(dyn Any + Send), QueryStore, &mut HashSet<String>) + Send + Sync>>,
+    #[cfg(target_arch = "wasm32")]
     pub(crate) update_js: Option<js_sys::Function>
 }
 
 impl Extension for NormalizedCacheExtension {
+    #[cfg(target_arch = "wasm32")]
     fn from_js(value: JsValue) -> Option<Self> {
         let update: JsValue = "update".into();
         let update = js_sys::Reflect::get(&value, &update).ok();

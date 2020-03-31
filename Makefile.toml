@@ -1,0 +1,58 @@
+[env]
+# all workspace members can use this Makefile
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = "true"
+
+# ---- GENERAL ----
+
+[tasks.verify]
+workspace = false
+description = "Format, lint with clippy and run tests"
+dependencies = ["fmt", "clippy", "build_test_wasm", "test_jest"]
+
+# ---- BUILD ----
+
+[tasks.build]
+description = "Build"
+command = "cargo"
+args = ["build"]
+
+[tasks.build_release]
+description = "Build with release profile"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build_test_wasm]
+description = "Build with wasm-pack"
+install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "-V", min_version = "0.8.0" }
+toolchain = "nightly"
+command = "wasm-pack"
+args = ["build", "artemis-test", "--target", "nodejs", "-d", "../target/pkg/artemis-test", "--dev"]
+
+# ---- TEST ----
+
+[tasks.test_jest]
+description = "Run tests with jest"
+workspace = false
+command = "npm"
+args = ["test"]
+
+# ---- LINT ----
+
+[tasks.fmt]
+description = "Format with nightly rustfmt"
+toolchain = "nightly"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.fmt_check]
+extend = "fmt"
+description = "Check format with nightly rustfmt"
+args = ["fmt", "--all", "--", "--check"]
+
+[tasks.clippy]
+description = "Lint with Clippy"
+toolchain = "nightly"
+clear = true
+install_crate = { rustup_component_name = "clippy", binary = "cargo-clippy", test_arg = "--help" }
+command = "cargo"
+args = ["clippy"]

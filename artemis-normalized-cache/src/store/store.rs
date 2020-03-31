@@ -1,9 +1,11 @@
 use crate::store::data::{InMemoryData, Link};
 use artemis::{
-    exchanges::Client, types::OperationOptions, FieldSelector, GraphQLQuery, Operation,
-    OperationResult, QueryError, RequestPolicy, Response
+    exchanges::Client, progressive_hash, types::OperationOptions, FieldSelector, GraphQLQuery,
+    Operation, OperationResult, QueryError, RequestPolicy, Response
 };
 use flurry::{epoch, epoch::Guard};
+#[cfg(target_arch = "wasm32")]
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
@@ -11,6 +13,7 @@ use std::{
     fmt,
     sync::Arc
 };
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 
 pub struct Store {
@@ -55,7 +58,8 @@ impl QueryStore {
     ) where
         F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
     {
-        self.store.update_query::<Q, _>(variables, updater_fn, dependencies);
+        self.store
+            .update_query::<Q, _>(variables, updater_fn, dependencies);
     }
 }
 
@@ -75,7 +79,9 @@ impl Store {
         F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
     {
         let (query, meta) = Q::build_query(variables.clone());
+        let key = progressive_hash(meta.query_key, &variables);
         let op = Operation {
+            key,
             query,
             meta: meta.clone(),
             options: OperationOptions {
@@ -85,10 +91,11 @@ impl Store {
                 url: "http://0.0.0.0".parse().unwrap()
             }
         };
-        let data = self.store.read_query::<Q>(&op, dependencies);
+        let data = self.read_query::<Q>(&op, dependencies);
         let updated_data = updater_fn(data);
         if let Some(updated_data) = updated_data {
             let result = OperationResult {
+                key,
                 meta,
                 response: Response {
                     data: Some(updated_data),
@@ -96,18 +103,20 @@ impl Store {
                     debug_info: None
                 }
             };
-            self.store
-                .write_query::<Q>(&result, &variables, false, dependencies)
+            self.write_query::<Q>(&result, &variables, false, dependencies)
                 .unwrap();
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn update_query_js<Q: GraphQLQuery>(
         self: &Arc<Self>,
         variables: Value,
         updater_fn: js_sys::Function,
         dependencies: *mut usize
-    ) {
+    ) where
+        Q::Variables: DeserializeOwned
+    {
         let variables: Q::Variables = serde_json::from_value(variables).unwrap();
         let updater = move |current_data: Option<Q::ResponseData>| -> Option<Q::ResponseData> {
             let this = JsValue::NULL;
@@ -170,11 +179,7 @@ impl Store {
         let key = query.meta.operation_type.to_string();
 
         let guard = epoch::pin();
-        let optimistic_key = if optimistic {
-            Some(query.meta.query_key.clone())
-        } else {
-            None
-        };
+        let optimistic_key = if optimistic { Some(query.key) } else { None };
 
         for field in selection {
             let field_name = self.get_selector_field_key(&field);
@@ -190,15 +195,14 @@ impl Store {
         }
 
         if !optimistic {
-            self.data
-                .set_dependencies(query.meta.query_key.clone(), dependencies.clone());
+            self.data.set_dependencies(query.key, dependencies.clone());
             self.data.collect_garbage();
         }
 
         Ok(())
     }
 
-    pub fn clear_optimistic_layer(&self, query_key: &u64) {
+    pub fn clear_optimistic_layer(&self, query_key: u64) {
         self.data.clear_optimistic_layer(query_key);
     }
 
@@ -211,9 +215,9 @@ impl Store {
         dependencies: &mut HashSet<String>,
         guard: &Guard
     ) -> Result<(), StoreError> {
-        let (field_name, args, inner) = match field {
-            FieldSelector::Object(name, args, _, inner) => (name, args, inner.clone()),
-            FieldSelector::Union(name, args, _, inner) => {
+        let (field_name, args, typename, inner) = match field {
+            FieldSelector::Object(name, args, typename, inner) => (*name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Union(name, args, inner) => {
                 let typename = self
                     .data
                     .read_record(&entity_key, &TYPENAME, guard)
@@ -221,7 +225,7 @@ impl Store {
                 let typename = typename
                     .as_str()
                     .expect("__typename has the wrong type. Should be string.");
-                (name, args, inner(typename))
+                (*name, args, typename.to_string(), inner(typename))
             }
             _ => unreachable!()
         };
@@ -232,14 +236,14 @@ impl Store {
             return Ok(());
         }
         let value = value.as_object().unwrap();
-        let key = self.key_of_entity(&"TODO", value).ok_or_else(|| {
+        let key = self.key_of_entity(&typename, value).ok_or_else(|| {
             StoreError::InvalidMetadata(format!(
                 "Cache error: couldn't find index for {}:{}",
                 entity_key, field_name
             ))
         })?;
         dependencies.insert(key.clone());
-        for ref field in inner {
+        for field in &inner {
             let field_name = self.get_selector_field_key(&field);
             let value = value.get(field_name).unwrap();
             self.store_data(
@@ -260,11 +264,11 @@ impl Store {
         Ok(())
     }
 
-    fn get_selector_field_key<'a, 's>(&'a self, selector: &'s FieldSelector) -> &'s String {
+    fn get_selector_field_key(&self, selector: &FieldSelector) -> &'static str {
         match selector {
-            FieldSelector::Object(name, _, _, _) => name,
-            FieldSelector::Union(name, _, _, _) => name,
-            FieldSelector::Scalar(name, _) => name
+            FieldSelector::Object(name, _, _, _) => *name,
+            FieldSelector::Union(name, _, _) => *name,
+            FieldSelector::Scalar(name, _) => *name
         }
     }
 
@@ -277,14 +281,14 @@ impl Store {
         dependencies: &mut HashSet<String>,
         guard: &Guard
     ) -> Result<(), StoreError> {
-        let (field_name, args, inner) = match selector {
+        let (field_name, args, typename, inner) = match selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = format!("{}{}", field_name, args);
+                let field_key = format!("{}{}", *field_name, args);
                 self.write_record(optimistic_key, entity_key, field_key, Some(value));
                 return Ok(());
             }
-            FieldSelector::Object(field_name, args, _, inner) => (field_name, args, inner.clone()),
-            FieldSelector::Union(field_name, args, _, inner) => {
+            FieldSelector::Object(field_name, args, typename, inner) => (*field_name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Union(field_name, args, inner) => {
                 let typename = self
                     .data
                     .read_record(&entity_key, &TYPENAME, guard)
@@ -292,7 +296,7 @@ impl Store {
                 let typename = typename
                     .as_str()
                     .expect("__typename has the wrong type. Should be string.");
-                (field_name, args, inner(typename))
+                (*field_name, args, typename.to_string(), inner(typename))
             }
         };
 
@@ -307,7 +311,7 @@ impl Store {
         let mut keys = Vec::new();
         for value in values {
             let value = value.as_object().unwrap();
-            let key = self.key_of_entity(&"TODO", value).ok_or_else(|| {
+            let key = self.key_of_entity(&typename, value).ok_or_else(|| {
                 StoreError::InvalidMetadata(format!(
                     "Cache error: couldn't find index for {}:{}",
                     entity_key, field_key
@@ -350,7 +354,7 @@ impl Store {
         guard: &Guard
     ) -> Result<(), StoreError> {
         match selector {
-            FieldSelector::Object(_, _, _, _) | FieldSelector::Union(_, _, _, _) => {
+            FieldSelector::Object(_, _, _, _) | FieldSelector::Union(_, _, _) => {
                 if data.is_array() {
                     self.store_array(
                         optimistic_key,
@@ -372,7 +376,7 @@ impl Store {
                 }
             }
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = format!("{}{}", field_name, args);
+                let field_key = format!("{}{}", *field_name, args);
                 self.write_record(optimistic_key, entity_key, field_key, Some(data));
             }
         }
@@ -425,27 +429,27 @@ impl Store {
 
     fn read_entity(
         &self,
-        entity_key: &String,
-        selection: &Vec<FieldSelector>,
+        entity_key: &str,
+        selection: &[FieldSelector],
         dependencies: &mut HashSet<String>
     ) -> Option<serde_json::Value> {
         if entity_key != "Query" {
-            dependencies.insert(entity_key.clone());
+            dependencies.insert(entity_key.to_string());
         }
 
         let guard = epoch::pin();
         let mut result = serde_json::Map::new();
         for field in selection {
             match field {
-                &FieldSelector::Scalar(ref field_name, ref args) => {
+                FieldSelector::Scalar(ref field_name, ref args) => {
                     let value = self.data.read_record(
                         entity_key,
                         &format!("{}{}", field_name, args),
                         &guard
                     )?;
-                    result.insert(field_name.clone(), value.clone());
+                    result.insert(field_name.to_string(), value.clone());
                 }
-                &FieldSelector::Object(ref field_name, ref args, _, ref inner) => {
+                FieldSelector::Object(ref field_name, ref args, _, ref inner) => {
                     let link = self.data.read_link(
                         entity_key,
                         &format!("{}{}", field_name, args),
@@ -454,21 +458,21 @@ impl Store {
                     match link {
                         Link::Single(ref entity_key) => {
                             let value = self.read_entity(entity_key, inner, dependencies)?;
-                            result.insert(field_name.clone(), value);
+                            result.insert(field_name.to_string(), value);
                         }
                         Link::List(ref entity_keys) => {
                             let values: Option<Vec<_>> = entity_keys
                                 .iter()
                                 .map(|entity_key| self.read_entity(entity_key, inner, dependencies))
                                 .collect();
-                            result.insert(field_name.clone(), values?.into());
+                            result.insert(field_name.to_string(), values?.into());
                         }
                         Link::Null => {
-                            result.insert(field_name.clone(), Value::Null);
+                            result.insert(field_name.to_string(), Value::Null);
                         }
                     }
                 }
-                &FieldSelector::Union(ref field_name, ref args, _, ref inner) => {
+                FieldSelector::Union(ref field_name, ref args, ref inner) => {
                     let field_key = format!("{}{}", field_name, args);
                     let link = self.data.read_link(entity_key, &field_key, &guard)?;
                     match link {
@@ -479,7 +483,7 @@ impl Store {
                                 .expect("__typename has invalid type! Should be string");
                             let selection = inner(typename);
                             let value = self.read_entity(entity_key, &selection, dependencies)?;
-                            result.insert(field_name.clone(), value);
+                            result.insert(field_name.to_string(), value);
                         }
                         Link::List(ref entity_keys) => {
                             let values: Option<Vec<_>> = entity_keys
@@ -494,10 +498,10 @@ impl Store {
                                     self.read_entity(entity_key, &selection, dependencies)
                                 })
                                 .collect();
-                            result.insert(field_name.clone(), values?.into());
+                            result.insert(field_name.to_string(), values?.into());
                         }
                         Link::Null => {
-                            result.insert(field_name.clone(), Value::Null);
+                            result.insert(field_name.to_string(), Value::Null);
                         }
                     }
                 }
@@ -509,8 +513,8 @@ impl Store {
     fn invalidate_union(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: &String,
-        subselection: &Box<dyn Fn(&str) -> Vec<FieldSelector>>,
+        entity_key: &str,
+        subselection: &dyn Fn(&str) -> Vec<FieldSelector>,
         invalidated: &mut HashSet<String>,
         guard: &Guard
     ) {
@@ -543,16 +547,12 @@ impl Store {
 
         let selection = Q::selection(variables);
         let guard = epoch::pin();
-        let optimistic_key = if optimistic {
-            Some(result.meta.query_key.clone())
-        } else {
-            None
-        };
+        let optimistic_key = if optimistic { Some(result.key) } else { None };
 
         self.invalidate_selection(optimistic_key, &key, &selection, dependencies, &guard);
 
         if !optimistic {
-            self.data.clear_optimistic_layer(&result.meta.query_key);
+            self.data.clear_optimistic_layer(result.key);
         }
     }
 
@@ -576,25 +576,25 @@ impl Store {
     fn invalidate_selection(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: &String,
-        selection: &Vec<FieldSelector>,
+        entity_key: &str,
+        selection: &[FieldSelector],
         invalidated: &mut HashSet<String>,
         guard: &Guard
     ) {
         if entity_key != "Mutation" {
-            invalidated.insert(entity_key.clone());
+            invalidated.insert(entity_key.to_string());
         }
         for field in selection {
             match field {
-                &FieldSelector::Scalar(ref field_name, ref args) => {
+                FieldSelector::Scalar(ref field_name, ref args) => {
                     self.write_record(
                         optimistic_key,
-                        entity_key.clone(),
+                        entity_key.to_string(),
                         format!("{}{}", field_name, args),
                         None
                     );
                 }
-                &FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
+                FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
                     if let Some(link) =
                         self.data
                             .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
@@ -622,7 +622,7 @@ impl Store {
                         }
                     }
                 }
-                &FieldSelector::Union(ref field_name, ref args, _, ref subselection) => {
+                FieldSelector::Union(ref field_name, ref args, ref subselection) => {
                     if let Some(link) =
                         self.data
                             .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
@@ -631,7 +631,7 @@ impl Store {
                             Link::Single(ref entity_key) => self.invalidate_union(
                                 optimistic_key,
                                 entity_key,
-                                subselection,
+                                &**subselection,
                                 invalidated,
                                 guard
                             ),
@@ -640,7 +640,7 @@ impl Store {
                                     self.invalidate_union(
                                         optimistic_key.clone(),
                                         entity_key,
-                                        subselection,
+                                        &**subselection,
                                         invalidated,
                                         guard
                                     )

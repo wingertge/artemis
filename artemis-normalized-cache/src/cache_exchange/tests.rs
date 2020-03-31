@@ -1,9 +1,5 @@
 use crate::{cache_exchange::NormalizedCacheExchange, NormalizedCacheExtension, QueryStore};
-use artemis::{
-    exchanges::Client, types::OperationOptions, DebugInfo, Error, Exchange, ExchangeFactory,
-    ExchangeResult, GraphQLQuery, Operation, OperationMeta, OperationResult, RequestPolicy,
-    Response, ResultSource
-};
+use artemis::{exchanges::Client, progressive_hash, types::OperationOptions, DebugInfo, Error, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationMeta, OperationResult, RequestPolicy, Response, ResultSource};
 use artemis_test::{
     add_conference::{add_conference, add_conference::AddConferenceAddConference, AddConference},
     get_conference::{
@@ -16,6 +12,7 @@ use artemis_test::{
 };
 use racetrack::{track_with, Tracker};
 use std::{any::Any, collections::HashSet, sync::Arc};
+use serde::de::DeserializeOwned;
 
 fn make_op_with_key<Q: GraphQLQuery>(
     _query: Q,
@@ -24,8 +21,12 @@ fn make_op_with_key<Q: GraphQLQuery>(
 ) -> Operation<Q::Variables> {
     let (query, meta) = Q::build_query(variables);
     Operation {
+        key,
         query,
-        meta: OperationMeta { query_key: key, ..meta },
+        meta: OperationMeta {
+            query_key: key as u32,
+            ..meta
+        },
         options: OperationOptions {
             url: "http://0.0.0.0".parse().unwrap(),
             request_policy: RequestPolicy::CacheFirst,
@@ -38,6 +39,7 @@ fn make_op_with_key<Q: GraphQLQuery>(
 fn make_op<Q: GraphQLQuery>(_query: Q, variables: Q::Variables) -> Operation<Q::Variables> {
     let (query, meta) = Q::build_query(variables);
     Operation {
+        key: progressive_hash(meta.query_key, &query.variables),
         query,
         meta,
         options: OperationOptions {
@@ -109,6 +111,7 @@ fn make_result<Q: GraphQLQuery>(
 ) -> ExchangeResult<Q::ResponseData> {
     let data = *data.downcast::<Q::ResponseData>().unwrap();
     Ok(OperationResult {
+        key: operation.key,
         meta: operation.meta,
         response: Response {
             debug_info: Some(DebugInfo {
@@ -128,6 +131,8 @@ struct DummyClient {
 #[track_with(tracker, namespace = "Client")]
 impl Client for DummyClient {
     fn rerun_query(&self, _query_key: u64) {}
+
+    fn push_result<R>(&self, _query_key: u64, _result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static {}
 }
 
 #[tokio::test]
@@ -348,8 +353,12 @@ async fn writes_optimistic_mutations_to_the_cache() {
         let extension =
             NormalizedCacheExtension::new().optimistic_result::<AddConference, _>(optimistic);
         Operation {
+            key: 2,
             query,
-            meta: OperationMeta { query_key: 2, ..meta },
+            meta: OperationMeta {
+                query_key: 2,
+                ..meta
+            },
             options: OperationOptions {
                 url: "http://0.0.0.0".parse().unwrap(),
                 request_policy: RequestPolicy::CacheFirst,
@@ -453,8 +462,12 @@ async fn correctly_clears_on_error() {
             .optimistic_result::<AddConference, _>(optimistic)
             .update::<AddConference, _>(update);
         Operation {
+            key: 2,
             query,
-            meta: OperationMeta { query_key: 2, ..meta },
+            meta: OperationMeta {
+                query_key: 2,
+                ..meta
+            },
             options: OperationOptions {
                 url: "http://0.0.0.0".parse().unwrap(),
                 request_policy: RequestPolicy::CacheFirst,
@@ -485,6 +498,7 @@ async fn correctly_clears_on_error() {
 
             if query_key == &2 {
                 Ok(OperationResult {
+                    key: operation.key,
                     meta: operation.meta,
                     response: Response {
                         data: None,
@@ -525,4 +539,82 @@ async fn correctly_clears_on_error() {
     tracker
         .assert_that("Client::rerun_query")
         .was_called_times(2);
+}
+
+#[tokio::test]
+async fn follows_optimistic_on_initial_write() {
+    let tracker = Tracker::new();
+
+    let client = DummyClient { tracker: tracker.clone() };
+    let mut op_one = make_op_with_key(GetConference, Variables { id: "1".to_string() }, 1);
+
+    struct Fetch(Arc<Tracker>);
+
+    #[track_with(0)]
+    #[async_trait]
+    impl Exchange for Fetch {
+        async fn run<Q: GraphQLQuery, C: Client>(&self, operation: Operation<Q::Variables>, _client: C) -> ExchangeResult<Q::ResponseData> {
+            let data_one = ResponseData {
+                conference: Some(GetConferenceConference {
+                    id: "1".to_string(),
+                    name: "test".to_string(),
+                    talks: None,
+                    city: None
+                })
+            };
+
+            if operation.key == 1 {
+                make_result::<Q>(operation, Box::new(data_one))
+            } else {
+                unreachable!()
+            }
+        }
+    }
+
+    let optimistic_data = ResponseData {
+        conference: Some(GetConferenceConference {
+            id: "1".to_string(),
+            name: "other_test_name".to_string(),
+            talks: None,
+            city: None
+        })
+    };
+
+    #[track_with(tracker)]
+    let optimistic = || {
+        Some(ResponseData {
+            conference: Some(GetConferenceConference {
+                id: "1".to_string(),
+                name: "other_test_name".to_string(),
+                talks: None,
+                city: None
+            })
+        })
+    };
+
+    let exchange = NormalizedCacheExchange::new().build(Fetch(tracker.clone()));
+    let extension = NormalizedCacheExtension::new()
+        .optimistic_result::<GetConference, _>(optimistic);
+    op_one.options.extensions = Some(artemis::ext![extension]);
+
+    let res = exchange.run::<GetConference, _>(op_one.clone(), client).await;
+    assert!(res.is_ok());
+    let data: ResponseData = res.unwrap().response.data.unwrap();
+    assert_eq!(&data.conference.unwrap().name, "test");
+    tracker.assert_that("optimistic")
+        .was_called_once();
+
+    let push_data: (u64, ExchangeResult<ResponseData>) = (1u64, Ok(OperationResult {
+        key: 1,
+        meta: op_one.meta,
+        response: Response {
+            data: Some(optimistic_data),
+            errors: None,
+            debug_info: None
+        }
+    }));
+
+    tracker.assert_that("Client::push_result")
+        .was_called_once()
+        .with(push_data);
 }

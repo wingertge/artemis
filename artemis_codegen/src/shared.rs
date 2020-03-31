@@ -81,6 +81,61 @@ pub(crate) fn keyword_replace(needle: &str) -> String {
     }
 }
 
+pub(crate) fn render_typescript_field(
+    field_name: &str,
+    field_type: &str,
+    description: Option<&str>,
+    status: &DeprecationStatus,
+    strategy: &DeprecationStrategy
+) -> Option<String> {
+    #[allow(unused_assignments)]
+    let mut deprecation = (false, "");
+    match (status, strategy) {
+        // If the field is deprecated and we are denying usage, don't generate the
+        // field in rust at all and short-circuit.
+        (DeprecationStatus::Deprecated(_), DeprecationStrategy::Deny) => return None,
+        // A reason was provided, translate it to a note.
+        (DeprecationStatus::Deprecated(Some(reason)), DeprecationStrategy::Warn) => {
+            deprecation = (true, reason)
+        }
+        // No reason provided, just mark as deprecated.
+        (DeprecationStatus::Deprecated(None), DeprecationStrategy::Warn) => {
+            deprecation = (true, "")
+        }
+        _ => {}
+    };
+
+    let description = description.map(|s| format!("\n* {}", s));
+    let doc = if description.is_some() || deprecation.0 {
+        let deprecation = if deprecation.0 {
+            let reason = deprecation.1;
+            format!("\n* @deprecated {} ", reason)
+        } else {
+            String::new()
+        };
+        format!(
+            r#"
+            /**{description}{deprecation}
+            */
+        "#,
+            description = description.unwrap_or_else(String::new),
+            deprecation = deprecation
+        )
+    } else {
+        String::new()
+    };
+
+    Some(format!(
+        r#"
+        {doc}
+        {field_name}: {field_type}
+    "#,
+        doc = doc,
+        field_name = field_name,
+        field_type = field_type
+    ))
+}
+
 pub(crate) fn render_object_field(
     field_name: &str,
     field_type: &TokenStream,
@@ -114,6 +169,38 @@ pub(crate) fn render_object_field(
     let rename = crate::shared::field_rename_annotation(&field_name, &rust_safe_field_name);
 
     Some(quote!(#description #deprecation #rename pub #name_ident: #field_type))
+}
+
+pub(crate) fn typescript_definitions_for_selection(
+    fields: &[GqlObjectField<'_>],
+    context: &QueryContext<'_, '_>,
+    selection: &Selection<'_>
+) -> Result<Vec<String>, CodegenError> {
+    let tokens: Vec<String> = (&selection)
+        .into_iter()
+        .map(|selected| {
+            if let SelectionItem::Field(selected) = selected {
+                let name = &selected.name;
+                let alias = selected.alias.as_ref().unwrap_or(name);
+
+                let ty = fields
+                    .iter()
+                    .find(|f| &f.name == name)
+                    .ok_or_else(|| {
+                        CodegenError::TypeError(format!("could not find field `{}`", name))
+                    })?
+                    .type_
+                    .inner_name_str();
+                let prefix = alias.to_camel_case();
+                context.maybe_expand_typescript_field(&ty, &selected.fields, &prefix)
+            } else {
+                Ok(None)
+            }
+        })
+        .filter_map(|i| i.transpose())
+        .collect::<Result<Vec<String>, CodegenError>>()?;
+
+    Ok(tokens)
 }
 
 pub(crate) fn field_impls_for_selection(
@@ -176,7 +263,7 @@ pub trait ToRust {
 
 impl ToRust for Vec<(String, ArgumentValue)> {
     fn to_rust(&self) -> Option<TokenStream> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return None;
         }
 
@@ -192,7 +279,7 @@ impl ToRust for Vec<(String, ArgumentValue)> {
         let fields = fields.join(",");
         let formatted_vars = format!("({})", fields);
 
-        let idents = if placeholder_idents.len() > 0 {
+        let idents = if !placeholder_idents.is_empty() {
             quote!(,#(&variables.#placeholder_idents),*)
         } else {
             quote!()
@@ -205,7 +292,7 @@ impl ToRust for Vec<(String, ArgumentValue)> {
 }
 
 impl ArgumentValue {
-    fn format(&self, name: &String) -> (String, Vec<Ident>) {
+    fn format(&self, name: &str) -> (String, Vec<Ident>) {
         let mut placeholder_idents = Vec::new();
         let formatted = match self {
             ArgumentValue::Int(i) => format!("{}:{}", name, i),
@@ -272,6 +359,84 @@ impl From<Value> for ArgumentValue {
     }
 }
 
+pub(crate) fn typescript_fields_for_selection(
+    type_name: &str,
+    schema_fields: &[GqlObjectField<'_>],
+    context: &QueryContext<'_, '_>,
+    selection: &Selection<'_>,
+    prefix: &str
+) -> Result<Vec<String>, CodegenError> {
+    let field_defs: Result<Vec<String>, CodegenError> = (&selection)
+        .into_iter()
+        .map(|item| match item {
+            SelectionItem::Field(f) => {
+                let name = &f.name;
+                let alias = f.alias.as_ref().unwrap_or(name);
+
+                let schema_field = schema_fields
+                    .iter()
+                    .find(|field| &field.name == name)
+                    .ok_or_else(|| {
+                        CodegenError::TypeError(format!(
+                            "Could not find field `{}` on `{}`. Available fields: `{}`.",
+                            *name,
+                            type_name,
+                            schema_fields
+                                .iter()
+                                .map(|ref field| &field.name)
+                                .fold(String::new(), |mut acc, item| {
+                                    acc.push_str(item);
+                                    acc.push_str(", ");
+                                    acc
+                                })
+                                .trim_end_matches(", ")
+                        ))
+                    })?;
+                let ty_name = if prefix.is_empty() {
+                    alias.to_camel_case()
+                } else {
+                    format!("{}.{}", prefix.to_camel_case(), alias.to_camel_case())
+                };
+                let ty = schema_field.type_.to_typescript(context, &ty_name);
+
+                Ok(render_typescript_field(
+                    alias,
+                    &ty,
+                    schema_field.description.as_ref().cloned(),
+                    &schema_field.deprecation,
+                    &context.deprecation_strategy
+                ))
+            }
+            SelectionItem::FragmentSpread(fragment) => {
+                context.require_fragment(&fragment.fragment_name);
+                let fragment_from_context = context
+                    .fragments
+                    .get(&fragment.fragment_name)
+                    .ok_or_else(|| {
+                        CodegenError::TypeError(format!(
+                            "Unknown fragment: {}",
+                            &fragment.fragment_name
+                        ))
+                    })?;
+                let fields = typescript_fields_for_selection(
+                    fragment.fragment_name,
+                    schema_fields,
+                    context,
+                    &fragment_from_context.selection,
+                    prefix
+                )?;
+                Ok(Some(fields.join(",")))
+            }
+            SelectionItem::InlineFragment(_) => Err(CodegenError::UnimplementedError(
+                "inline fragment on object field".to_string()
+            ))
+        })
+        .filter_map(|x| x.transpose())
+        .collect();
+
+    Ok(field_defs?)
+}
+
 pub(crate) fn response_fields_for_selection(
     type_name: &str,
     schema_fields: &[GqlObjectField<'_>],
@@ -311,7 +476,7 @@ pub(crate) fn response_fields_for_selection(
                     context,
                     &format!("{}{}", prefix.to_camel_case(), alias.to_camel_case()),
                     name,
-                    f.arguments.iter().cloned().collect()
+                    f.arguments.to_vec()
                 );
 
                 selectors.push(field_selector);

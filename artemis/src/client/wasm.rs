@@ -28,20 +28,33 @@ impl<M: Exchange, Q: QueryCollection> JsClient<M, Q> {
         &self,
         query: Q,
         variables: JsValue,
-        options: JsQueryOptions
+        options: Option<JsQueryOptions>
     ) -> Result<JsValue, JsValue> {
-        query.query(self.inner.clone(), variables, options.into()).await
+        query
+            .query(
+                self.inner.clone(),
+                variables,
+                options
+                    .map(Into::into)
+                    .unwrap_or_else(|| QueryOptions::default())
+            )
+            .await
     }
 
-    pub async fn subscribe(
+    pub fn subscribe(
         &self,
         query: Q,
         variables: JsValue,
         callback: Function,
-        options: JsQueryOptions
+        options: Option<JsQueryOptions>
     ) {
-        query
-            .subscribe(self.inner.clone(), variables, callback, options.into())
-            .await;
+        query.subscribe(
+            self.inner.clone(),
+            variables,
+            callback,
+            options
+                .map(Into::into)
+                .unwrap_or_else(|| QueryOptions::default())
+        );
     }
 }

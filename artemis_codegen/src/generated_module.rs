@@ -24,6 +24,15 @@ impl<'a> GeneratedModule<'a> {
         )?)
     }
 
+    fn build_typescript_defs(&self) -> Result<String, CodegenError> {
+        Ok(crate::codegen::typescript_for_query(
+            &self.schema,
+            &self.query_document,
+            &self.operation,
+            &self.options
+        )?)
+    }
+
     /// Generate the module and all the code inside.
     pub(crate) fn to_token_stream(&self) -> Result<TokenStream, CodegenError> {
         let module_name = Ident::new(&self.operation.name.to_snake_case(), Span::call_site());
@@ -50,6 +59,7 @@ impl<'a> GeneratedModule<'a> {
         let query_string = &self.query_string;
         let query_string_hash = hash(query_string);
         let (impls, types) = self.build_impls()?;
+        let typescript_definitions = self.build_typescript_defs()?;
         let operation_type = match &self.operation.operation_type {
             OperationType::Query => quote!(Query),
             OperationType::Mutation => quote!(Mutation),
@@ -59,10 +69,6 @@ impl<'a> GeneratedModule<'a> {
 
         let struct_declaration: Option<_> = match self.options.mode {
             CodegenMode::Cli => Some(quote! {
-                #[cfg(target_arch = "wasm32")]
-                use wasm_bindgen::prelude::*;
-
-                #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
                 #module_visibility struct #operation_name_ident;
             }),
             // The struct is already present in derive mode.
@@ -72,20 +78,46 @@ impl<'a> GeneratedModule<'a> {
         let types: Vec<_> = types.into_iter().collect();
         let involved_types = quote!(vec![#(#types,)*]);
 
+        let typescript = format!(
+            r#"export namespace {operation_name} {{
+            {definitions}
+        }}"#,
+            operation_name = operation_name_literal,
+            definitions = typescript_definitions
+        );
+        let format_config = dprint_plugin_typescript::configuration::ConfigurationBuilder::new().build();
+        let typescript = match dprint_plugin_typescript::format_text("temp.d.ts", &typescript, &format_config).unwrap() {
+            Some(formatted) => formatted,
+            None => panic!("Typescript was ignored even though no ignore comment was present")
+        };
+        let typescript = quote! {
+            #[cfg(target_arch = "wasm32")]
+            use wasm_bindgen::prelude::*;
+
+            #[cfg(target_arch = "wasm32")]
+            #[wasm_bindgen(typescript_custom_section)]
+            const TS_APPEND_CONTENT: &'static str = #typescript;
+        };
+
         Ok(quote!(
+            #typescript
+
+            #[allow(clippy::all)]
             #struct_declaration
 
+            #[allow(clippy::all)]
             #module_visibility mod #module_name {
                 #![allow(dead_code)]
 
-                pub const OPERATION_NAME: &'static str = #operation_name_literal;
-                pub const QUERY: &'static str = #query_string;
+                pub const OPERATION_NAME: &str = #operation_name_literal;
+                pub const QUERY: &str = #query_string;
 
                 #query_include
 
                 #impls
             }
 
+            #[allow(clippy::all)]
             impl ::artemis::GraphQLQuery for #operation_name_ident {
                 type Variables = #module_name::Variables;
                 type ResponseData = #module_name::ResponseData;

@@ -39,17 +39,41 @@ impl<'query> Operation<'query> {
         }
     }
 
+    pub(crate) fn expand_variables_typescript(&self, context: &QueryContext<'_, '_>) -> String {
+        if self.variables.is_empty() {
+            return "export type Variables = void;".to_string();
+        }
+
+        let fields: Vec<String> = self
+            .variables
+            .iter()
+            .map(|variable| {
+                let ty = variable.ty.to_typescript(context, "");
+                format!("{}: {}", variable.name, ty)
+            })
+            .collect();
+
+        format!(
+            r#"
+            export interface Variables {{
+                {fields}
+            }}
+            "#,
+            fields = fields.join(",\n")
+        )
+    }
+
     /// Generate the Variables struct and all the necessary supporting code.
     pub(crate) fn expand_variables(&self, context: &QueryContext<'_, '_>) -> TokenStream {
         let variables = &self.variables;
         let variables_derives = context.variables_derives();
         let wasm_variable_derives = if context.wasm_bindgen {
-            let filtered: Vec<_> = vec!["Deserialize", "TypescriptDefinition"]
+            let filtered: Vec<_> = vec!["Deserialize"]
                 .into_iter()
                 .map(|def| syn::Ident::new(def, Span::call_site()))
                 .filter(|def| !context.variables_derives.contains(def))
                 .collect();
-            if filtered.len() > 0 {
+            if !filtered.is_empty() {
                 quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
             } else {
                 quote!()

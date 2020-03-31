@@ -5,3 +5,4 @@ Cargo.lock
 perf.*
 stacks.folded
 flamegraph.svg
+node_modules

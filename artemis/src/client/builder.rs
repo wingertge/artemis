@@ -14,7 +14,9 @@ pub struct ClientBuilder<M: Exchange = DummyExchange> {
     exchange: M,
     url: Url,
     extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
-    request_policy: RequestPolicy
+    request_policy: RequestPolicy,
+    #[cfg(target_arch = "wasm32")]
+    fetch: Option<js_sys::Function>
 }
 
 //#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -29,7 +31,9 @@ impl ClientBuilder<DummyExchange> {
             exchange: DummyExchange,
             url,
             extra_headers: None,
-            request_policy: RequestPolicy::CacheFirst
+            request_policy: RequestPolicy::CacheFirst,
+            #[cfg(target_arch = "wasm32")]
+            fetch: None
         }
     }
 }
@@ -57,7 +61,9 @@ impl<M: Exchange> ClientBuilder<M> {
             exchange,
             url: self.url,
             extra_headers: self.extra_headers,
-            request_policy: self.request_policy
+            request_policy: self.request_policy,
+            #[cfg(target_arch = "wasm32")]
+            fetch: self.fetch
         }
     }
 
@@ -70,11 +76,14 @@ impl<M: Exchange> ClientBuilder<M> {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn with_js_extra_headers(
-        mut self,
-        header_fn: js_sys::Function
-    ) -> Self {
+    pub fn with_js_extra_headers(mut self, header_fn: js_sys::Function) -> Self {
         self.extra_headers = Some(crate::wasm::convert_header_fn(header_fn));
+        self
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn with_fetch(mut self, fetch: js_sys::Function) -> Self {
+        self.fetch = Some(fetch);
         self
     }
 
@@ -89,7 +98,9 @@ impl<M: Exchange> ClientBuilder<M> {
             exchange: self.exchange,
             extra_headers: self.extra_headers,
             request_policy: self.request_policy,
-            active_subscriptions: Arc::new(Mutex::new(HashMap::new()))
+            active_subscriptions: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(target_arch = "wasm32")]
+            fetch: self.fetch
         };
 
         Client(Arc::new(client))

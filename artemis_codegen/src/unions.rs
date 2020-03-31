@@ -51,6 +51,60 @@ type UnionVariantResult<'selection> = Result<
     CodegenError
 >;
 
+type TSUnionVariantResult<'selection> =
+    Result<(Vec<String>, Vec<String>, Vec<&'selection str>), CodegenError>;
+
+pub(crate) fn union_variants_typescript<'selection>(
+    selection: &'selection Selection<'_>,
+    context: &'selection QueryContext<'selection, 'selection>,
+    prefix: &str,
+    selection_on: &str
+) -> TSUnionVariantResult<'selection> {
+    let selection = selection.selected_variants_on_union(context, selection_on)?;
+    let mut used_variants: Vec<&str> = selection.keys().cloned().collect();
+    let mut children_definitions = Vec::with_capacity(selection.len());
+    let mut variants = Vec::with_capacity(selection.len());
+
+    for (on, fields) in selection.iter() {
+        used_variants.push(on);
+
+        let new_prefix = format!("{}On{}", prefix, on);
+
+        let field_object_type = context.schema.objects.get(on).map(|_f| {
+            _f.is_required.set(true);
+            _f.typescript_for_selection(context, &fields, prefix, true)
+                .map_err(Into::into)
+        });
+        let field_interface = context.schema.interfaces.get(on).map(|_f| {
+            _f.is_required.set(true);
+            _f.typescript_for_selection(context, &fields, prefix)
+                .map_err(Into::into)
+        });
+        let field_union_type = context.schema.unions.get(on).map(|_f| {
+            _f.is_required.set(true);
+            _f.typescript_for_selection(context, &fields, prefix)
+                .map_err(Into::into)
+        });
+
+        match field_object_type.or(field_interface).or(field_union_type) {
+            Some(Ok(types)) => {
+                children_definitions.push(types);
+            }
+            Some(Err(err)) => return Err(err),
+            None => {
+                return Err(UnionError::UnknownType {
+                    ty: (*on).to_string()
+                }
+                .into())
+            }
+        };
+
+        variants.push(new_prefix)
+    }
+
+    Ok((variants, children_definitions, used_variants))
+}
+
 /// Returns a triple.
 ///
 /// - The first element is the union variants to be inserted directly into the `enum` declaration.
@@ -116,6 +170,69 @@ pub(crate) fn union_variants<'selection>(
 }
 
 impl<'schema> GqlUnion<'schema> {
+    pub(crate) fn typescript_for_selection(
+        &self,
+        query_context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>,
+        prefix: &str
+    ) -> Result<String, CodegenError> {
+        let typename_field = selection.extract_typename(query_context);
+
+        if typename_field.is_none() {
+            return Err(UnionError::MissingTypename {
+                union_name: prefix.into()
+            }
+            .into());
+        }
+
+        let (mut variants, children_definitions, used_variants) =
+            union_variants_typescript(selection, query_context, prefix, &self.name)?;
+
+        for used_variant in used_variants.iter() {
+            if !self.variants.contains(used_variant) {
+                return Err(UnionError::UnknownVariant {
+                    ty: self.name.into(),
+                    var: (*used_variant).to_string()
+                }
+                .into());
+            }
+        }
+
+        variants.extend(
+            self.variants
+                .iter()
+                .filter(|v| used_variants.iter().find(|a| a == v).is_none())
+                .map(|v| (*v).to_string())
+        );
+
+        let children_definitions = if !children_definitions.is_empty() {
+            format!(
+                r#"
+                export namespace {name} {{
+                    {child_defs}
+                }}
+                "#,
+                name = prefix,
+                child_defs = children_definitions.join("\n")
+            )
+        } else {
+            format!("")
+        };
+
+        let tokens = format!(
+            r#"
+            {child_defs}
+
+            export type {name} = {variants};
+            "#,
+            child_defs = children_definitions,
+            name = prefix,
+            variants = variants.join(" | ")
+        );
+
+        Ok(tokens)
+    }
+
     /// Returns the code to deserialize this union in the response given the query selection.
     pub(crate) fn response_for_selection(
         &self,
@@ -159,17 +276,6 @@ impl<'schema> GqlUnion<'schema> {
         );
 
         let query_info = if query_context.include_query_info {
-            let type_names: Vec<_> = used_variants
-                .iter()
-                .collect::<HashSet<_>>()
-                .iter()
-                .map(|variant| {
-                    let ident = Ident::new(variant, Span::call_site());
-                    quote! {
-                        #struct_name::#ident(inner) => inner.typename()
-                    }
-                })
-                .collect();
             let selections_by_type: Vec<_> = used_variants
                 .iter()
                 .collect::<HashSet<_>>()
@@ -181,22 +287,7 @@ impl<'schema> GqlUnion<'schema> {
                     }
                 })
                 .collect();
-            // TODO: Unions are tricky, have to look into it later
             quote! {
-                impl ::artemis::QueryInfo<Variables> for #struct_name {
-                    fn typename(&self) -> &'static str {
-                        match self {
-                            #(#type_names),*
-                        }
-                    }
-
-                    #[allow(unused_variables)]
-                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
-                        vec![
-                        ]
-                    }
-                }
-
                 impl #struct_name {
                     fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::FieldSelector> {
                         match typename {

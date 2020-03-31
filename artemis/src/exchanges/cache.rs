@@ -43,10 +43,7 @@ fn should_skip<Q: GraphQLQuery>(operation: &Operation<Q::Variables>) -> bool {
 
 impl<TNext: Exchange> CacheExchangeImpl<TNext> {
     fn is_operation_cached<Q: GraphQLQuery>(&self, operation: &Operation<Q::Variables>) -> bool {
-        let OperationMeta {
-            operation_type,
-            ..
-        } = &operation.meta;
+        let OperationMeta { operation_type, .. } = &operation.meta;
         let key = operation.key;
         let request_policy = &operation.options.request_policy;
 
@@ -64,10 +61,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
             return Ok(operation_result);
         }
 
-        let OperationMeta {
-            involved_types,
-            ..
-        } = &operation_result.meta;
+        let OperationMeta { involved_types, .. } = &operation_result.meta;
         let key = operation_result.key;
 
         {
@@ -78,9 +72,8 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
         {
             let mut operation_cache = self.operation_cache.lock().unwrap();
             for involved_type in involved_types {
-                let involved_type = involved_type.clone();
                 operation_cache
-                    .entry(involved_type)
+                    .entry(*involved_type)
                     .and_modify(|entry| {
                         entry.insert(key);
                     })
@@ -104,10 +97,7 @@ impl<TNext: Exchange> CacheExchangeImpl<TNext> {
             return Ok(operation_result);
         }
 
-        let OperationMeta {
-            involved_types,
-            ..
-        } = &operation_result.meta;
+        let OperationMeta { involved_types, .. } = &operation_result.meta;
         let key = operation_result.key;
 
         let ops_to_remove: HashSet<u64> = {
@@ -149,9 +139,9 @@ impl<TNext: Exchange> Exchange for CacheExchangeImpl<TNext> {
         if !self.is_operation_cached::<Q>(&operation) {
             let res = self.next.run::<Q, _>(operation, client.clone()).await?;
 
-            match &res.meta.operation_type {
-                &OperationType::Query => self.after_query::<Q>(res),
-                &OperationType::Mutation => self.after_mutation::<Q, _>(res, client),
+            match res.meta.operation_type {
+                OperationType::Query => self.after_query::<Q>(res),
+                OperationType::Mutation => self.after_mutation::<Q, _>(res, client),
                 _ => Ok(res)
             }
         } else {

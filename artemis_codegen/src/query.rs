@@ -74,6 +74,38 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         }
     }
 
+    pub(crate) fn maybe_expand_typescript_field(
+        &self,
+        ty: &str,
+        selection: &Selection<'_>,
+        prefix: &str
+    ) -> Result<Option<String>, CodegenError> {
+        if self.schema.contains_scalar(ty) {
+            Ok(None)
+        } else if let Some(enm) = self.schema.enums.get(ty) {
+            enm.is_required.set(true);
+            Ok(None) // we already expand enums separately
+        } else if let Some(obj) = self.schema.objects.get(ty) {
+            obj.is_required.set(true);
+            obj.typescript_for_selection(self, &selection, prefix, false)
+                .map(Option::Some)
+                .map_err(Into::into)
+        } else if let Some(iface) = self.schema.interfaces.get(ty) {
+            iface.is_required.set(true);
+            iface
+                .typescript_for_selection(self, &selection, prefix)
+                .map(Option::Some)
+                .map_err(Into::into)
+        } else if let Some(unn) = self.schema.unions.get(ty) {
+            unn.is_required.set(true);
+            unn.typescript_for_selection(self, &selection, prefix)
+                .map(Option::Some)
+                .map_err(Into::into)
+        } else {
+            Err(CodegenError::TypeError(format!("Unknown type: {}", ty)))
+        }
+    }
+
     /// Expand the deserialization data structures for the given field.
     pub(crate) fn maybe_expand_field(
         &self,

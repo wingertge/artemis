@@ -5,7 +5,10 @@ use crate::{
     query::QueryContext,
     schema::Schema,
     selection::*,
-    shared::{field_impls_for_selection, response_fields_for_selection},
+    shared::{
+        field_impls_for_selection, response_fields_for_selection,
+        typescript_definitions_for_selection, typescript_fields_for_selection
+    },
     CodegenError
 };
 use graphql_parser::schema;
@@ -33,15 +36,9 @@ fn parse_deprecation_info(field: &schema::Field) -> DeprecationStatus {
     let deprecated = field
         .directives
         .iter()
-        .filter(|x| x.name.to_lowercase() == "deprecated")
-        .nth(0);
+        .find(|x| x.name.to_lowercase() == "deprecated");
     let reason = if let Some(d) = deprecated {
-        if let Some((_, value)) = d
-            .arguments
-            .iter()
-            .filter(|x| x.0.to_lowercase() == "reason")
-            .nth(0)
-        {
+        if let Some((_, value)) = d.arguments.iter().find(|x| x.0.to_lowercase() == "reason") {
             match value {
                 schema::Value::String(reason) => Some(reason.clone()),
                 schema::Value::Null => None,
@@ -70,12 +67,12 @@ impl<'schema> GqlObject<'schema> {
     }
 
     pub fn from_graphql_parser_object(obj: &'schema schema::ObjectType) -> Self {
-        let description = obj.description.as_ref().map(String::as_str);
+        let description = obj.description.as_deref();
         let mut item = GqlObject::new(&obj.name, description);
         item.fields.extend(obj.fields.iter().map(|f| {
             let deprecation = parse_deprecation_info(&f);
             GqlObjectField {
-                description: f.description.as_ref().map(String::as_str),
+                description: f.description.as_deref(),
                 name: &f.name,
                 type_: FieldType::from(&f.field_type),
                 deprecation
@@ -87,7 +84,7 @@ impl<'schema> GqlObject<'schema> {
     pub fn from_introspected_schema_json(
         obj: &'schema crate::introspection_response::FullType
     ) -> Self {
-        let description = obj.description.as_ref().map(String::as_str);
+        let description = obj.description.as_deref();
         let mut item = GqlObject::new(obj.name.as_ref().expect("missing object name"), description);
         let fields = obj.fields.as_ref().unwrap().iter().filter_map(|t| {
             t.as_ref().map(|t| {
@@ -97,7 +94,7 @@ impl<'schema> GqlObject<'schema> {
                     DeprecationStatus::Current
                 };
                 GqlObjectField {
-                    description: t.description.as_ref().map(String::as_str),
+                    description: t.description.as_deref(),
                     name: t.name.as_ref().expect("field name"),
                     type_: FieldType::from(t.type_.as_ref().expect("field type")),
                     deprecation
@@ -120,6 +117,59 @@ impl<'schema> GqlObject<'schema> {
         })
     }
 
+    pub(crate) fn typescript_for_selection(
+        &self,
+        query_context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>,
+        prefix: &str,
+        include_typename: bool
+    ) -> Result<String, CodegenError> {
+        let fields = self.typescript_fields_for_selection(query_context, selection, prefix)?;
+        let field_impls = self.typescript_definitions_for_selection(query_context, selection)?;
+        let description = self
+            .description
+            .as_ref()
+            .map(|desc| format!("/** {} */", desc))
+            .unwrap_or_else(|| format!(""));
+        let typename = if include_typename {
+            format!("__typename: \"{}\",\n", prefix)
+        } else {
+            format!("")
+        };
+
+        let field_impls = if !field_impls.is_empty() {
+            format!(
+                r#"
+                export namespace {name} {{
+                    {field_impls}
+                }}
+                "#,
+                name = prefix,
+                field_impls = field_impls.join(",\n")
+            )
+        } else {
+            format!("")
+        };
+
+        let tokens = format!(
+            r#"
+        {field_impls}
+
+        {description}
+        export interface {name} {{
+            {typename}{fields}
+        }}
+        "#,
+            field_impls = field_impls,
+            description = description,
+            name = prefix,
+            typename = typename,
+            fields = fields.join(",\n")
+        );
+
+        Ok(tokens)
+    }
+
     pub(crate) fn response_for_selection(
         &self,
         query_context: &QueryContext<'_, '_>,
@@ -128,12 +178,12 @@ impl<'schema> GqlObject<'schema> {
     ) -> Result<(TokenStream, HashSet<String>), CodegenError> {
         let derives = query_context.response_derives();
         let wasm_derives = if query_context.wasm_bindgen {
-            let filtered: Vec<_> = vec!["Serialize", "TypescriptDefinition"]
+            let filtered: Vec<_> = vec!["Serialize"]
                 .into_iter()
                 .map(|def| syn::Ident::new(def, Span::call_site()))
                 .filter(|def| !query_context.response_derives.contains(def))
                 .collect();
-            if filtered.len() > 0 {
+            if !filtered.is_empty() {
                 quote!(#[cfg_attr(target_arch = "wasm32", derive(#(#filtered),*))])
             } else {
                 quote!()
@@ -147,26 +197,6 @@ impl<'schema> GqlObject<'schema> {
         let (field_impls, types) =
             self.field_impls_for_selection(query_context, selection, &prefix)?;
         let description = self.description.as_ref().map(|desc| quote!(#[doc = #desc]));
-        let type_name = self.name;
-
-        let query_info = if query_context.include_query_info {
-            quote! {
-                impl ::artemis::QueryInfo<Variables> for #name {
-                    fn typename(&self) -> &'static str {
-                        #type_name
-                    }
-
-                    #[allow(unused_variables)]
-                    fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
-                        vec![
-                            #(#field_infos),*
-                        ]
-                    }
-                }
-            }
-        } else {
-            quote!()
-        };
 
         let tokens = quote! {
             #(#field_impls)*
@@ -178,7 +208,14 @@ impl<'schema> GqlObject<'schema> {
                 #(#fields,)*
             }
 
-            #query_info
+            impl #name {
+                #[allow(unused_variables)]
+                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    vec![
+                        #(#field_infos),*
+                    ]
+                }
+            }
         };
         Ok((tokens, types))
     }
@@ -190,6 +227,23 @@ impl<'schema> GqlObject<'schema> {
         prefix: &str
     ) -> Result<(Vec<TokenStream>, HashSet<String>), CodegenError> {
         field_impls_for_selection(&self.fields, query_context, selection, prefix)
+    }
+
+    pub(crate) fn typescript_definitions_for_selection(
+        &self,
+        query_context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>
+    ) -> Result<Vec<String>, CodegenError> {
+        typescript_definitions_for_selection(&self.fields, query_context, selection)
+    }
+
+    pub(crate) fn typescript_fields_for_selection(
+        &self,
+        query_context: &QueryContext<'_, '_>,
+        selection: &Selection<'_>,
+        prefix: &str
+    ) -> Result<Vec<String>, CodegenError> {
+        typescript_fields_for_selection(&self.name, &self.fields, query_context, selection, prefix)
     }
 
     pub(crate) fn response_fields_for_selection(

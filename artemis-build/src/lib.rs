@@ -130,9 +130,9 @@ impl CodegenBuilder {
             .map(Ok)
             .unwrap_or_else(|| env::var("OUT_DIR").map(Into::into))
             .map_err(|_| {
-                BuildError::ArgumentError(format!(
-                    "Missing out dir. Either set 'OUT_DIR' or use 'with_out_dir'."
-                ))
+                BuildError::ArgumentError(
+                    "Missing out dir. Either set 'OUT_DIR' or use 'with_out_dir'.".to_string()
+                )
             })?;
 
         let params = CodegenParams {
@@ -141,7 +141,7 @@ impl CodegenBuilder {
             variables_derives: self.variable_derives.clone(),
             response_derives: self.response_derives.clone(),
             deprecation_strategy: self.deprecation_strategy.clone(),
-            output_directory: output_directory.clone()
+            output_directory
         };
         generate_code(self.query_paths, params)?;
         Ok(())
@@ -208,12 +208,12 @@ pub(crate) fn generate_code(
             .file_name()
             .map(ToOwned::to_owned)
             .ok_or_else(|| {
-            CodegenError::InputError(format!(
-                "Failed to find a file name in the provided query path."
-            ))
+            CodegenError::InputError(
+                "Failed to find a file name in the provided query path.".to_string()
+            )
         })?;
         let module_name = query_file_name.clone().into_string().unwrap();
-        let module_name = module_name.splitn(2, ".").next().unwrap().to_string();
+        let module_name = module_name.splitn(2, '.').next().unwrap().to_string();
         modules.push(module_name);
 
         let dest_file_path: PathBuf = output_directory.join(query_file_name).with_extension("rs");

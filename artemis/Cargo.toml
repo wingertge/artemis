@@ -10,7 +10,7 @@ name = "integration_bench"
 [features]
 default = ["observable", "default-exchanges"]
 observable = ["tokio", "stable-vec"]
-default-exchanges = ["surf"]
+default-exchanges = ["surf", "http"]
 
 [dependencies]
 artemis-codegen-proc-macro = { path = "../artemis-codegen-proc-macro" }
@@ -22,20 +22,24 @@ bincode = "1"
 parking_lot = "0.10"
 type-map = "0.3"
 wasm-bindgen = { version = "0.2", features = ["nightly", "serde-serialize"] }
+serde_repr = "0.1"
 
 surf = { git = "https://github.com/wingertge/surf.git", optional = true }
+http = { version = "0.2", optional = true }
 
 stable-vec = { version = "0.4", optional = true }
 
 [dev-dependencies]
 artemis-test = { path = "../artemis-test" }
-tokio = { version = "0.2", features = ["full"] }
 lazy_static = "1"
 criterion = "0.3"
 criterion-macro = "0.3"
 rand = "0.7"
-tokio-test = "0.2"
 wasm-bindgen-test = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "0.2", features = ["full"] }
+tokio-test = "0.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
@@ -43,6 +47,7 @@ js-sys = "0.3"
 wasm-bindgen-futures = "0.4"
 serde-wasm-bindgen = "0.1"
 wasm-typescript-definition = "0.1"
+web-sys = { version = "0.3", features = ["RequestInit", "Window", "Request"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "0.2", optional = true, features = ["rt-core"] }

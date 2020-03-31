@@ -136,12 +136,12 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::Document> for 
                             &enm.name,
                             GqlEnum {
                                 name: &enm.name,
-                                description: enm.description.as_ref().map(String::as_str),
+                                description: enm.description.as_deref(),
                                 variants: enm
                                     .values
                                     .iter()
                                     .map(|v| EnumVariant {
-                                        description: v.description.as_ref().map(String::as_str),
+                                        description: v.description.as_deref(),
                                         name: &v.name
                                     })
                                     .collect(),
@@ -154,7 +154,7 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::Document> for 
                             &scalar.name,
                             Scalar {
                                 name: &scalar.name,
-                                description: scalar.description.as_ref().map(String::as_str),
+                                description: scalar.description.as_deref(),
                                 is_required: false.into()
                             }
                         );
@@ -167,20 +167,18 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::Document> for 
                             GqlUnion {
                                 name: &union.name,
                                 variants,
-                                description: union.description.as_ref().map(String::as_str),
+                                description: union.description.as_deref(),
                                 is_required: false.into()
                             }
                         );
                     }
                     schema::TypeDefinition::Interface(interface) => {
-                        let mut iface = GqlInterface::new(
-                            &interface.name,
-                            interface.description.as_ref().map(String::as_str)
-                        );
+                        let mut iface =
+                            GqlInterface::new(&interface.name, interface.description.as_deref());
                         iface
                             .fields
                             .extend(interface.fields.iter().map(|f| GqlObjectField {
-                                description: f.description.as_ref().map(String::as_str),
+                                description: f.description.as_deref(),
                                 name: f.name.as_str(),
                                 type_: FieldType::from(&f.field_type),
                                 deprecation: DeprecationStatus::Current
@@ -194,9 +192,9 @@ impl<'schema> std::convert::From<&'schema graphql_parser::schema::Document> for 
                 schema::Definition::DirectiveDefinition(_) => (),
                 schema::Definition::TypeExtension(_extension) => (),
                 schema::Definition::SchemaDefinition(definition) => {
-                    schema.query_type = definition.query.as_ref().map(String::as_str);
-                    schema.mutation_type = definition.mutation.as_ref().map(String::as_str);
-                    schema.subscription_type = definition.subscription.as_ref().map(String::as_str);
+                    schema.query_type = definition.query.as_deref();
+                    schema.mutation_type = definition.mutation.as_deref();
+                    schema.subscription_type = definition.subscription.as_deref();
                 }
             }
         }
@@ -249,11 +247,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
             .iter()
             .filter_map(|t| t.as_ref().map(|t| &t.full_type))
         {
-            let name: &str = ty
-                .name
-                .as_ref()
-                .map(String::as_str)
-                .expect("type definition name");
+            let name: &str = ty.name.as_deref().expect("type definition name");
 
             match ty.kind {
                 Some(__TypeKind::ENUM) => {
@@ -264,19 +258,15 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                         .iter()
                         .map(|t| {
                             t.as_ref().map(|t| EnumVariant {
-                                description: t.description.as_ref().map(String::as_str),
-                                name: t
-                                    .name
-                                    .as_ref()
-                                    .map(String::as_str)
-                                    .expect("enum variant name")
+                                description: t.description.as_deref(),
+                                name: t.name.as_deref().expect("enum variant name")
                             })
                         })
                         .filter_map(|t| t)
                         .collect();
                     let enm = GqlEnum {
                         name,
-                        description: ty.description.as_ref().map(String::as_str),
+                        description: ty.description.as_deref(),
                         variants,
                         is_required: false.into()
                     };
@@ -288,7 +278,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                             name,
                             Scalar {
                                 name,
-                                description: ty.description.as_ref().map(String::as_str),
+                                description: ty.description.as_deref(),
                                 is_required: false.into()
                             }
                         );
@@ -300,16 +290,13 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                         .as_ref()
                         .unwrap()
                         .iter()
-                        .filter_map(|t| {
-                            t.as_ref()
-                                .and_then(|t| t.type_ref.name.as_ref().map(String::as_str))
-                        })
+                        .filter_map(|t| t.as_ref().and_then(|t| t.type_ref.name.as_deref()))
                         .collect();
                     schema.unions.insert(
                         name,
                         GqlUnion {
-                            name: ty.name.as_ref().map(String::as_str).expect("unnamed union"),
-                            description: ty.description.as_ref().map(String::as_str),
+                            name: ty.name.as_deref().expect("unnamed union"),
+                            description: ty.description.as_deref(),
                             variants,
                             is_required: false.into()
                         }
@@ -318,8 +305,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                 Some(__TypeKind::OBJECT) => {
                     for implementing in ty
                         .interfaces
-                        .as_ref()
-                        .map(Vec::as_slice)
+                        .as_deref()
                         .unwrap_or_else(|| &[])
                         .iter()
                         .filter_map(Option::as_ref)
@@ -341,8 +327,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                         .insert(name, GqlObject::from_introspected_schema_json(ty));
                 }
                 Some(__TypeKind::INTERFACE) => {
-                    let mut iface =
-                        GqlInterface::new(name, ty.description.as_ref().map(String::as_str));
+                    let mut iface = GqlInterface::new(name, ty.description.as_deref());
                     iface.fields.extend(
                         ty.fields
                             .as_ref()
@@ -350,7 +335,7 @@ impl<'schema> std::convert::From<&'schema crate::introspection_response::Introsp
                             .iter()
                             .filter_map(Option::as_ref)
                             .map(|f| GqlObjectField {
-                                description: f.description.as_ref().map(String::as_str),
+                                description: f.description.as_deref(),
                                 name: f.name.as_ref().expect("field name").as_str(),
                                 type_: FieldType::from(f.type_.as_ref().expect("field type")),
                                 deprecation: DeprecationStatus::Current
