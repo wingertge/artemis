@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["artemis_normalized_cache"] = [{"text":"impl <a class=\"trait\" href=\"artemis/types/trait.Extension.html\" title=\"trait artemis::types::Extension\">Extension</a> for <a class=\"struct\" href=\"artemis_normalized_cache/struct.NormalizedCacheExtension.html\" title=\"struct artemis_normalized_cache::NormalizedCacheExtension\">NormalizedCacheExtension</a>","synthetic":false,"types":["artemis_normalized_cache::types::NormalizedCacheExtension"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

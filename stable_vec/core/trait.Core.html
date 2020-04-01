@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `Core` trait in crate `stable_vec`."><meta name="keywords" content="rust, rustlang, rust-lang, Core"><title>stable_vec::core::Core - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc trait"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../stable_vec/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a><p class='location'>Trait Core</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#required-methods">Required Methods</a><div class="sidebar-links"><a href="#tymethod.cap">cap</a><a href="#tymethod.clear">clear</a><a href="#tymethod.get_unchecked">get_unchecked</a><a href="#tymethod.get_unchecked_mut">get_unchecked_mut</a><a href="#tymethod.has_element_at">has_element_at</a><a href="#tymethod.insert_at">insert_at</a><a href="#tymethod.len">len</a><a href="#tymethod.new">new</a><a href="#tymethod.realloc">realloc</a><a href="#tymethod.remove_at">remove_at</a><a href="#tymethod.set_len">set_len</a><a href="#tymethod.swap">swap</a></div><a class="sidebar-title" href="#provided-methods">Provided Methods</a><div class="sidebar-links"><a href="#method.first_empty_slot_below">first_empty_slot_below</a><a href="#method.first_empty_slot_from">first_empty_slot_from</a><a href="#method.first_filled_slot_below">first_filled_slot_below</a><a href="#method.first_filled_slot_from">first_filled_slot_from</a></div><a class="sidebar-title" href="#implementors">Implementors</a></div><p class='location'><a href='../index.html'>stable_vec</a>::<wbr><a href='index.html'>core</a></p><script>window.sidebarCurrent = {name: 'Core', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/stable_vec/core/mod.rs.html#78-322' title='goto source code'>[src]</a></span><span class='in-band'>Trait <a href='../index.html'>stable_vec</a>::<wbr><a href='index.html'>core</a>::<wbr><a class="trait" href=''>Core</a></span></h1><div class="docblock type-decl hidden-by-usual-hider"><pre class='rust trait'>pub trait Core&lt;T&gt; {
+    fn <a href='#tymethod.new' class='fnname'>new</a>() -&gt; Self;
+<div class='item-spacer'></div>    fn <a href='#tymethod.len' class='fnname'>len</a>(&amp;self) -&gt; usize;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.set_len' class='fnname'>set_len</a>(&amp;mut self, new_len: usize);
+<div class='item-spacer'></div>    fn <a href='#tymethod.cap' class='fnname'>cap</a>(&amp;self) -&gt; usize;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.realloc' class='fnname'>realloc</a>(&amp;mut self, new_cap: usize);
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.has_element_at' class='fnname'>has_element_at</a>(&amp;self, idx: usize) -&gt; bool;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.insert_at' class='fnname'>insert_at</a>(&amp;mut self, idx: usize, elem: T);
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.remove_at' class='fnname'>remove_at</a>(&amp;mut self, idx: usize) -&gt; T;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.get_unchecked' class='fnname'>get_unchecked</a>(&amp;self, idx: usize) -&gt; &amp;T;
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.get_unchecked_mut' class='fnname'>get_unchecked_mut</a>(&amp;mut self, idx: usize) -&gt; &amp;mut T;
+<div class='item-spacer'></div>    fn <a href='#tymethod.clear' class='fnname'>clear</a>(&amp;mut self);
+<div class='item-spacer'></div>    unsafe fn <a href='#tymethod.swap' class='fnname'>swap</a>(&amp;mut self, a: usize, b: usize);
+
+    unsafe fn <a href='#method.first_filled_slot_from' class='fnname'>first_filled_slot_from</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt; { ... }
+<div class='item-spacer'></div>    unsafe fn <a href='#method.first_filled_slot_below' class='fnname'>first_filled_slot_below</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt; { ... }
+<div class='item-spacer'></div>    unsafe fn <a href='#method.first_empty_slot_from' class='fnname'>first_empty_slot_from</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt; { ... }
+<div class='item-spacer'></div>    unsafe fn <a href='#method.first_empty_slot_below' class='fnname'>first_empty_slot_below</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt; { ... }
+}</pre></div><div class='docblock'><p>The core of a stable vector.</p>
+<p><em>Note</em>: If you are a user of this crate, you probably don't care about
+this! See the documentation on <a href="../../stable_vec/struct.StableVecFacade.html" title="crate::StableVecFacade"><code>StableVecFacade</code></a>
+and the different core implementations for more useful information. This
+trait is only important for you if you want to implement your own core
+implementation.</p>
+<p>Implementors of the trait take the core role in the stable vector: storing
+elements of type <code>T</code> where each element might be deleted. The elements can
+be referred to by an index.</p>
+<p>Core types must never read deleted elements in <code>drop()</code>. So they must
+ensure to only ever drop existing elements.</p>
+<h1 id="formal-semantics" class="section-header"><a href="#formal-semantics">Formal semantics</a></h1>
+<p>A core defines a map from <code>usize</code> (the so called &quot;indices&quot;) to elements of
+type <code>Option&lt;T&gt;</code>. It has a length (<code>len</code>) and a capacity (<code>cap</code>).</p>
+<p>It's best to think of this as a contiguous sequence of &quot;slots&quot;. A slot can
+either be empty or filled with an element. A core has always <code>cap</code> many
+slots. Here is an example of such a core with <code>len = 8</code> and <code>cap = 10</code>.</p>
+<pre><code class="language-text">     0   1   2   3   4   5   6   7   8   9   10
+   ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐
+   │ a │ - │ b │ c │ - │ - │ d │ - │ - │ - │
+   └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘
+                                     ↑       ↑
+                                    len     cap
+</code></pre>
+<p><code>len</code> and <code>cap</code> divide the index space into three parts, which have the
+following invariants:</p>
+<ul>
+<li><code>0 ≤ i &lt; len</code>: slots with index <code>i</code> can be empty or filled</li>
+<li><code>len ≤ i &lt; cap</code>: slots with index <code>i</code> are always empty</li>
+<li><code>cap ≤ i</code>: slots with index <code>i</code> are undefined (all methods dealing with
+indices will exhibit undefined behavior when the index is <code>≥ cap</code>)</li>
+</ul>
+<p>Additional required invariants:</p>
+<ul>
+<li><code>len ≤ cap</code></li>
+<li><code>cap ≤ isize::MAX</code></li>
+<li>Methods with <code>&amp;self</code> receiver do not change anything observable about the
+core.</li>
+</ul>
+<p>These invariants must not (at any time) be violated by users of this API.</p>
+<p>Cloning a core must clone everything, including all empty slots. This means
+that the capacity of the clone must be at least the capacity of the
+original value.</p>
+</div>
+            <h2 id='required-methods' class='small-section-header'>Required methods<a href='#required-methods' class='anchor'></a></h2><div class='methods'><h3 id='tymethod.new' class='method'><code id='new.v'>fn <a href='#tymethod.new' class='fnname'>new</a>() -&gt; Self</code></h3><div class='docblock'><p>Creates an empty instance without any elements. Must not allocate
+memory.</p>
+<h1 id="formal" class="section-header"><a href="#formal">Formal</a></h1>
+<p><strong>Postconditons</strong> (of returned instance <code>out</code>):</p>
+<ul>
+<li><code>out.len() == 0</code></li>
+<li><code>out.cap() == 0</code></li>
+</ul>
+</div><h3 id='tymethod.len' class='method'><code id='len.v'>fn <a href='#tymethod.len' class='fnname'>len</a>(&amp;self) -&gt; usize</code></h3><div class='docblock'><p>Returns the length of this core (the <code>len</code>). See the trait docs for
+more information.</p>
+</div><h3 id='tymethod.set_len' class='method'><code id='set_len.v'>unsafe fn <a href='#tymethod.set_len' class='fnname'>set_len</a>(&amp;mut self, new_len: usize)</code></h3><div class='docblock'><p>Sets the <code>len</code> to a new value.</p>
+<h1 id="formal-1" class="section-header"><a href="#formal-1">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>new_len ≤ self.cap()</code></li>
+<li>∀ i in <code>new_len..self.cap()</code> ⇒ <code>self.has_element_at(i) == false</code></li>
+</ul>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><em>slot data</em></li>
+</ul>
+<p><strong>Postconditons</strong>:</p>
+<ul>
+<li><code>self.len() == new_len</code></li>
+</ul>
+</div><h3 id='tymethod.cap' class='method'><code id='cap.v'>fn <a href='#tymethod.cap' class='fnname'>cap</a>(&amp;self) -&gt; usize</code></h3><div class='docblock'><p>Returns the capacity of this core (the <code>cap</code>). See the trait docs for
+more information.</p>
+</div><h3 id='tymethod.realloc' class='method'><code id='realloc.v'>unsafe fn <a href='#tymethod.realloc' class='fnname'>realloc</a>(&amp;mut self, new_cap: usize)</code></h3><div class='docblock'><p>Reallocates the memory to have a <code>cap</code> of at least <code>new_cap</code>. This
+method should try its best to allocate exactly <code>new_cap</code>.</p>
+<p>This means that after calling this method, inserting elements at
+indices in the range <code>0..new_cap</code> is valid. This method shall not check
+if there is already enough capacity available.</p>
+<p>For implementors: please mark this impl with <code>#[cold]</code> and
+<code>#[inline(never)]</code>.</p>
+<h1 id="formal-2" class="section-header"><a href="#formal-2">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>new_cap ≥ self.len()</code> (as a consequence, this method does not (need
+to) drop elements; all slots &gt;= <code>new_cap</code> are empty)</li>
+<li><code>new_cap ≤ isize::MAX</code></li>
+</ul>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><em>slot data</em></li>
+<li><code>self.len()</code></li>
+</ul>
+<p><strong>Postconditons</strong>:</p>
+<ul>
+<li><code>self.cap() &gt;= new_cap</code></li>
+</ul>
+</div><h3 id='tymethod.has_element_at' class='method'><code id='has_element_at.v'>unsafe fn <a href='#tymethod.has_element_at' class='fnname'>has_element_at</a>(&amp;self, idx: usize) -&gt; bool</code></h3><div class='docblock'><p>Checks if there exists an element with index <code>idx</code>.</p>
+<h1 id="formal-3" class="section-header"><a href="#formal-3">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt; self.cap()</code></li>
+</ul>
+</div><h3 id='tymethod.insert_at' class='method'><code id='insert_at.v'>unsafe fn <a href='#tymethod.insert_at' class='fnname'>insert_at</a>(&amp;mut self, idx: usize, elem: T)</code></h3><div class='docblock'><p>Inserts <code>elem</code> at the index <code>idx</code>. Does <em>not</em> updated the <code>used_len</code>.</p>
+<h1 id="formal-4" class="section-header"><a href="#formal-4">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt; self.cap()</code></li>
+<li><code>self.has_element_at(idx) == false</code></li>
+</ul>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><code>self.len()</code></li>
+<li><code>self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong>:</p>
+<ul>
+<li><code>self.get_unchecked(idx) == elem</code></li>
+</ul>
+</div><h3 id='tymethod.remove_at' class='method'><code id='remove_at.v'>unsafe fn <a href='#tymethod.remove_at' class='fnname'>remove_at</a>(&amp;mut self, idx: usize) -&gt; T</code></h3><div class='docblock'><p>Removes the element at index <code>idx</code> and returns it.</p>
+<h1 id="formal-5" class="section-header"><a href="#formal-5">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt; self.cap()</code></li>
+<li><code>self.has_element_at(idx) == true</code></li>
+</ul>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><code>self.len()</code></li>
+<li><code>self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong>:</p>
+<ul>
+<li><code>self.has_element_at(idx) == false</code></li>
+</ul>
+</div><h3 id='tymethod.get_unchecked' class='method'><code id='get_unchecked.v'>unsafe fn <a href='#tymethod.get_unchecked' class='fnname'>get_unchecked</a>(&amp;self, idx: usize) -&gt; &amp;T</code></h3><div class='docblock'><p>Returns a reference to the element at the index <code>idx</code>.</p>
+<h1 id="formal-6" class="section-header"><a href="#formal-6">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt; self.cap()</code></li>
+<li><code>self.has_element_at(idx) == true</code> (implying <code>idx &lt; self.len()</code>)</li>
+</ul>
+</div><h3 id='tymethod.get_unchecked_mut' class='method'><code id='get_unchecked_mut.v'>unsafe fn <a href='#tymethod.get_unchecked_mut' class='fnname'>get_unchecked_mut</a>(&amp;mut self, idx: usize) -&gt; &amp;mut T</code></h3><div class='docblock'><p>Returns a mutable reference to the element at the index <code>idx</code>.</p>
+<h1 id="formal-7" class="section-header"><a href="#formal-7">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt; self.cap()</code></li>
+<li><code>self.has_element_at(idx) == true</code> (implying <code>idx &lt; self.len()</code>)</li>
+</ul>
+</div><h3 id='tymethod.clear' class='method'><code id='clear.v'>fn <a href='#tymethod.clear' class='fnname'>clear</a>(&amp;mut self)</code></h3><div class='docblock'><p>Deletes all elements without deallocating memory. Drops all existing
+elements. Sets <code>len</code> to 0.</p>
+<h1 id="formal-8" class="section-header"><a href="#formal-8">Formal</a></h1>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><code>self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong>:</p>
+<ul>
+<li><code>self.len() == 0</code> (implying all slots are empty)</li>
+</ul>
+</div><h3 id='tymethod.swap' class='method'><code id='swap.v'>unsafe fn <a href='#tymethod.swap' class='fnname'>swap</a>(&amp;mut self, a: usize, b: usize)</code></h3><div class='docblock'><p>Swaps the two slots with indices <code>a</code> and <code>b</code>. That is: the element
+<em>and</em> the &quot;filled/empty&quot; status are swapped. The slots at indices <code>a</code>
+and <code>b</code> can be empty or filled.</p>
+<h1 id="formal-9" class="section-header"><a href="#formal-9">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>a &lt; self.cap()</code></li>
+<li><code>b &lt; self.cap()</code></li>
+</ul>
+<p><strong>Invariants</strong>:</p>
+<ul>
+<li><code>self.len()</code></li>
+<li><code>self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong> (with <code>before</code> being <code>self</code> before the call):</p>
+<ul>
+<li><code>before.has_element_at(a) == self.has_element_at(b)</code></li>
+<li><code>before.has_element_at(b) == self.has_element_at(a)</code></li>
+<li>if <code>self.has_element_at(a)</code>:
+<ul>
+<li><code>self.get_unchecked(a) == before.get_unchecked(b)</code></li>
+</ul>
+</li>
+<li>if <code>self.has_element_at(b)</code>:
+<ul>
+<li><code>self.get_unchecked(b) == before.get_unchecked(a)</code></li>
+</ul>
+</li>
+</ul>
+</div></div><span class='loading-content'>Loading content...</span>
+            <h2 id='provided-methods' class='small-section-header'>Provided methods<a href='#provided-methods' class='anchor'></a></h2><div class='methods'><h3 id='method.first_filled_slot_from' class='method'><code id='first_filled_slot_from.v'>unsafe fn <a href='#method.first_filled_slot_from' class='fnname'>first_filled_slot_from</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt;</code></h3><div class='docblock'><p>Performs a forwards search starting at index <code>idx</code>, returning the
+index of the first filled slot that is found.</p>
+<p>Specifically, if an element at index <code>idx</code> exists, <code>Some(idx)</code> is
+returned.</p>
+<p>The inputs <code>idx &gt;= self.len()</code> are only allowed for convenience and
+because it doesn't make the implementation more complicated. For those
+<code>idx</code> values, <code>None</code> is always returned.</p>
+<h1 id="formal-10" class="section-header"><a href="#formal-10">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx ≤ self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong> (for return value <code>out</code>):</p>
+<ul>
+<li>if <code>out == None</code>:
+<ul>
+<li>∀ i in <code>idx..self.len()</code> ⇒ <code>self.has_element_at(i) == false</code></li>
+</ul>
+</li>
+<li>if <code>out == Some(j)</code>:
+<ul>
+<li>∀ i in <code>idx..j</code> ⇒ <code>self.has_element_at(i) == false</code></li>
+<li><code>self.has_element_at(j) == true</code></li>
+</ul>
+</li>
+</ul>
+</div><h3 id='method.first_filled_slot_below' class='method'><code id='first_filled_slot_below.v'>unsafe fn <a href='#method.first_filled_slot_below' class='fnname'>first_filled_slot_below</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt;</code></h3><div class='docblock'><p>Performs a backwards search starting at index <code>idx - 1</code>, returning the
+index of the first filled slot that is found.</p>
+<p>Note: passing in <code>idx &gt;= self.len()</code> just wastes time, as those slots
+are never filled.</p>
+<h1 id="formal-11" class="section-header"><a href="#formal-11">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt;= self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong> (for return value <code>out</code>):</p>
+<ul>
+<li>if <code>out == None</code>:
+<ul>
+<li>∀ i in <code>0..idx</code> ⇒ <code>self.has_element_at(i) == false</code></li>
+</ul>
+</li>
+<li>if <code>out == Some(j)</code>:
+<ul>
+<li>∀ i in <code>j + 1..idx</code> ⇒ <code>self.has_element_at(i) == false</code></li>
+<li><code>self.has_element_at(j) == true</code></li>
+</ul>
+</li>
+</ul>
+</div><h3 id='method.first_empty_slot_from' class='method'><code id='first_empty_slot_from.v'>unsafe fn <a href='#method.first_empty_slot_from' class='fnname'>first_empty_slot_from</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt;</code></h3><div class='docblock'><p>Performs a forwards search starting at index <code>idx</code>, returning the
+index of the first empty slot that is found.</p>
+<h1 id="formal-12" class="section-header"><a href="#formal-12">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx ≤ self.cap()</code></li>
+</ul>
+<p><strong>Postconditons</strong> (for return value <code>out</code>):</p>
+<ul>
+<li>if <code>out == None</code>:
+<ul>
+<li>∀ i in <code>idx..self.len()</code> ⇒ <code>self.has_element_at(i) == true</code></li>
+</ul>
+</li>
+<li>if <code>out == Some(j)</code>:
+<ul>
+<li>∀ i in <code>idx..j</code> ⇒ <code>self.has_element_at(i) == true</code></li>
+<li><code>self.has_element_at(j) == false</code></li>
+</ul>
+</li>
+</ul>
+</div><h3 id='method.first_empty_slot_below' class='method'><code id='first_empty_slot_below.v'>unsafe fn <a href='#method.first_empty_slot_below' class='fnname'>first_empty_slot_below</a>(&amp;self, idx: usize) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;usize&gt;</code></h3><div class='docblock'><p>Performs a backwards search starting at index <code>idx - 1</code>, returning the
+index of the first empty slot that is found.</p>
+<p>If <code>idx &gt; self.len()</code>, <code>Some(idx)</code> is always returned (remember the
+preconditions tho!).</p>
+<h1 id="formal-13" class="section-header"><a href="#formal-13">Formal</a></h1>
+<p><strong>Preconditions</strong>:</p>
+<ul>
+<li><code>idx &lt;= self.cap()</code> (note: strictly smaller)</li>
+</ul>
+<p><strong>Postconditons</strong> (for return value <code>out</code>):</p>
+<ul>
+<li>if <code>out == None</code>:
+<ul>
+<li>∀ i in <code>0..=idx</code> ⇒ <code>self.has_element_at(i) == true</code></li>
+</ul>
+</li>
+<li>if <code>out == Some(j)</code>:
+<ul>
+<li>∀ i in <code>j + 1..=idx</code> ⇒ <code>self.has_element_at(i) == true</code></li>
+<li><code>self.has_element_at(j) == false</code></li>
+</ul>
+</li>
+</ul>
+</div></div><span class='loading-content'>Loading content...</span>
+            <h2 id='implementors' class='small-section-header'>Implementors<a href='#implementors' class='anchor'></a></h2><div class='item-list' id='implementors-list'><h3 id='impl-Core%3CT%3E' class='impl'><code class='in-band'>impl&lt;T&gt; Core&lt;T&gt; for <a class="struct" href="../../stable_vec/core/struct.BitVecCore.html" title="struct stable_vec::core::BitVecCore">BitVecCore</a>&lt;T&gt;</code><a href='#impl-Core%3CT%3E' class='anchor'></a><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#92-343' title='goto source code'>[src]</a></h3><div class='impl-items'><h4 id='method.new' class="method hidden"><code id='new.v-1'>fn <a href='#method.new' class='fnname'>new</a>() -&gt; Self</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#93-100' title='goto source code'>[src]</a></h4><h4 id='method.len' class="method hidden"><code id='len.v-1'>fn <a href='#method.len' class='fnname'>len</a>(&amp;self) -&gt; usize</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#102-104' title='goto source code'>[src]</a></h4><h4 id='method.set_len' class="method hidden"><code id='set_len.v-1'>unsafe fn <a href='#method.set_len' class='fnname'>set_len</a>(&amp;mut self, new_len: usize)</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#106-121' title='goto source code'>[src]</a></h4><h4 id='method.cap' class="method hidden"><code id='cap.v-1'>fn <a href='#method.cap' class='fnname'>cap</a>(&amp;self) -&gt; usize</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#123-125' title='goto source code'>[src]</a></h4><h4 id='method.realloc' class="method hidden"><code id='realloc.v-1'>unsafe fn <a href='#method.realloc' class='fnname'>realloc</a>(&amp;mut self, new_cap: usize)</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#129-230' title='goto source code'>[src]</a></h4><h4 id='method.has_element_at' class="method hidden"><code id='has_element_at.v-1'>unsafe fn <a href='#method.has_element_at' class='fnname'>has_element_at</a>(&amp;self, idx: usize) -&gt; bool</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#232-241' title='goto source code'>[src]</a></h4><h4 id='method.insert_at' class="method hidden"><code id='insert_at.v-1'>unsafe fn <a href='#method.insert_at' class='fnname'>insert_at</a>(&amp;mut self, idx: usize, elem: T)</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#243-256' title='goto source code'>[src]</a></h4><h4 id='method.remove_at' class="method hidden"><code id='remove_at.v-1'>unsafe fn <a href='#method.remove_at' class='fnname'>remove_at</a>(&amp;mut self, idx: usize) -&gt; T</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#258-271' title='goto source code'>[src]</a></h4><h4 id='method.get_unchecked' class="method hidden"><code id='get_unchecked.v-1'>unsafe fn <a href='#method.get_unchecked' class='fnname'>get_unchecked</a>(&amp;self, idx: usize) -&gt; &amp;T</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#273-281' title='goto source code'>[src]</a></h4><h4 id='method.get_unchecked_mut' class="method hidden"><code id='get_unchecked_mut.v-1'>unsafe fn <a href='#method.get_unchecked_mut' class='fnname'>get_unchecked_mut</a>(&amp;mut self, idx: usize) -&gt; &amp;mut T</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#283-291' title='goto source code'>[src]</a></h4><h4 id='method.clear' class="method hidden"><code id='clear.v-1'>fn <a href='#method.clear' class='fnname'>clear</a>(&amp;mut self)</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#293-307' title='goto source code'>[src]</a></h4><h4 id='method.swap' class="method hidden"><code id='swap.v-1'>unsafe fn <a href='#method.swap' class='fnname'>swap</a>(&amp;mut self, a: usize, b: usize)</code><a class='srclink' href='../../src/stable_vec/core/bitvec.rs.html#313-342' title='goto source code'>[src]</a></h4></div><h3 id='impl-Core%3CT%3E-1' class='impl'><code class='in-band'>impl&lt;T&gt; Core&lt;T&gt; for <a class="struct" href="../../stable_vec/core/struct.OptionCore.html" title="struct stable_vec::core::OptionCore">OptionCore</a>&lt;T&gt;</code><a href='#impl-Core%3CT%3E-1' class='anchor'></a><a class='srclink' href='../../src/stable_vec/core/option.rs.html#68-232' title='goto source code'>[src]</a></h3><div class='impl-items'><h4 id='method.new-1' class="method hidden"><code id='new.v-2'>fn <a href='#method.new-1' class='fnname'>new</a>() -&gt; Self</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#69-73' title='goto source code'>[src]</a></h4><h4 id='method.len-1' class="method hidden"><code id='len.v-2'>fn <a href='#method.len-1' class='fnname'>len</a>(&amp;self) -&gt; usize</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#75-77' title='goto source code'>[src]</a></h4><h4 id='method.cap-1' class="method hidden"><code id='cap.v-2'>fn <a href='#method.cap-1' class='fnname'>cap</a>(&amp;self) -&gt; usize</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#79-81' title='goto source code'>[src]</a></h4><h4 id='method.set_len-1' class="method hidden"><code id='set_len.v-2'>unsafe fn <a href='#method.set_len-1' class='fnname'>set_len</a>(&amp;mut self, new_len: usize)</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#83-98' title='goto source code'>[src]</a></h4><h4 id='method.realloc-1' class="method hidden"><code id='realloc.v-2'>unsafe fn <a href='#method.realloc-1' class='fnname'>realloc</a>(&amp;mut self, new_cap: usize)</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#102-160' title='goto source code'>[src]</a></h4><h4 id='method.has_element_at-1' class="method hidden"><code id='has_element_at.v-2'>unsafe fn <a href='#method.has_element_at-1' class='fnname'>has_element_at</a>(&amp;self, idx: usize) -&gt; bool</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#162-166' title='goto source code'>[src]</a></h4><h4 id='method.insert_at-1' class="method hidden"><code id='insert_at.v-2'>unsafe fn <a href='#method.insert_at-1' class='fnname'>insert_at</a>(&amp;mut self, idx: usize, elem: T)</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#168-178' title='goto source code'>[src]</a></h4><h4 id='method.remove_at-1' class="method hidden"><code id='remove_at.v-2'>unsafe fn <a href='#method.remove_at-1' class='fnname'>remove_at</a>(&amp;mut self, idx: usize) -&gt; T</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#180-190' title='goto source code'>[src]</a></h4><h4 id='method.get_unchecked-1' class="method hidden"><code id='get_unchecked.v-2'>unsafe fn <a href='#method.get_unchecked-1' class='fnname'>get_unchecked</a>(&amp;self, idx: usize) -&gt; &amp;T</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#192-202' title='goto source code'>[src]</a></h4><h4 id='method.get_unchecked_mut-1' class="method hidden"><code id='get_unchecked_mut.v-2'>unsafe fn <a href='#method.get_unchecked_mut-1' class='fnname'>get_unchecked_mut</a>(&amp;mut self, idx: usize) -&gt; &amp;mut T</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#204-214' title='goto source code'>[src]</a></h4><h4 id='method.clear-1' class="method hidden"><code id='clear.v-2'>fn <a href='#method.clear-1' class='fnname'>clear</a>(&amp;mut self)</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#216-222' title='goto source code'>[src]</a></h4><h4 id='method.swap-1' class="method hidden"><code id='swap.v-2'>unsafe fn <a href='#method.swap-1' class='fnname'>swap</a>(&amp;mut self, a: usize, b: usize)</code><a class='srclink' href='../../src/stable_vec/core/option.rs.html#224-231' title='goto source code'>[src]</a></h4></div></div><span class='loading-content'>Loading content...</span><script type="text/javascript" src="../../implementors/stable_vec/core/trait.Core.js" async></script></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "stable_vec";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script defer src="../../search-index.js"></script></body></html>

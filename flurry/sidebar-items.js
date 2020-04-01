@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["epoch","Types needed to safely access shared data concurrently."],["iter","Iterator types."]],"struct":[["HashMap","A concurrent hash table."],["HashMapRef","A reference to a [`HashMap`], constructed with [`HashMap::pin`] or [`HashMap::with_guard`]."]],"type":[["DefaultHashBuilder","Default hasher for [`HashMap`]."]]});

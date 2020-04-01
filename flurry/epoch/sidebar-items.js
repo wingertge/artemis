@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["pin","Pins the current thread."]],"struct":[["Guard","A guard that keeps the current thread pinned."]]});

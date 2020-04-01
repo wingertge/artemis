@@ -1,0 +1,87 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `stable_vec` crate."><meta name="keywords" content="rust, rustlang, rust-lang, stable_vec"><title>stable_vec - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../stable_vec/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate stable_vec</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all stable_vec's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'stable_vec', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/stable_vec/lib.rs.html#1-1750' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>stable_vec</a></span></h1><div class='docblock'><p>A <code>Vec&lt;T&gt;</code>-like collection which guarantees stable indices and features
+O(1) deletion of elements.</p>
+<p>You can find nearly all the relevant documentation on the type
+<a href="../stable_vec/struct.StableVecFacade.html" title="`StableVecFacade`"><code>StableVecFacade</code></a>. This is the main type which is configurable over the
+core implementation. To use a pre-configured stable vector, use
+<a href="../stable_vec/type.StableVec.html" title="`StableVec`"><code>StableVec</code></a>.</p>
+<p>This crate uses <code>#![no_std]</code> but requires the <code>alloc</code> crate.</p>
+<h1 id="why" class="section-header"><a href="#why">Why?</a></h1>
+<p>The standard <code>Vec&lt;T&gt;</code> always stores all elements contiguously. While this
+has many advantages (most notable: cache friendliness), it has the
+disadvantage that you can't simply remove an element from the middle; at
+least not without shifting all elements after it to the left. And this has
+two major drawbacks:</p>
+<ol>
+<li>It has a linear O(n) time complexity</li>
+<li>It invalidates all indices of the shifted elements</li>
+</ol>
+<p>Invalidating an index means that a given index <code>i</code> who referred to an
+element <code>a</code> before, now refers to another element <code>b</code>. On the contrary, a
+<em>stable</em> index means, that the index always refers to the same element.</p>
+<p>Stable indices are needed in quite a few situations. One example are graph
+data structures (or complex data structures in general). Instead of
+allocating heap memory for every node and edge, all nodes and all edges are
+stored in a vector (each). But how does the programmer unambiguously refer
+to one specific node? A pointer is not possible due to the reallocation
+strategy of most dynamically growing arrays (the pointer itself is not
+<em>stable</em>). Thus, often the index is used.</p>
+<p>But in order to use the index, it has to be stable. This is one example,
+where this data structure comes into play.</p>
+<h1 id="how" class="section-header"><a href="#how">How?</a></h1>
+<p>We can trade O(1) deletions and stable indices for a higher memory
+consumption.</p>
+<p>When <code>StableVec::remove()</code> is called, the element is just marked as
+&quot;deleted&quot; (and the actual element is dropped), but other than that, nothing
+happens. This has the very obvious disadvantage that deleted objects (so
+called empty slots) just waste space. This is also the most important thing
+to understand:</p>
+<p>The memory requirement of this data structure is <code>O(|inserted elements|)</code>;
+instead of <code>O(|inserted elements| - |removed elements|)</code>. The latter is the
+memory requirement of normal <code>Vec&lt;T&gt;</code>. Thus, if deletions are far more
+numerous than insertions in your situation, then this data structure is
+probably not fitting your needs.</p>
+<h1 id="why-not" class="section-header"><a href="#why-not">Why not?</a></h1>
+<p>As mentioned above, this data structure is rather simple and has many
+disadvantages on its own. Here are some reason not to use it:</p>
+<ul>
+<li>You don't need stable indices or O(1) removal</li>
+<li>Your deletions significantly outnumber your insertions</li>
+<li>You want to choose your keys/indices</li>
+<li>Lookup times do not matter so much to you</li>
+</ul>
+<p>Especially in the last two cases, you could consider using a <code>HashMap</code> with
+integer keys, best paired with a fast hash function for small keys.</p>
+<p>If you not only want stable indices, but stable pointers, you might want
+to use something similar to a linked list. Although: think carefully about
+your problem before using a linked list.</p>
+<h1 id="use-of-unsafe-in-this-crate" class="section-header"><a href="#use-of-unsafe-in-this-crate">Use of <code>unsafe</code> in this crate</a></h1>
+<p>Unfortunately, implementing the features of this crate in a fast manner
+requires <code>unsafe</code>. This was measured in micro-benchmarks (included in this
+repository) and on a larger project using this crate. Thus, the use of
+<code>unsafe</code> is measurement-guided and not just because it was assumed <code>unsafe</code>
+makes things faster.</p>
+<p>This crate takes great care to ensure that all instances of <code>unsafe</code> are
+actually safe. All methods on the (low level) <code>Core</code> trait have extensive
+documentation of preconditions, invariants and postconditions. Comments in
+functions usually describe why <code>unsafe</code> is safe. This crate contains a
+fairly large number of unit tests and some tests with randomized input.
+These tests are executed with <code>miri</code> to try to catch UB caused by invalid
+<code>unsafe</code> code.</p>
+<p>That said, of course it cannot be guaranteed this crate is perfectly safe.
+If you think you found an instance of incorrect usage of <code>unsafe</code> or any
+UB, don't hesitate to open an issue immediately. Also, if you find <code>unsafe</code>
+code that is not necessary and you can show that removing it does not
+decrease execution speed, please also open an issue or PR!</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="core/index.html" title='stable_vec::core mod'>core</a></td><td class='docblock-short'><p><code>Core</code> trait definition and implementations.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="iter/index.html" title='stable_vec::iter mod'>iter</a></td><td class='docblock-short'><p>Contains all iterator types and implementations.</p>
+</td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.StableVecFacade.html" title='stable_vec::StableVecFacade struct'>StableVecFacade</a></td><td class='docblock-short'><p>A <code>Vec&lt;T&gt;</code>-like collection which guarantees stable indices and features
+O(1) deletion of elements.</p>
+</td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table><tr class='module-item'><td><a class="type" href="type.ExternStableVec.html" title='stable_vec::ExternStableVec type'>ExternStableVec</a></td><td class='docblock-short'><p>A stable vector which stores the &quot;deleted information&quot; externally in a bit
+vector.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.InlineStableVec.html" title='stable_vec::InlineStableVec type'>InlineStableVec</a></td><td class='docblock-short'><p>A stable vector which stores the &quot;deleted information&quot; inline. This is very
+close to <code>Vec&lt;Option&lt;T&gt;&gt;</code>.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.StableVec.html" title='stable_vec::StableVec type'>StableVec</a></td><td class='docblock-short'><p>A stable vector with the default core implementation.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "stable_vec";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/flurry-0.1.0/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../flurry/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+</pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! A concurrent hash table based on Java&#39;s `ConcurrentHashMap`.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! A hash table that supports full concurrency of retrievals and high expected concurrency for</span>
+<span class="doccomment">//! updates. This type is functionally very similar to `std::collections::HashMap`, and for the</span>
+<span class="doccomment">//! most part has a similar API. Even though all operations on the map are thread-safe and operate</span>
+<span class="doccomment">//! on shared references, retrieval operations do *not* entail locking, and there is *not* any</span>
+<span class="doccomment">//! support for locking the entire table in a way that prevents all access.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # A note on `Guard` and memory use</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! You may have noticed that many of the access methods on this map take a reference to an</span>
+<span class="doccomment">//! [`epoch::Guard`]. The exact details of this are beyond the scope of this documentation (for</span>
+<span class="doccomment">//! that, see [`crossbeam::epoch`]), but some of the implications bear repeating here. You obtain a</span>
+<span class="doccomment">//! `Guard` using [`epoch::pin`], and you can use references to the same guard to make multiple API</span>
+<span class="doccomment">//! calls if you wish. Whenever you get a reference to something stored in the map, that reference</span>
+<span class="doccomment">//! is tied to the lifetime of the `Guard` that you provided. This is because each `Guard` prevents</span>
+<span class="doccomment">//! the destruction of any item associated with it. Whenever something is read under a `Guard`,</span>
+<span class="doccomment">//! that something stays around for _at least_ as long as the `Guard` does. The map delays</span>
+<span class="doccomment">//! deallocating values until it safe to do so, and in order to amortize the cost of the necessary</span>
+<span class="doccomment">//! bookkeeping it may delay even further until there&#39;s a _batch_ of items that need to be</span>
+<span class="doccomment">//! deallocated.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Notice that there is a trade-off here. Creating and dropping a `Guard` is not free, since it</span>
+<span class="doccomment">//! also needs to interact with said bookkeeping. But if you keep one around for a long time, you</span>
+<span class="doccomment">//! may accumulate much garbage which will take up valuable free memory on your system. Use your</span>
+<span class="doccomment">//! best judgement in deciding whether or not to re-use a `Guard`. This is also the reason why the</span>
+<span class="doccomment">//! map requires that `K: &#39;static` and `V: &#39;static`. If we did not, then your keys and values may</span>
+<span class="doccomment">//! get dropped far later, potentially after those lifetimes have passed, which would not be sound.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Consistency</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Retrieval operations (including [`get`](HashMap::get)) generally do not block, so may</span>
+<span class="doccomment">//! overlap with update operations (including [`insert`](HashMap::insert)). Retrievals</span>
+<span class="doccomment">//! reflect the results of the most recently *completed* update operations holding upon their</span>
+<span class="doccomment">//! onset. (More formally, an update operation for a given key bears a _happens-before_ relation</span>
+<span class="doccomment">//! with any successful retrieval for that key reporting the updated value.)</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Operations that inspect the map as a whole, rather than a single key, operate on a snapshot of</span>
+<span class="doccomment">//! the underlying table. For example, iterators return elements reflecting the state of the hash</span>
+<span class="doccomment">//! table at some point at or since the creation of the iterator. Aggregate status methods like</span>
+<span class="doccomment">//! [`len`](HashMap::len) are typically useful only when a map is not undergoing concurrent</span>
+<span class="doccomment">//! updates in other threads. Otherwise the results of these methods reflect transient states that</span>
+<span class="doccomment">//! may be adequate for monitoring or estimation purposes, but not for program control.</span>
+<span class="doccomment">//! Similarly, [`Clone`](std::clone::Clone) may not produce a &quot;perfect&quot; clone if the underlying</span>
+<span class="doccomment">//! map is being concurrently modified.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Resizing behavior</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The table is dynamically expanded when there are too many collisions (i.e., keys that have</span>
+<span class="doccomment">//! distinct hash codes but fall into the same slot modulo the table size), with the expected</span>
+<span class="doccomment">//! average effect of maintaining roughly two bins per mapping (corresponding to a 0.75 load factor</span>
+<span class="doccomment">//! threshold for resizing). There may be much variance around this average as mappings are added</span>
+<span class="doccomment">//! and removed, but overall, this maintains a commonly accepted time/space tradeoff for hash</span>
+<span class="doccomment">//! tables.  However, resizing this or any other kind of hash table may be a relatively slow</span>
+<span class="doccomment">//! operation. When possible, it is a good idea to provide a size estimate by using the</span>
+<span class="doccomment">//! [`with_capacity`](HashMap::with_capacity) constructor. Note that using many keys with</span>
+<span class="doccomment">//! exactly the same [`Hash`](std::hash::Hash) value is a sure way to slow down performance of any</span>
+<span class="doccomment">//! hash table.</span>
+<span class="doccomment">//!</span>
+<span class="comment">/*
+//! TODO: dynamic load factor
+//!
+//! TODO: set projection
+//!
+//! TODO: frequency map through computeIfAbsent
+//!
+//! TODO: bulk operations like forEach, search, and reduce
+//! */</span>
+<span class="doccomment">//! # Implementation notes</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This data-structure is a pretty direct port of Java&#39;s `java.util.concurrent.ConcurrentHashMap`</span>
+<span class="doccomment">//! [from Doug Lea and the rest of the JSR166</span>
+<span class="doccomment">//! team](http://gee.cs.oswego.edu/dl/concurrency-interest/). Huge thanks to them for releasing the</span>
+<span class="doccomment">//! code into the public domain! Much of the documentation is also lifted from there. What follows</span>
+<span class="doccomment">//! is a slightly modified version of their implementation notes from within the [source</span>
+<span class="doccomment">//! file](http://gee.cs.oswego.edu/cgi-bin/viewcvs.cgi/jsr166/src/main/java/util/concurrent/ConcurrentHashMap.java?view=markup).</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The primary design goal of this hash table is to maintain concurrent readability (typically</span>
+<span class="doccomment">//! method `get()`, but also iterators and related methods) while minimizing update contention.</span>
+<span class="doccomment">//! Secondary goals are to keep space consumption about the same or better than java.util.HashMap,</span>
+<span class="doccomment">//! and to support high initial insertion rates on an empty table by many threads.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! This map usually acts as a binned (bucketed) hash table.  Each key-value mapping is held in a</span>
+<span class="doccomment">//! `BinEntry`.  Most nodes are of type `BinEntry::Node` with hash, key, value, and a `next` field.</span>
+<span class="doccomment">//!  However, some nodes are of type `BinEntry::Moved`; these &quot;forwarding nodes&quot; are placed at the</span>
+<span class="doccomment">//!  heads of bins during resizing. The Java version also has other special node types, but these</span>
+<span class="doccomment">//!  have not yet been implemented in this port. These special nodes are all either uncommon or</span>
+<span class="doccomment">//!  transient.</span>
+<span class="doccomment">//!</span>
+<span class="comment">/*
+//! TODO: TreeNodes, ReservationNodes
+*/</span>
+<span class="doccomment">//! The table is lazily initialized to a power-of-two size upon the first insertion.  Each bin in</span>
+<span class="doccomment">//! the table normally contains a list of nodes (most often, the list has only zero or one</span>
+<span class="doccomment">//! `BinEntry`). Table accesses require atomic reads, writes, and CASes.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Insertion (via `put`) of the first node in an empty bin is performed by just CASing it to the</span>
+<span class="doccomment">//! bin.  This is by far the most common case for put operations under most key/hash distributions.</span>
+<span class="doccomment">//! Other update operations (insert, delete, and replace) require locks.  We do not want to waste</span>
+<span class="doccomment">//! the space required to associate a distinct lock object with each bin, so we instead embed a</span>
+<span class="doccomment">//! lock inside each node, and use the lock in the the first node of a bin list as the lock for the</span>
+<span class="doccomment">//! bin.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Using the first node of a list as a lock does not by itself suffice though: When a node is</span>
+<span class="doccomment">//! locked, any update must first validate that it is still the first node after locking it, and</span>
+<span class="doccomment">//! retry if not. Because new nodes are always appended to lists, once a node is first in a bin, it</span>
+<span class="doccomment">//! remains first until deleted or the bin becomes invalidated (upon resizing).</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The main disadvantage of per-bin locks is that other update operations on other nodes in a bin</span>
+<span class="doccomment">//! list protected by the same lock can stall, for example when user `Eq` implementations or</span>
+<span class="doccomment">//! mapping functions take a long time.  However, statistically, under random hash codes, this is</span>
+<span class="doccomment">//! not a common problem.  Ideally, the frequency of nodes in bins follows a Poisson distribution</span>
+<span class="doccomment">//! (http://en.wikipedia.org/wiki/Poisson_distribution) with a parameter of about 0.5 on average,</span>
+<span class="doccomment">//! given the resizing threshold of 0.75, although with a large variance because of resizing</span>
+<span class="doccomment">//! granularity. Ignoring variance, the expected occurrences of list size `k` are `exp(-0.5) *</span>
+<span class="doccomment">//! pow(0.5, k) / factorial(k)`. The first values are:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```text</span>
+<span class="doccomment">//! 0:    0.60653066</span>
+<span class="doccomment">//! 1:    0.30326533</span>
+<span class="doccomment">//! 2:    0.07581633</span>
+<span class="doccomment">//! 3:    0.01263606</span>
+<span class="doccomment">//! 4:    0.00157952</span>
+<span class="doccomment">//! 5:    0.00015795</span>
+<span class="doccomment">//! 6:    0.00001316</span>
+<span class="doccomment">//! 7:    0.00000094</span>
+<span class="doccomment">//! 8:    0.00000006</span>
+<span class="doccomment">//! more: less than 1 in ten million</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Lock contention probability for two threads accessing distinct elements is roughly `1 / (8 *</span>
+<span class="doccomment">//! #elements)` under random hashes.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Actual hash code distributions encountered in practice sometimes deviate significantly from</span>
+<span class="doccomment">//! uniform randomness.  This includes the case when `N &gt; (1&lt;&lt;30)`, so some keys MUST collide.</span>
+<span class="doccomment">//! Similarly for dumb or hostile usages in which multiple keys are designed to have identical hash</span>
+<span class="doccomment">//! codes or ones that differs only in masked-out high bits. Here, the Java implementation uses an</span>
+<span class="doccomment">//! optimization where a bin is turned into a binary tree, but this has not yet been ported over to</span>
+<span class="doccomment">//! the Rust version.</span>
+<span class="comment">/* TODO */</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The table is resized when occupancy exceeds a percentage threshold (nominally, 0.75, but see</span>
+<span class="doccomment">//! below).  Any thread noticing an overfull bin may assist in resizing after the initiating thread</span>
+<span class="doccomment">//! allocates and sets up the replacement array. However, rather than stalling, these other threads</span>
+<span class="doccomment">//! may proceed with insertions etc. Resizing proceeds by transferring bins, one by one, from the</span>
+<span class="doccomment">//! table to the next table. However, threads claim small blocks of indices to transfer (via the</span>
+<span class="doccomment">//! field `transfer_index`) before doing so, reducing contention.  A generation stamp in the field</span>
+<span class="doccomment">//! `size_ctl` ensures that resizings do not overlap. Because we are using power-of-two expansion,</span>
+<span class="doccomment">//! the elements from each bin must either stay at same index, or move with a power of two offset.</span>
+<span class="doccomment">//! We eliminate unnecessary node creation by catching cases where old nodes can be reused because</span>
+<span class="doccomment">//! their next fields won&#39;t change.  On average, only about one-sixth of them need cloning when a</span>
+<span class="doccomment">//! table doubles. The nodes they replace will be garbage collectible as soon as they are no longer</span>
+<span class="doccomment">//! referenced by any reader thread that may be in the midst of concurrently traversing table.</span>
+<span class="doccomment">//! Upon transfer, the old table bin contains only a special forwarding node (`BinEntry::Moved`)</span>
+<span class="doccomment">//! that contains the next table as its key. On encountering a forwarding node, access and update</span>
+<span class="doccomment">//! operations restart, using the new table.</span>
+<span class="doccomment">//!</span>
+<span class="comment">/* TODO: note on TreeBins */</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Each bin transfer requires its bin lock, which can stall waiting for locks while resizing.</span>
+<span class="doccomment">//! However, because other threads can join in and help resize rather than contend for locks,</span>
+<span class="doccomment">//! average aggregate waits become shorter as resizing progresses.  The transfer operation must</span>
+<span class="doccomment">//! also ensure that all accessible bins in both the old and new table are usable by any traversal.</span>
+<span class="doccomment">//! This is arranged in part by proceeding from the last bin `table.length - 1` up towards the</span>
+<span class="doccomment">//! first.  Upon seeing a forwarding node, traversals (see `iter::traverser::Traverser`) arrange to</span>
+<span class="doccomment">//! move to the new table without revisiting nodes.  To ensure that no intervening nodes are</span>
+<span class="doccomment">//! skipped even when moved out of order, a stack (see class `iter::traverser::TableStack`) is</span>
+<span class="doccomment">//! created on first encounter of a forwarding node during a traversal, to maintain its place if</span>
+<span class="doccomment">//! later processing the current table. The need for these save/restore mechanics is relatively</span>
+<span class="doccomment">//! rare, but when one forwarding node is encountered, typically many more will be. So `Traversers`</span>
+<span class="doccomment">//! use a simple caching scheme to avoid creating so many new `TableStack` nodes. (Thanks to Peter</span>
+<span class="doccomment">//! Levart for suggesting use of a stack here.)</span>
+<span class="doccomment">//!</span>
+<span class="comment">/* TODO:
+//!
+//! Lazy table initialization minimizes footprint until first use, and also avoids resizings when
+//! the first operation is from a `from_iter`, `From::from`, or deserialization. These cases
+//! attempt to override the initial capacity settings, but harmlessly fail to take effect in cases
+//! of races.
+*/</span>
+<span class="comment">/*
+//! TODO:
+//!
+//! The element count is maintained using a specialization of LongAdder. We need to incorporate a
+//! specialization rather than just use a LongAdder in order to access implicit contention-sensing
+//! that leads to creation of multiple CounterCells.  The counter mechanics avoid contention on
+//! updates but can encounter cache thrashing if read too frequently during concurrent access. To
+//! avoid reading so often, resizing under contention is attempted only upon adding to a bin
+//! already holding two or more nodes. Under uniform hash distributions, the probability of this
+//! occurring at threshold is around 13%, meaning that only about 1 in 8 puts check threshold (and
+//! after resizing, many fewer do so).
+//! */</span>
+<span class="comment">/* TODO:
+//!
+//! TreeBins comparisons and locking
+*/</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ## Garbage collection</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The Java implementation can rely on Java&#39;s runtime garbage collection to safely deallocate</span>
+<span class="doccomment">//! deleted or removed nodes, keys, and values. Since Rust does not have such a runtime, we must</span>
+<span class="doccomment">//! ensure through some other mechanism that we do not drop values before all references to them</span>
+<span class="doccomment">//! have goen away. We do this using [`crossbeam::epoch`], which provides an implementation of an</span>
+<span class="doccomment">//! epoch-based garbae collection scheme. This forces us to make certain API changes such as</span>
+<span class="doccomment">//! requiring `Guard` arguments to many methods or wrapping the return values, but provides much</span>
+<span class="doccomment">//! more efficient operation than if everything had to be atomically reference-counted.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//!  [`crossbeam::epoch`]: https://docs.rs/crossbeam/0.7/crossbeam/epoch/index.html</span>
+<span class="attribute">#![<span class="ident">deny</span>(
+    <span class="ident">missing_docs</span>,
+    <span class="ident">missing_debug_implementations</span>,
+    <span class="ident">unreachable_pub</span>,
+    <span class="ident">intra_doc_link_resolution_failure</span>
+)]</span>
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">rust_2018_idioms</span>)]</span>
+
+<span class="kw">mod</span> <span class="ident">map</span>;
+<span class="kw">mod</span> <span class="ident">map_ref</span>;
+<span class="kw">mod</span> <span class="ident">node</span>;
+<span class="kw">mod</span> <span class="ident">raw</span>;
+
+<span class="doccomment">/// Iterator types.</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">iter</span>;
+
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">map</span>::<span class="ident">HashMap</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">map_ref</span>::<span class="ident">HashMapRef</span>;
+
+<span class="doccomment">/// Default hasher for [`HashMap`].</span>
+<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">DefaultHashBuilder</span> <span class="op">=</span> <span class="ident">ahash</span>::<span class="ident">RandomState</span>;
+
+<span class="doccomment">/// Types needed to safely access shared data concurrently.</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">epoch</span> {
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">crossbeam_epoch</span>::{<span class="ident">pin</span>, <span class="ident">Guard</span>};
+}
+</pre></div>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "flurry";</script><script src="../../aliases.js"></script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DeprecationStatus","Whether an item is deprecated, with context."],["DeprecationStrategy","The available deprecation strategies."]]});

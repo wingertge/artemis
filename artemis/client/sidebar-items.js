@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Client",""],["ClientBuilder","A builder for the artemis client"],["ClientImpl",""]]});

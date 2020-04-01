@@ -1,0 +1,1 @@
+initSidebarItems({"attr":[["parser","This attribute macro injects first argument of function (typically `self`) to all known macros invocation in a function."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["OPERATION_NAME",""],["QUERY",""]],"struct":[["GetConferenceConference","Object to represent a conference"],["GetConferenceConferenceTalks","Object to represent a talk"],["GetConferenceConferenceTalksSpeakers","Object to represent a Person"],["ResponseData",""],["Variables",""]]});

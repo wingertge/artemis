@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["BitVecCore","A `Core` implementation that is conceptually a `BitVec` and a `Vec<T>`."],["OptionCore","A `Core` implementation that is essentially a `Vec<Option<T>>`."]],"trait":[["Core","The core of a stable vector."]],"type":[["DefaultCore","The default core implementation of the stable vector. Fine in most situations."]]});

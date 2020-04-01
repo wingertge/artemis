@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `artemis` crate."><meta name="keywords" content="rust, rustlang, rust-lang, artemis"><title>artemis - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../artemis/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate artemis</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all artemis's items</p></a><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'artemis', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/artemis/lib.rs.html#1-311' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>artemis</a></span></h1><div class='docblock'><p>A modern GraphQL Client with common built-in features
+as well as the ability to extend its functionality through exchanges</p>
+<h1 id="build" class="section-header"><a href="#build">Build</a></h1>
+<p>This crate uses code generation to take your GraphQL files and turn them into
+strongly typed Rust modules. These contain the query struct, a zero-size type
+such as <code>GetConference</code>, as well as a submodule containing the <code>Variables</code>,
+any input types, the <code>ResponseData</code> type and any involved output types.</p>
+<p>Having a strongly typed compile time representation with additional info
+(such as the <code>__typename</code> of all involved types and an abstract selection tree)
+means that the work the CPU has to do at runtime is very minimal,
+only amounting to serialization, deserialization and simple lookups using
+the statically generated data.</p>
+<p>For details on how to use the query builder, see <a href="../artemis_build/index.html">artemis-build</a></p>
+<h1 id="exchanges" class="section-header"><a href="#exchanges">Exchanges</a></h1>
+<p>Exchanges are like a bi-directional middleware.
+They act on both the incoming and outgoing queries,
+passing them on if they can't return a result themselves.</p>
+<p>There are three default exchanges, called in this order:</p>
+<h2 id="dedupexchange" class="section-header"><a href="#dedupexchange">DedupExchange</a></h2>
+<p>The deduplication exchange (<code>DedupExchange</code>) filters out unnecessary queries
+by combining multiple identical queries into one. It does so by keeping track
+of in-flight queries and, instead of firing off another identical query,
+waiting for their results instead. This reduces network traffic,
+especially in larger applications where the same query may be used in multiple
+places and run multiple times simultaneously as a result.</p>
+<h2 id="cacheexchange" class="section-header"><a href="#cacheexchange">CacheExchange</a></h2>
+<p>The cache exchange is a very basic, un-normalized cache which eagerly invalidates queries.
+It's focused on simplicity and correctness of data, so if a query uses any of the same types
+as a mutation it will always be invalidated by it. This means that especially if you
+have large amounts of different entities of the same type, this can become expensive quickly.
+For a more advanced normalized cache that invalidates only directly related entities
+see the <code>artemis-normalized-cache</code> crate.</p>
+<h2 id="fetchexchange" class="section-header"><a href="#fetchexchange">FetchExchange</a></h2>
+<p>The fetch exchange will serialize the query, send it over the network and deserialize the response.
+This works on x86 using <code>reqwest</code>, or <code>fetch</code> if you're using WASM.
+This should be your last exchange in the chain, as it never forwards a query.</p>
+</div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
+<table><tr><td><code>pub use client::<a class="struct" href="../artemis/client/struct.Client.html" title="struct artemis::client::Client">Client</a>;</code></td></tr><tr><td><code>pub use <a class="mod" href="../artemis/types/index.html" title="mod artemis::types">types</a>::*;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="client/index.html" title='artemis::client mod'>client</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="mod" href="exchanges/index.html" title='artemis::exchanges mod'>exchanges</a></td><td class='docblock-short'><p>This module contains the default exchanges
+Note that they require the <code>default-exchanges</code> feature</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="types/index.html" title='artemis::types mod'>types</a></td><td class='docblock-short'></td></tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table><tr class='module-item'><td><a class="macro" href="macro.ext.html" title='artemis::ext macro'>ext</a></td><td class='docblock-short'><p>Creates a new <code>ExtensionMap</code> and fills it with the passed values</p>
+</td></tr><tr class='module-item'><td><a class="macro" href="macro.wasm_client.html" title='artemis::wasm_client macro'>wasm_client</a></td><td class='docblock-short'></td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.ClientBuilder.html" title='artemis::ClientBuilder struct'>ClientBuilder</a></td><td class='docblock-short'><p>A builder for the artemis client</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Error.html" title='artemis::Error struct'>Error</a></td><td class='docblock-short'><p>An element in the top-level <code>errors</code> array of a response body.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Location.html" title='artemis::Location struct'>Location</a></td><td class='docblock-short'><p>Represents a location inside a query string. Used in errors. See <a href="../artemis/struct.Error.html" title="`Error`"><code>Error</code></a>.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.QueryBody.html" title='artemis::QueryBody struct'>QueryBody</a></td><td class='docblock-short'><p>The form in which queries are sent over HTTP in most implementations. This will be built using the <a href="../artemis/trait.GraphQLQuery.html" title="`GraphQLQuery`"><code>GraphQLQuery</code></a> trait normally.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.QueryError.html" title='artemis::QueryError struct'>QueryError</a></td><td class='docblock-short'><p>A query error wrapper that allows for cheap and easy cloning across threads
+If a <code>std::error::Error</code> is needed, use <code>QueryError.compat()</code></p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Response.html" title='artemis::Response struct'>Response</a></td><td class='docblock-short'><p>The generic shape taken by the responses of GraphQL APIs.</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table><tr class='module-item'><td><a class="enum" href="enum.PathFragment.html" title='artemis::PathFragment enum'>PathFragment</a></td><td class='docblock-short'><p>Part of a path in a query. It can be an object key or an array index. See <a href="../artemis/struct.Error.html" title="`Error`"><code>Error</code></a>.</p>
+</td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table><tr class='module-item'><td><a class="trait" href="trait.GraphQLQuery.html" title='artemis::GraphQLQuery trait'>GraphQLQuery</a></td><td class='docblock-short'><p>A convenience trait that can be used to build a GraphQL request body.
+This will be implemented for you by codegen. It is implemented on the struct you place the derive on.</p>
+</td></tr></table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table><tr class='module-item'><td><a class="fn" href="fn.progressive_hash.html" title='artemis::progressive_hash fn'>progressive_hash</a></td><td class='docblock-short'><p>When we have separate values it's useful to run a progressive
+version of djb2 where we pretend that we're still looping over
+the same value</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "artemis";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["wasm_client",""]],"struct":[["WasmClientInput",""]]});
