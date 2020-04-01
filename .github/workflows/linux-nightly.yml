@@ -33,3 +33,9 @@ jobs:
         BASE_BRANCH: master # The branch the action should deploy from.
         BRANCH: gh-pages # The branch the action should deploy to.
         FOLDER: target/doc # The folder the action should deploy.
+    - name: Request Github Pages build job
+      run: >-
+        curl -L -X POST
+        -H "Content-Type: application/json"
+        -H "Authorization: token ${{ secrets.GH_PAT}}"
+        "https://api.github.com/repos/${{ github.repository }}/pages/builds"
