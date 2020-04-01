@@ -41,7 +41,6 @@ async fn test_query() {
     let mut talks = conf.talks.unwrap();
     assert_eq!(talks.len(), 1, "Length of talks isn't 1");
     let talk = talks.pop().unwrap();
-    assert_eq!(talk.id, "22", "Returned wrong talk ID");
     assert_eq!(
         talk.title, "Software Architecture for Developers",
         "Returned wrong talk title"

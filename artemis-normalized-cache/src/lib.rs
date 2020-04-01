@@ -1,6 +1,6 @@
 #![deny(warnings)]
 #![allow(unused_parens)]
-#![feature(proc_macro_hygiene)]
+#![cfg_attr(test, feature(proc_macro_hygiene))]
 
 #[macro_use]
 extern crate async_trait;
