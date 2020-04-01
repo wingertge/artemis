@@ -6,10 +6,8 @@ use wasm_bindgen::prelude::*;
 /// When we have separate values it's useful to run a progressive
 /// version of djb2 where we pretend that we're still looping over
 /// the same value
-/// TODO: Figure out why this gives different results on different OS
 pub fn progressive_hash<V: Serialize>(h: u32, x: &V) -> u64 {
-    let x = bincode::serialize(x).expect("Failed to convert variables to Vec<u8> for hashing");
-
+    let x = bincode::serialize(x).unwrap();
     let mut h = Wrapping(h as u64);
 
     for byte in x {
@@ -19,6 +17,13 @@ pub fn progressive_hash<V: Serialize>(h: u32, x: &V) -> u64 {
     h.0
 }
 
+/// Creates a new `ExtensionMap` and fills it with the passed values
+///
+/// # Example
+///
+/// ```ignore
+/// let extensions = ext![MyExtension::new(options), MyOtherExtension::new(other_options)];
+/// ```
 #[macro_export]
 macro_rules! ext {
     ($($x: expr),*) => {
@@ -32,6 +37,8 @@ macro_rules! ext {
     };
 }
 
+/// Utilities for JS interop
+/// These will just be used by the `graphql_client!` macro and the build script and are not designed to be used manually
 #[cfg(all(target_arch = "wasm32", feature = "observable"))]
 pub mod wasm {
     use crate::{

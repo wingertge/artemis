@@ -1,8 +1,11 @@
-use crate::{client::ClientImpl, progressive_hash, types::Observable, Exchange, GraphQLQuery, QueryError, QueryOptions, Response, OperationResult, ExchangeResult};
+use crate::{
+    client::ClientImpl, progressive_hash, types::Observable, Exchange, ExchangeResult,
+    GraphQLQuery, OperationResult, QueryError, QueryOptions, Response
+};
 use futures::{channel::mpsc::Sender, SinkExt};
+use serde::de::DeserializeOwned;
 use stable_vec::StableVec;
 use std::{any::Any, future::Future, pin::Pin, sync::Arc};
-use serde::de::DeserializeOwned;
 
 pub type OperationObservable<Q, M> =
     Observable<Result<Response<<Q as GraphQLQuery>::ResponseData>, QueryError>, M>;
@@ -85,7 +88,10 @@ pub fn rerun_query<M: Exchange>(client: &Arc<ClientImpl<M>>, id: u64) {
     spawn(fut);
 }
 
-pub fn push_result<R, M: Exchange>(client: &ClientImpl<M>, id: u64, result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static {
+pub fn push_result<R, M: Exchange>(client: &ClientImpl<M>, id: u64, result: ExchangeResult<R>)
+where
+    R: DeserializeOwned + Send + Sync + Clone + 'static
+{
     let mut subscriptions = client.active_subscriptions.lock();
     let subscription = subscriptions.get_mut(&id);
 

@@ -1,3 +1,6 @@
+//! This module contains the default exchanges
+//! Note that they require the `default-exchanges` feature
+
 use crate::types::{Exchange, Operation};
 use std::{error::Error, fmt};
 
@@ -15,8 +18,8 @@ pub use cache::CacheExchange;
 pub use dedup::DedupExchange;
 #[cfg(feature = "default-exchanges")]
 pub use fetch::FetchExchange;
-use std::sync::Arc;
 use serde::de::DeserializeOwned;
+use std::sync::Arc;
 
 #[derive(Debug)]
 enum MiddlewareError {
@@ -30,10 +33,12 @@ impl fmt::Display for MiddlewareError {
     }
 }
 
-pub struct DummyExchange;
+/// The terminating exchange.
+/// This will always be the last exchange in the chain and will simply return an error if called.
+pub struct TerminatorExchange;
 
 #[async_trait]
-impl Exchange for DummyExchange {
+impl Exchange for TerminatorExchange {
     async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         _operation: Operation<Q::Variables>,
@@ -46,5 +51,7 @@ impl Exchange for DummyExchange {
 /// Client trait passed to exchanges. Only exposes methods useful to exchanges
 pub trait Client: Clone + Send + Sync + 'static {
     fn rerun_query(&self, query_key: u64);
-    fn push_result<R>(&self, query_key: u64, result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static;
+    fn push_result<R>(&self, query_key: u64, result: ExchangeResult<R>)
+    where
+        R: DeserializeOwned + Send + Sync + Clone + 'static;
 }

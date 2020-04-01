@@ -14,7 +14,6 @@ use std::{
     sync::Arc,
     task::{Context, Poll}
 };
-use surf::{http::header::HeaderName, middleware::Body};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -22,7 +21,10 @@ use wasm_bindgen::prelude::*;
 pub enum FetchError {
     NetworkError(Box<dyn Error + Send + Sync>),
     NotOk(u16, String, String),
+    #[cfg(target_arch = "wasm32")]
     DecodeError(std::io::Error),
+    #[cfg(not(target_arch = "wasm32"))]
+    DecodeError(reqwest::Error),
     EncodeError(serde_json::Error)
 }
 impl Error for FetchError {}
@@ -42,6 +44,11 @@ impl fmt::Display for FetchError {
     }
 }
 
+/// The default fetch exchange
+///
+/// Uses `reqwest` on x86.
+/// On `wasm32` it defaults to `window.fetch`,
+/// but will use the passed in fetch function if it's set instead
 pub struct FetchExchange;
 
 impl<TNext: Exchange> ExchangeFactory<TNext> for FetchExchange {
@@ -74,21 +81,22 @@ impl FetchExchange {
         options: OperationOptions,
         query: QueryBody<Q::Variables>
     ) -> Result<Response<Q::ResponseData>, FetchError> {
-        let mut request = surf::post(options.url.clone())
-            .set_header("Content-Type", "application/json")
-            .set_header("Accept", "application/json")
-            .body_json(&query)
-            .map_err(FetchError::EncodeError)?;
+        let client = reqwest::Client::new();
+        let mut request = client
+            .post(&options.url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .json(&query);
 
         for HeaderPair(key, value) in extra_headers {
-            let header_name: HeaderName = key.parse().unwrap();
-            request = request.set_header(header_name, value);
+            request = request.header(&key, &value);
         }
 
         Ok(request
+            .send()
             .await
-            .map_err(FetchError::NetworkError)?
-            .body_json()
+            .map_err(|e| FetchError::NetworkError(Box::new(e)))?
+            .json()
             .await
             .map_err(FetchError::DecodeError)?)
     }

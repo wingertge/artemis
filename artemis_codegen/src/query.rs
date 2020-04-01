@@ -258,15 +258,4 @@ mod tests {
             "# [ derive ( Eq , PartialEq , PartialOrd ) ]"
         );
     }
-
-    #[test]
-    fn response_derives_fails_when_called_twice() {
-        let schema = crate::schema::Schema::new();
-        let mut context = QueryContext::new_empty(&schema);
-
-        assert!(context
-            .ingest_response_derives("PartialEq, PartialOrd")
-            .is_ok());
-        assert!(context.ingest_response_derives("Serialize").is_err());
-    }
 }

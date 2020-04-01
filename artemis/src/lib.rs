@@ -1,3 +1,53 @@
+//! A modern GraphQL Client with common built-in features
+//! as well as the ability to extend its functionality through exchanges
+//!
+//! # Build
+//!
+//! This crate uses code generation to take your GraphQL files and turn them into
+//! strongly typed Rust modules. These contain the query struct, a zero-size type
+//! such as `GetConference`, as well as a submodule containing the `Variables`,
+//! any input types, the `ResponseData` type and any involved output types.
+//!
+//! Having a strongly typed compile time representation with additional info
+//! (such as the `__typename` of all involved types and an abstract selection tree)
+//! means that the work the CPU has to do at runtime is very minimal,
+//! only amounting to serialization, deserialization and simple lookups using
+//! the statically generated data.
+//!
+//! For details on how to use the query builder, see [artemis-build](../artemis_build/index.html)
+//!
+//! # Exchanges
+//!
+//! Exchanges are like a bi-directional middleware.
+//! They act on both the incoming and outgoing queries,
+//! passing them on if they can't return a result themselves.
+//!
+//! There are three default exchanges, called in this order:
+//!
+//! ## DedupExchange
+//!
+//! The deduplication exchange (`DedupExchange`) filters out unnecessary queries
+//! by combining multiple identical queries into one. It does so by keeping track
+//! of in-flight queries and, instead of firing off another identical query,
+//! waiting for their results instead. This reduces network traffic,
+//! especially in larger applications where the same query may be used in multiple
+//! places and run multiple times simultaneously as a result.
+//!
+//! ## CacheExchange
+//!
+//! The cache exchange is a very basic, un-normalized cache which eagerly invalidates queries.
+//! It's focused on simplicity and correctness of data, so if a query uses any of the same types
+//! as a mutation it will always be invalidated by it. This means that especially if you
+//! have large amounts of different entities of the same type, this can become expensive quickly.
+//! For a more advanced normalized cache that invalidates only directly related entities
+//! see the `artemis-normalized-cache` crate.
+//!
+//! ## FetchExchange
+//!
+//! The fetch exchange will serialize the query, send it over the network and deserialize the response.
+//! This works on x86 using `reqwest`, or `fetch` if you're using WASM.
+//! This should be your last exchange in the chain, as it never forwards a query.
+
 //#![warn(missing_docs)]
 #![deny(warnings)]
 #![allow(unused)]
@@ -19,11 +69,8 @@ pub use artemis_codegen_proc_macro::wasm_client;
 pub use client::{Client, ClientBuilder};
 pub use error::QueryError;
 use serde::{de::DeserializeOwned, Serialize};
-pub use surf::url::Url;
 pub use types::*;
-pub use utils::progressive_hash;
-#[cfg(target_arch = "wasm32")]
-pub use utils::wasm;
+pub use utils::*;
 
 use crate::client::ClientImpl;
 use std::sync::Arc;
@@ -43,46 +90,7 @@ pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
 }
 
 /// A convenience trait that can be used to build a GraphQL request body.
-/// TODO: Update docs
-/// This will be implemented for you by codegen in the normal case. It is implemented on the struct you place the derive on.
-///
-/// Example:
-///
-/// ```ignore
-/// use artemis::*;
-/// use serde_json::json;
-///
-/// #[derive(GraphQLQuery)]
-/// #[graphql(
-///   query_path = "../artemis_codegen/src/tests/star_wars_query.graphql",
-///   schema_path = "../artemis_codegen/src/tests/star_wars_schema.graphql"
-/// )]
-/// struct StarWarsQuery;
-///
-/// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     use artemis::GraphQLQuery;
-///
-///     let variables = star_wars_query::Variables {
-///         episode_for_hero: star_wars_query::Episode::NEWHOPE,
-///     };
-///
-///     let expected_body = json!({
-///         "operationName": star_wars_query::OPERATION_NAME,
-///         "query": star_wars_query::QUERY,
-///         "variables": {
-///             "episodeForHero": "NEWHOPE"
-///         },
-///     });
-///
-///     let actual_body = serde_json::to_value(
-///         StarWarsQuery::build_query(variables)
-///     )?;
-///
-///     assert_eq!(actual_body, expected_body);
-///
-///     Ok(())
-/// }
-/// ```
+/// This will be implemented for you by codegen. It is implemented on the struct you place the derive on.
 pub trait GraphQLQuery: Send + Sync + 'static {
     /// The shape of the variables expected by the query. This should be a generated struct most of the time.
     type Variables: Serialize + Send + Sync + Clone + 'static;
@@ -155,7 +163,6 @@ pub trait GraphQLQuery: Send + Sync + 'static {
 /// #     Ok(())
 /// # }
 /// ```
-
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Response<Data: Clone> {
     /// The debug info if in test config, an empty struct otherwise

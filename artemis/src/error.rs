@@ -2,6 +2,8 @@ use std::{error::Error, fmt, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 
+/// A query error wrapper that allows for cheap and easy cloning across threads
+/// If a `std::error::Error` is needed, use `QueryError.compat()`
 #[derive(Clone, Debug)]
 pub struct QueryError {
     inner: Arc<Box<dyn Error + Send + Sync>>
@@ -31,10 +33,12 @@ impl fmt::Display for QueryErrorCompat {
 }
 
 impl QueryError {
+    /// Gets the source of the inner error
     pub fn source(&self) -> Option<&(dyn Error + 'static)> {
         self.inner.source()
     }
 
+    /// Gets a compatibility wrapper that implements `std::error::Error`. This is necessary until specialization lands.
     pub fn compat(self) -> QueryErrorCompat {
         QueryErrorCompat(self)
     }

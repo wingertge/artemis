@@ -85,11 +85,16 @@ impl<'a> GeneratedModule<'a> {
             operation_name = operation_name_literal,
             definitions = typescript_definitions
         );
-        let format_config = dprint_plugin_typescript::configuration::ConfigurationBuilder::new().build();
-        let typescript = match dprint_plugin_typescript::format_text("temp.d.ts", &typescript, &format_config).unwrap() {
-            Some(formatted) => formatted,
-            None => panic!("Typescript was ignored even though no ignore comment was present")
-        };
+        let format_config =
+            dprint_plugin_typescript::configuration::ConfigurationBuilder::new().build();
+        println!("{}", typescript);
+        let typescript =
+            match dprint_plugin_typescript::format_text("temp.d.ts", &typescript, &format_config)
+                .unwrap()
+            {
+                Some(formatted) => formatted,
+                None => panic!("Typescript was ignored even though no ignore comment was present")
+            };
         let typescript = quote! {
             #[cfg(target_arch = "wasm32")]
             use wasm_bindgen::prelude::*;

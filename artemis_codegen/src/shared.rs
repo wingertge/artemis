@@ -10,6 +10,7 @@ use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::{BTreeMap, HashSet};
+use crate::fragments::GqlFragment;
 
 // List of keywords based on https://doc.rust-lang.org/grammar.html#keywords
 const RUST_KEYWORDS: &[&str] = &[
@@ -502,18 +503,15 @@ pub(crate) fn response_fields_for_selection(
                             &fragment.fragment_name
                         ))
                     })?;
+                let fragment_selectors = get_fragment_selectors(fragment_from_context, schema_fields, context);
                 let type_name = Ident::new(&fragment.fragment_name, Span::call_site());
                 let type_name = if fragment_from_context.is_recursive() {
                     quote!(Box<#type_name>)
                 } else {
                     quote!(#type_name)
                 };
-                let field_name_str = fragment.fragment_name.to_snake_case();
-                let field_selector = quote! {
-                    ::artemis::FieldSelector::Object(#field_name_str, #type_name)
-                };
 
-                selectors.push(field_selector);
+                selectors.extend(fragment_selectors);
 
                 Ok(Some(quote! {
                     #[serde(flatten)]
@@ -533,6 +531,47 @@ pub(crate) fn response_fields_for_selection(
         .collect();
 
     Ok((selectors, field_defs?))
+}
+
+fn get_fragment_selectors(fragment: &GqlFragment<'_>, schema_fields: &[GqlObjectField<'_>], context: &QueryContext<'_, '_>) -> Vec<TokenStream> {
+    fragment.selection.0
+        .iter()
+        .flat_map(|selector| match selector {
+            SelectionItem::Field(field) => {
+                let name = field.name;
+                let alias = field.alias.unwrap_or(name);
+
+                let schema_field = schema_fields
+                    .iter()
+                    .find(|field| field.name == name)
+                    .ok_or_else(|| {
+                        CodegenError::TypeError("".to_string())
+                    }).unwrap();
+                let alias = alias.to_camel_case();
+                let (field_selector, _) = schema_field.type_.to_rust(
+                    context,
+                    &alias,
+                    name,
+                    field.arguments.to_vec()
+                );
+
+                vec![field_selector]
+            },
+            SelectionItem::FragmentSpread(fragment) => {
+                let fragment_from_context = context
+                    .fragments
+                    .get(&fragment.fragment_name)
+                    .ok_or_else(|| {
+                        CodegenError::TypeError(format!(
+                            "Unknown fragment: {}",
+                            &fragment.fragment_name
+                        ))
+                    }).unwrap();
+                get_fragment_selectors(fragment_from_context, schema_fields, context)
+            },
+            SelectionItem::InlineFragment(_) => panic!("Inline fragment on object field")
+        })
+        .collect()
 }
 
 /// Given the GraphQL schema name for an object/interface/input object field and

@@ -9,11 +9,15 @@ use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, Mutex}
 };
-use surf::options;
 
 type ResultCache = Arc<Mutex<HashMap<u64, Box<dyn Any + Send>>>>;
 type OperationCache = Arc<Mutex<HashMap<&'static str, HashSet<u64>>>>;
 
+/// The default caching exchange.
+///
+/// This does eager invalidation, invalidating all queries related to all types that are returned by a mutation.
+/// It doesn't do any normalization, operations are stored by their key (query x variables).
+/// Mutations are never cached.
 pub struct CacheExchange;
 impl<TNext: Exchange> ExchangeFactory<TNext> for CacheExchange {
     type Output = CacheExchangeImpl<TNext>;

@@ -16,7 +16,7 @@ mod codegen_options;
 /// Deprecation-related code
 pub mod deprecation;
 mod query;
-/// Contains the [Schema] type and its implementation.
+/// Contains the `Schema` type and its implementation.
 pub mod schema;
 
 mod constants;

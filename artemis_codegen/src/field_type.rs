@@ -47,7 +47,7 @@ impl<'a> FieldType<'a> {
         self
     }
 
-    fn args_as_string(args: Option<TokenStream>) -> TokenStream {
+    pub(crate) fn args_as_string(args: Option<TokenStream>) -> TokenStream {
         if let Some(arguments) = args {
             quote!(String::from(#arguments))
         } else {
@@ -79,7 +79,7 @@ impl<'a> FieldType<'a> {
                 .map(|enm| enm.is_required.set(true))
                 .is_some()
             {
-                format!("{}.{}", ENUMS_PREFIX, self.name)
+                format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
                 if prefix.is_empty() {
                     panic!("Empty prefix for {:?}", self);

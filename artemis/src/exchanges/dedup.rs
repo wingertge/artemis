@@ -14,7 +14,10 @@ use std::{
 
 type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, QueryError>>>>>>;
 
-pub struct DedupExchange; // Factory
+/// The default deduplication exchange
+/// This will keep track of in-flight queries and catch any identical queries before they execute,
+/// instead waiting for the result from the in-flight query
+pub struct DedupExchange;
 pub struct DedupExchangeImpl<TNext: Exchange> {
     next: TNext,
     in_flight_operations: InFlightCache
@@ -112,11 +115,11 @@ mod test {
     use super::DedupExchangeImpl;
     use crate::{
         client::ClientImpl,
-        exchanges::{Client, DedupExchange, DummyExchange},
+        exchanges::{Client, DedupExchange, TerminatorExchange},
         types::{Operation, OperationOptions, OperationResult},
         ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
         GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,
-        ResultSource, Url
+        ResultSource
     };
     use artemis_test::get_conference::{
         get_conference::{ResponseData, Variables, OPERATION_NAME, QUERY},
@@ -134,8 +137,8 @@ mod test {
             DedupExchange.build(FakeFetchExchange);
     }
 
-    fn url() -> Url {
-        "http://localhost:8080/graphql".parse().unwrap()
+    fn url() -> String {
+        "http://localhost:8080/graphql".to_string()
     }
 
     struct FakeFetchExchange;
@@ -210,10 +213,6 @@ mod test {
     }
 
     impl QueryInfo<Variables> for ResponseData {
-        fn typename(&self) -> &'static str {
-            unimplemented!()
-        }
-
         fn selection(_variables: &Variables) -> Vec<FieldSelector> {
             unimplemented!()
         }

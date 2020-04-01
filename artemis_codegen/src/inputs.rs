@@ -260,7 +260,6 @@ mod tests {
 
         let expected: String = vec![
             "# [ derive ( Clone , Serialize ) ] ",
-            "# [ cfg_attr ( target_arch = \"wasm32\" , wasm_bindgen ) ] ",
             "pub struct Cat { ",
             "pub offsprings : Vec < Cat > , ",
             "# [ serde ( rename = \"pawsCount\" ) ] ",

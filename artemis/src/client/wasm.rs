@@ -8,8 +8,8 @@ use js_sys::Function;
 use serde_json::Value;
 use std::{marker::PhantomData, sync::Arc};
 use wasm_bindgen::JsValue;
-use wasm_typescript_definition::TypescriptDefinition;
 
+/// This will be used by `graphql_client!`
 pub struct JsClient<M: Exchange, Q: QueryCollection> {
     inner: Arc<ClientImpl<M>>,
     _queries: PhantomData<Q>

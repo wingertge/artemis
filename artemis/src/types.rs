@@ -1,38 +1,67 @@
-use crate::{client::ClientImpl, GraphQLQuery, QueryBody, QueryError, Response};
+use crate::{client::ClientImpl, exchanges::Client, GraphQLQuery, QueryBody, QueryError, Response};
+#[cfg(feature = "observable")]
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
 use parking_lot::RwLock;
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
-use serde_repr::Serialize_repr;
-use std::{any::Any, collections::HashMap, pin::Pin, sync::Arc, task::Poll};
-use surf::url::Url;
-use type_map::concurrent::TypeMap;
+use std::{
+    any::{Any, TypeId},
+    collections::HashMap,
+    pin::Pin,
+    sync::Arc,
+    task::Poll
+};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::{JsCast, JsValue};
-use crate::exchanges::Client;
 
+/// The result type returned by exchanges
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
 
+/// The main trait that must be implemented by exchanges
 #[async_trait]
 pub trait Exchange: Send + Sync + 'static {
-    async fn run<Q: GraphQLQuery, C: crate::exchanges::Client>(
+    /// Process a query operation.
+    ///
+    /// Note that this can return early, perhaps partial results to subscriptions via `client.push_result()`,
+    /// but this will do nothing for regular requests. The exchange should have a workflow in the style of:
+    /// Determine if this exchange can return a result -> Delegate to `next` if not -> Perform processing on the delegated result -> Return result
+    ///
+    /// For examples, see the built-in exchanges.
+    ///
+    /// # Arguments
+    ///
+    /// * `operation` - the operation to be handled.
+    /// * `client` - the client object for rerunning queries and pushing results if applicable.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Response)` if the operation was completed successfully
+    /// * `Err(YourError)` if there was an error anywhere. Errors from `next` should be passed through.
+    /// This will be displayed to the user, so make sure the error messages are reasonable.
+    async fn run<Q: GraphQLQuery, C: Client>(
         &self,
         operation: Operation<Q::Variables>,
         client: C
     ) -> ExchangeResult<Q::ResponseData>;
 }
 
+/// An exchange factory. This must be passed to the ClientBuilder by the user,
+/// so it should take only necessary parameters.
+///
+/// In a scenario that doesn't require additional configuration this should just be a zero size struct
 pub trait ExchangeFactory<TNext: Exchange> {
     type Output: Exchange;
 
     fn build(self, next: TNext) -> Self::Output;
 }
 
+/// Internal struct used in codegen
 pub trait QueryInfo<TVars> {
     fn selection(variables: &TVars) -> Vec<FieldSelector>;
 }
 
+/// The type of the operation. This corresponds directly to the GraphQL syntax `query`, `mutation` and `subscription`
 #[derive(PartialEq, Debug, Clone)]
 pub enum OperationType {
     Query,
@@ -61,6 +90,12 @@ impl ToString for OperationType {
     }
 }
 
+/// The request policy of the request
+/// * `CacheFirst` - Prefers results from the cache, if it's not found it is fetched
+/// * `CacheOnly` - Only fetches results from the cache, if it's not found it will simply return `None` for the data
+/// * `NetworkOnly` - Only fetches results from the network and ignores the cache.
+/// * `CacheAndNetwork` - Returns the result from the cache if it exists, but also refetch from the network and push the result to a subscription.
+/// This acts the same as CacheFirst without subscriptions, but has overhead.
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestPolicy {
@@ -82,8 +117,11 @@ impl From<u8> for RequestPolicy {
     }
 }
 
+/// A key-value pair used for custom headers
 pub struct HeaderPair(pub String, pub String);
 
+/// An internal struct used in codegen
+/// This represents the recursive selection of a query and is used for normalization
 #[derive(Clone)]
 pub enum FieldSelector {
     /// field name, arguments
@@ -98,6 +136,11 @@ pub enum FieldSelector {
     )
 }
 
+/// Metadata for an operation
+///
+/// * `query_key` - this is the query key before being hashed with the variables
+/// * `operation_type` - The type of the operation, query, mutation or subscription
+/// * `involved_types` - A list of types that are returned by the query
 #[derive(Clone, Debug, PartialEq)]
 pub struct OperationMeta {
     pub query_key: u32,
@@ -105,9 +148,11 @@ pub struct OperationMeta {
     pub involved_types: Vec<&'static str> //pub selection: Vec<FieldSelector>
 }
 
+/// Options for the operation
+/// This is just an internal representation of the union between `QueryOptions` and `ClientOptions`
 #[derive(Clone)]
 pub struct OperationOptions {
-    pub url: Url,
+    pub url: String,
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     pub request_policy: RequestPolicy,
     pub extensions: Option<Extensions>,
@@ -122,6 +167,13 @@ unsafe impl Send for OperationOptions {}
 // The only non-send value is the pointer in JsValue
 unsafe impl Sync for OperationOptions {}
 
+/// A query operation. One of these is fired for each direct query, as well as for query reruns
+///
+/// * `key` - The unique key of the operation. This will identify a unique combination of query and variables.
+/// This means calling the same query with the same variables will produce the same key, regardless of where the operation originates
+/// * `meta` - Operation metadata such as the query key
+/// * `query` - The query body. This will be serialized by the fetch implementation but may also be used to get a reference to the query variables.
+/// * `options` - The options of the operation. This is an OR union of `QueryOptions` and `ClientOptions`.
 #[derive(Clone)]
 pub struct Operation<V: Serialize + Clone + Send + Sync> {
     pub key: u64,
@@ -130,13 +182,18 @@ pub struct Operation<V: Serialize + Clone + Send + Sync> {
     pub options: OperationOptions
 }
 
-//#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+/// The source of the result (cache or network).
+/// Used for debugging
 #[derive(Clone, Debug, PartialEq, Copy, Serialize)]
 pub enum ResultSource {
     Cache,
     Network
 }
 
+/// Debug info used for... well, debugging
+///
+/// * `source` - The source of the result, cache or network
+/// * `did_dedup` - Whether the query was actually run (`false`) or combined with another query in a deduplication exchange (`true`)
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DebugInfo {
     pub source: ResultSource,
@@ -144,6 +201,11 @@ pub struct DebugInfo {
     pub did_dedup: bool
 }
 
+/// The result of a successful operation.
+///
+/// * `key` - The key of the operation passed back by the last exchange
+/// * `meta` - The metadata of the operation passed back by the last exchange
+/// * `response` - The deserialized response
 #[derive(Clone, Debug, PartialEq)]
 pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub key: u64,
@@ -151,6 +213,8 @@ pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
     pub response: Response<R>
 }
 
+/// An observable result. This implements stream and unsubscribes on drop.
+/// It will receive early (partial or stale) results as well as refreshing when the query is rerun after being invalidated by mutations
 #[cfg(feature = "observable")]
 pub struct Observable<T, M: Exchange> {
     inner: Receiver<Arc<dyn Any + Send + Sync>>,
@@ -180,6 +244,8 @@ impl<T: Clone, M: Exchange> Observable<T, M> {
 
 #[cfg(feature = "observable")]
 impl<T: Clone, M: Exchange> Observable<T, M> {
+    /// Manually cause the client to rerun this query.
+    /// Note this doesn't invalidate any caching, so if the query is in the cache it will simply be re-read
     pub fn rerun(&self) {
         self.client.rerun_query(self.key);
     }
@@ -213,13 +279,22 @@ impl<T, M: Exchange> Drop for Observable<T, M> {
     }
 }
 
+/// An extension that may be passed by the user to provide additional request options to a third-party exchange.
+/// This is only here to allow for JS interop - The implementor of the exchange must deserialize JavaScript input to the best of their ability.
+/// Note that this may involve complex operations such as converting `js_sys::Function` to Rust closures or other advanced deserialization.
+/// This is not a simple serde-like deserialization
 pub trait Extension: Sized + Clone + Send + Sync + 'static {
     #[cfg(target_arch = "wasm32")]
     fn from_js(value: JsValue) -> Option<Self>;
 }
 
+/// A map of keyed extensions
+/// The key is only used for JS interop,
+/// the Rust version uses the type as the key
+///
+/// This is usually instantiated by the `ext![]` macro.
 pub struct ExtensionMap {
-    rust: TypeMap,
+    rust: HashMap<TypeId, Box<dyn Any>>,
     #[cfg(target_arch = "wasm32")]
     js: JsValue
 }
@@ -234,7 +309,7 @@ unsafe impl Sync for ExtensionMap {}
 impl Default for ExtensionMap {
     fn default() -> Self {
         Self {
-            rust: TypeMap::new(),
+            rust: HashMap::new(),
             #[cfg(target_arch = "wasm32")]
             js: JsValue::NULL
         }
@@ -242,15 +317,19 @@ impl Default for ExtensionMap {
 }
 
 impl ExtensionMap {
+    /// Create a new extension map
+    /// This is usually just called by the `ext![]` macro
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Creates a new map from a JavaScript value
+    /// This is used internally but must be public due to use in the `graphql_client!` macro
     #[cfg(target_arch = "wasm32")]
     pub fn from_js(value: JsValue) -> Option<Self> {
         if value.is_object() {
             Some(Self {
-                rust: TypeMap::new(),
+                rust: HashMap::new(),
                 js: value
             })
         } else {
@@ -258,17 +337,22 @@ impl ExtensionMap {
         }
     }
 
+    /// Insert a value into the map
+    /// This is usually called by the `ext![]` macro
     pub fn insert<T: Extension>(&mut self, value: T) {
-        self.rust.insert(value);
+        self.rust.insert(TypeId::of::<T>(), Box::new(value));
     }
 
+    /// Get a value from the map
+    /// The key is only used to get the value out of the JavaScript object,
+    /// if the extension was inserted on the Rust side it doesn't do anything
     pub fn get<T: Extension, S: Into<String>>(&self, js_key: S) -> Option<T> {
         self.get_rust().or_else(|| self.get_js(js_key.into()))
     }
 
     #[cfg(target_arch = "wasm32")]
     fn get_js<T: Extension>(&self, js_key: String) -> Option<T> {
-        let key: JsValue = js_key.clone().into();
+        let key: JsValue = js_key.into();
         js_sys::Reflect::get(&self.js, &key)
             .ok()
             .and_then(|value| T::from_js(value))
@@ -280,15 +364,25 @@ impl ExtensionMap {
     }
 
     fn get_rust<T: Extension>(&self) -> Option<T> {
-        self.rust.get::<T>().cloned()
+        self.rust
+            .get(&TypeId::of::<T>())
+            .map(|boxed| (&*boxed).downcast_ref().unwrap())
+            .map(Clone::clone)
     }
 }
 
 pub type Extensions = Arc<ExtensionMap>;
 
+/// Options that can be passed to a query
+/// This will be combined with `ClientOptions`, but `QueryOptions` takes precedence
+///
+/// * `url` - The URL of your GraphQL Endpoint
+/// * `extra_headers` - A function that returns extra headers. This is a function to allow for dynamic creation of things such as authorization headers
+/// * `request_policy` - The policy to use for this request. See `RequestPolicy`
+/// * `extensions` - Extra extensions passed to the exchanges. Allows for configuration of custom exchanges.
 #[derive(Default, Clone)]
 pub struct QueryOptions {
-    pub url: Option<Url>,
+    pub url: Option<String>,
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     pub request_policy: Option<RequestPolicy>,
     pub extensions: Option<Extensions>

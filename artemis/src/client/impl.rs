@@ -1,4 +1,7 @@
-use crate::{progressive_hash, Exchange, GraphQLQuery, HeaderPair, Operation, OperationMeta, QueryBody, QueryError, QueryOptions, RequestPolicy, Response, Url, OperationResult, ExchangeResult};
+use crate::{
+    progressive_hash, Exchange, ExchangeResult, GraphQLQuery, HeaderPair, Operation, OperationMeta,
+    OperationResult, QueryBody, QueryError, QueryOptions, RequestPolicy, Response
+};
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc, vec};
 
@@ -15,7 +18,7 @@ unsafe impl<M: Exchange> Send for ClientImpl<M> {}
 unsafe impl<M: Exchange> Sync for ClientImpl<M> {}
 
 pub struct ClientImpl<M: Exchange> {
-    pub(crate) url: Url,
+    pub(crate) url: String,
     pub(crate) exchange: M,
     pub(crate) extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
     pub(crate) request_policy: RequestPolicy,
@@ -32,7 +35,10 @@ impl<M: Exchange> crate::exchanges::Client for Arc<ClientImpl<M>> {
         }
     }
 
-    fn push_result<R>(&self, key: u64, result: ExchangeResult<R>) where R: DeserializeOwned + Send + Sync + Clone + 'static {
+    fn push_result<R>(&self, key: u64, result: ExchangeResult<R>)
+    where
+        R: DeserializeOwned + Send + Sync + Clone + 'static
+    {
         if cfg!(feature = "observable") {
             super::observable::push_result(self, key, result);
         }

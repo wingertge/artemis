@@ -44,7 +44,7 @@ impl<'query> SelectionItem<'query> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Selection<'query>(Vec<SelectionItem<'query>>);
+pub struct Selection<'query>(pub(crate) Vec<SelectionItem<'query>>);
 
 impl<'query> Selection<'query> {
     pub(crate) fn extract_typename<'s, 'context: 's>(

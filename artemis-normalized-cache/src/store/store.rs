@@ -216,7 +216,9 @@ impl Store {
         guard: &Guard
     ) -> Result<(), StoreError> {
         let (field_name, args, typename, inner) = match field {
-            FieldSelector::Object(name, args, typename, inner) => (*name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Object(name, args, typename, inner) => {
+                (*name, args, typename.to_string(), inner.clone())
+            }
             FieldSelector::Union(name, args, inner) => {
                 let typename = self
                     .data
@@ -287,7 +289,9 @@ impl Store {
                 self.write_record(optimistic_key, entity_key, field_key, Some(value));
                 return Ok(());
             }
-            FieldSelector::Object(field_name, args, typename, inner) => (*field_name, args, typename.to_string(), inner.clone()),
+            FieldSelector::Object(field_name, args, typename, inner) => {
+                (*field_name, args, typename.to_string(), inner.clone())
+            }
             FieldSelector::Union(field_name, args, inner) => {
                 let typename = self
                     .data
