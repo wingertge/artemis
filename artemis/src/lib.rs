@@ -99,6 +99,12 @@
 //!
 //! Documentation of the JavaScript types and methods can be found in the TypeScript
 //! definitions that are output when you build your WASM.
+//!
+//! # Features
+//!
+//! * `default-exchanges` **(default)** - Include default exchanges and the related builder method
+//! * `observable` **(default)** - Include support for observable and all related types. Includes
+//! `tokio` on x86.
 
 //#![warn(missing_docs)]
 //#![deny(warnings)]
@@ -109,21 +115,41 @@ extern crate serde;
 extern crate async_trait;
 
 use std::{collections::HashMap, fmt, fmt::Display};
+use types::*;
 
 pub mod client;
+pub mod default_exchanges;
 mod error;
-pub mod exchanges;
-pub mod types;
-mod utils;
+pub(crate) mod types;
+pub mod utils;
 
 pub use artemis_codegen_proc_macro::wasm_client;
 pub use client::{Client, ClientBuilder};
 pub use error::QueryError;
 use serde::{de::DeserializeOwned, Serialize};
-pub use types::*;
-pub use utils::*;
+#[cfg(feature = "observable")]
+pub use types::Observable;
+pub use types::{
+    DebugInfo, ExtensionMap, Extensions, HeaderPair, QueryOptions, RequestPolicy, ResultSource
+};
+#[cfg(target_arch = "wasm32")]
+pub use utils::wasm;
 
-/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
+/// Types used by custom exchanges. Regular users probably don't need these.
+pub mod exchange {
+    pub use crate::types::{
+        Client, Exchange, ExchangeFactory, ExchangeResult, Extension, Operation, OperationMeta,
+        OperationOptions, OperationResult, OperationType
+    };
+}
+
+/// Types used only by the code generator. Exchanges may use these, but they shouldn't
+/// be created/implemented manually.
+pub mod codegen {
+    pub use crate::types::{FieldSelector, QueryInfo};
+}
+
+/// The form in which queries are sent over HTTP in most implementations. This will be built using the [GraphQLQuery](./trait.GraphQLQuery.html) trait normally.
 #[derive(Debug, Serialize, Clone)]
 pub struct QueryBody<Variables: Serialize + Send + Sync + Clone> {
     /// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.
@@ -328,7 +354,7 @@ impl Display for Error {
     }
 }
 
-/// Part of a path in a query. It can be an object key or an array index. See [`Error`].
+/// Part of a path in a query. It can be an object key or an array index. See [Error](./struct.Error.html).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub enum PathFragment {
@@ -338,7 +364,7 @@ pub enum PathFragment {
     Index(i32)
 }
 
-/// Represents a location inside a query string. Used in errors. See [`Error`].
+/// Represents a location inside a query string. Used in errors. See [Error](./struct.Error.html).
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 pub struct Location {
     /// The line number in the query string where the error originated (starting from 1).

@@ -1,5 +1,6 @@
 use crate::{
     deprecation::{DeprecationStatus, DeprecationStrategy},
+    fragments::GqlFragment,
     objects::GqlObjectField,
     query::QueryContext,
     selection::*,
@@ -10,7 +11,6 @@ use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use std::collections::{BTreeMap, HashSet};
-use crate::fragments::GqlFragment;
 
 // List of keywords based on https://doc.rust-lang.org/grammar.html#keywords
 const RUST_KEYWORDS: &[&str] = &[
@@ -503,7 +503,8 @@ pub(crate) fn response_fields_for_selection(
                             &fragment.fragment_name
                         ))
                     })?;
-                let fragment_selectors = get_fragment_selectors(fragment_from_context, schema_fields, context);
+                let fragment_selectors =
+                    get_fragment_selectors(fragment_from_context, schema_fields, context);
                 let type_name = Ident::new(&fragment.fragment_name, Span::call_site());
                 let type_name = if fragment_from_context.is_recursive() {
                     quote!(Box<#type_name>)
@@ -533,8 +534,14 @@ pub(crate) fn response_fields_for_selection(
     Ok((selectors, field_defs?))
 }
 
-fn get_fragment_selectors(fragment: &GqlFragment<'_>, schema_fields: &[GqlObjectField<'_>], context: &QueryContext<'_, '_>) -> Vec<TokenStream> {
-    fragment.selection.0
+fn get_fragment_selectors(
+    fragment: &GqlFragment<'_>,
+    schema_fields: &[GqlObjectField<'_>],
+    context: &QueryContext<'_, '_>
+) -> Vec<TokenStream> {
+    fragment
+        .selection
+        .0
         .iter()
         .flat_map(|selector| match selector {
             SelectionItem::Field(field) => {
@@ -544,19 +551,16 @@ fn get_fragment_selectors(fragment: &GqlFragment<'_>, schema_fields: &[GqlObject
                 let schema_field = schema_fields
                     .iter()
                     .find(|field| field.name == name)
-                    .ok_or_else(|| {
-                        CodegenError::TypeError("".to_string())
-                    }).unwrap();
+                    .ok_or_else(|| CodegenError::TypeError("".to_string()))
+                    .unwrap();
                 let alias = alias.to_camel_case();
-                let (field_selector, _) = schema_field.type_.to_rust(
-                    context,
-                    &alias,
-                    name,
-                    field.arguments.to_vec()
-                );
+                let (field_selector, _) =
+                    schema_field
+                        .type_
+                        .to_rust(context, &alias, name, field.arguments.to_vec());
 
                 vec![field_selector]
-            },
+            }
             SelectionItem::FragmentSpread(fragment) => {
                 let fragment_from_context = context
                     .fragments
@@ -566,9 +570,10 @@ fn get_fragment_selectors(fragment: &GqlFragment<'_>, schema_fields: &[GqlObject
                             "Unknown fragment: {}",
                             &fragment.fragment_name
                         ))
-                    }).unwrap();
+                    })
+                    .unwrap();
                 get_fragment_selectors(fragment_from_context, schema_fields, context)
-            },
+            }
             SelectionItem::InlineFragment(_) => panic!("Inline fragment on object field")
         })
         .collect()

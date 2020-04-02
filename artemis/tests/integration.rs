@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-use artemis::{Client, ClientBuilder, Exchange, ResultSource};
+use artemis::{exchange::Exchange, Client, ClientBuilder, ResultSource};
 
 #[cfg(not(target_arch = "wasm32"))]
 const URL: &str = "http://localhost:8080/graphql";

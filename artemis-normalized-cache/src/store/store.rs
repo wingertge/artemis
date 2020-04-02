@@ -1,7 +1,9 @@
 use crate::store::data::{InMemoryData, Link};
 use artemis::{
-    exchanges::Client, progressive_hash, types::OperationOptions, FieldSelector, GraphQLQuery,
-    Operation, OperationResult, QueryError, RequestPolicy, Response
+    codegen::FieldSelector,
+    exchange::{Client, Operation, OperationOptions, OperationResult},
+    utils::progressive_hash,
+    GraphQLQuery, QueryError, RequestPolicy, Response
 };
 use flurry::{epoch, epoch::Guard};
 #[cfg(target_arch = "wasm32")]

@@ -1,8 +1,11 @@
 use crate::{cache_exchange::NormalizedCacheExchange, NormalizedCacheExtension, QueryStore};
 use artemis::{
-    exchanges::Client, progressive_hash, types::OperationOptions, DebugInfo, Error, Exchange,
-    ExchangeFactory, ExchangeResult, GraphQLQuery, Operation, OperationMeta, OperationResult,
-    RequestPolicy, Response, ResultSource
+    exchange::{
+        Client, Exchange, ExchangeFactory, ExchangeResult, Operation, OperationMeta,
+        OperationOptions, OperationResult
+    },
+    utils::progressive_hash,
+    DebugInfo, Error, GraphQLQuery, RequestPolicy, Response, ResultSource
 };
 use artemis_test::{
     add_conference::{add_conference, add_conference::AddConferenceAddConference, AddConference},

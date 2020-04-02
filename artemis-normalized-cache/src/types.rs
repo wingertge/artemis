@@ -1,5 +1,5 @@
 use crate::QueryStore;
-use artemis::{Extension, GraphQLQuery};
+use artemis::{exchange::Extension, GraphQLQuery};
 use std::{
     any::Any,
     collections::{HashMap, HashSet},

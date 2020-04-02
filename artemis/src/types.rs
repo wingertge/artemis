@@ -1,4 +1,4 @@
-use crate::{client::ClientImpl, exchanges::Client, GraphQLQuery, QueryBody, QueryError, Response};
+use crate::{client::ClientImpl, GraphQLQuery, QueryBody, QueryError, Response};
 #[cfg(feature = "observable")]
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
@@ -50,15 +50,20 @@ pub trait Exchange: Send + Sync + 'static {
 pub trait ExchangeFactory<TNext: Exchange> {
     type Output: Exchange;
 
+    /// Build the exchange using the provided `next` exchange. If a query isn't handled
+    /// it should be delegated to this exchange.
     fn build(self, next: TNext) -> Self::Output;
 }
 
 /// Internal struct used in codegen
 pub trait QueryInfo<TVars> {
+    /// Recursively creates the selection for the given set of variables.
+    /// The variables are used to fill in non-const argument values.
     fn selection(variables: &TVars) -> Vec<FieldSelector>;
 }
 
-/// The type of the operation. This corresponds directly to the GraphQL syntax `query`, `mutation` and `subscription`
+/// The type of the operation. This corresponds directly to the GraphQL syntax,
+/// `query`, `mutation` and `subscription`.
 #[derive(PartialEq, Debug, Clone)]
 pub enum OperationType {
     Query,
@@ -87,7 +92,8 @@ impl ToString for OperationType {
     }
 }
 
-/// The request policy of the request
+/// The request policy of the request.
+///
 /// * `CacheFirst` - Prefers results from the cache, if it's not found it is fetched
 /// * `CacheOnly` - Only fetches results from the cache, if it's not found it will simply return `None` for the data
 /// * `NetworkOnly` - Only fetches results from the network and ignores the cache.
@@ -96,9 +102,15 @@ impl ToString for OperationType {
 #[repr(u8)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum RequestPolicy {
+    /// Prefers results from the cache, if it's not found it is fetched
     CacheFirst = 1,
+    /// Only fetches results from the cache, if it's not found it will simply return `None` for the data
     CacheOnly = 2,
+    /// Only fetches results from the network and ignores the cache.
     NetworkOnly = 3,
+    /// Returns the result from the cache if it exists, but also refetch from the network
+    /// and push the result to a subscription. This acts the same as CacheFirst without
+    /// subscriptions, but has overhead.
     CacheAndNetwork = 4
 }
 
@@ -114,11 +126,11 @@ impl From<u8> for RequestPolicy {
     }
 }
 
-/// A key-value pair used for custom headers
+/// A key-value pair used for custom headers.
 pub struct HeaderPair(pub String, pub String);
 
-/// An internal struct used in codegen
-/// This represents the recursive selection of a query and is used for normalization
+/// An internal struct used in codegen.
+/// This represents the recursive selection of a query and is used for normalization.
 #[derive(Clone)]
 pub enum FieldSelector {
     /// field name, arguments
@@ -134,25 +146,29 @@ pub enum FieldSelector {
 }
 
 /// Metadata for an operation
-///
-/// * `query_key` - this is the query key before being hashed with the variables
-/// * `operation_type` - The type of the operation, query, mutation or subscription
-/// * `involved_types` - A list of types that are returned by the query
 #[derive(Clone, Debug, PartialEq)]
 pub struct OperationMeta {
+    /// The query key before being hashed with the variables
     pub query_key: u32,
+    /// The type of the operation, query, mutation or subscription
     pub operation_type: OperationType,
-    pub involved_types: Vec<&'static str> //pub selection: Vec<FieldSelector>
+    /// A list of types that are returned by the query
+    pub involved_types: Vec<&'static str>
 }
 
-/// Options for the operation
-/// This is just an internal representation of the union between `QueryOptions` and `ClientOptions`
+/// Options for the operation.
+/// This is just an internal representation of the union between `QueryOptions` and `ClientOptions`.
 #[derive(Clone)]
 pub struct OperationOptions {
+    /// The url that should be used when fetching
     pub url: String,
+    /// Extra headers that should be applied when fetching
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
+    /// The request policy of the query. Exchanges should respect this.
     pub request_policy: RequestPolicy,
+    /// Extensions that can contain extra configuration for exchanges.
     pub extensions: Option<Extensions>,
+    /// The fetch function passed by JavaScript code
     #[cfg(target_arch = "wasm32")]
     pub fetch: Option<js_sys::Function>
 }
@@ -164,54 +180,55 @@ unsafe impl Send for OperationOptions {}
 // The only non-send value is the pointer in JsValue
 unsafe impl Sync for OperationOptions {}
 
-/// A query operation. One of these is fired for each direct query, as well as for query reruns
-///
-/// * `key` - The unique key of the operation. This will identify a unique combination of query and variables.
-/// This means calling the same query with the same variables will produce the same key, regardless of where the operation originates
-/// * `meta` - Operation metadata such as the query key
-/// * `query` - The query body. This will be serialized by the fetch implementation but may also be used to get a reference to the query variables.
-/// * `options` - The options of the operation. This is an OR union of `QueryOptions` and `ClientOptions`.
+/// A query operation. One of these is fired for each direct query, as well as for query reruns.
 #[derive(Clone)]
 pub struct Operation<V: Serialize + Clone + Send + Sync> {
+    /// The unique key of the operation. This will identify a unique combination of query and
+    /// variables.
+    /// This means calling the same query with the same variables will produce the same key,
+    /// regardless of where the operation originates
     pub key: u64,
+    /// Operation metadata such as the query key
     pub meta: OperationMeta,
+    /// The query body. This will be serialized by the fetch implementation but may also be used
+    /// to get a reference to the query variables.
     pub query: QueryBody<V>,
+    /// The options of the operation. This is an OR union of `QueryOptions` and `ClientOptions`.
     pub options: OperationOptions
 }
 
 /// The source of the result (cache or network).
-/// Used for debugging
+/// Used for debugging.
 #[derive(Clone, Debug, PartialEq, Copy, Serialize)]
 pub enum ResultSource {
     Cache,
     Network
 }
 
-/// Debug info used for... well, debugging
-///
-/// * `source` - The source of the result, cache or network
-/// * `did_dedup` - Whether the query was actually run (`false`) or combined with another query in a deduplication exchange (`true`)
+/// Debug info used for... well, debugging.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DebugInfo {
+    /// The source of the result, cache or network
     pub source: ResultSource,
+    /// Whether the query was actually run (`false`) or combined with another query in a deduplication exchange (`true`)
     #[serde(rename = "didDedup")]
     pub did_dedup: bool
 }
 
 /// The result of a successful operation.
-///
-/// * `key` - The key of the operation passed back by the last exchange
-/// * `meta` - The metadata of the operation passed back by the last exchange
-/// * `response` - The deserialized response
 #[derive(Clone, Debug, PartialEq)]
 pub struct OperationResult<R: DeserializeOwned + Send + Sync + Clone> {
+    /// The key of the operation passed back by the last exchange
     pub key: u64,
+    /// The metadata of the operation passed back by the last exchange
     pub meta: OperationMeta,
+    /// The deserialized response
     pub response: Response<R>
 }
 
-/// An observable result. This implements stream and unsubscribes on drop.
-/// It will receive early (partial or stale) results as well as refreshing when the query is rerun after being invalidated by mutations
+/// An observable result. This implements `Stream` and unsubscribes on drop.
+/// It will receive early (partial or stale) results, as well as refreshing when the query is
+/// rerun after being invalidated by mutations.
 #[cfg(feature = "observable")]
 pub struct Observable<T, M: Exchange> {
     inner: Receiver<Arc<dyn Any + Send + Sync>>,
@@ -279,17 +296,40 @@ impl<T, M: Exchange> Drop for Observable<T, M> {
 /// An extension that may be passed by the user to provide additional request options to a third-party exchange.
 /// This is only here to allow for JS interop - The implementor of the exchange must deserialize JavaScript input to the best of their ability.
 /// Note that this may involve complex operations such as converting `js_sys::Function` to Rust closures or other advanced deserialization.
-/// This is not a simple serde-like deserialization
+/// This is not a simple serde-like deserialization.
+///
+/// An extension must always be `Clone`.
+///
+/// # Example
+///
+/// ```
+/// use artemis::exchange::Extension;
+///
+/// #[derive(Clone)]
+/// struct MyExtension(String);
+///
+/// impl Extension for MyExtension {
+///     #[cfg(target_arch = "wasm32")]
+///     fn from_js(value: JsValue) -> Option<Self> {
+///         use wasm_bindgen::JsCast;
+///
+///         let cast = value.dyn_into::<String>();
+///         if let Ok(cast) = cast {
+///             Self(cast)
+///         } else { None }
+///     }
+/// }
+/// ```
 pub trait Extension: Sized + Clone + Send + Sync + 'static {
     #[cfg(target_arch = "wasm32")]
     fn from_js(value: JsValue) -> Option<Self>;
 }
 
-/// A map of keyed extensions
+/// A map of keyed extensions.
 /// The key is only used for JS interop,
-/// the Rust version uses the type as the key
+/// the Rust version uses the type as the key.
 ///
-/// This is usually instantiated by the `ext![]` macro.
+/// This is usually instantiated by the [`ext![]`](./macro.ext!.html) macro.
 pub struct ExtensionMap {
     rust: HashMap<TypeId, Box<dyn Any>>,
     #[cfg(target_arch = "wasm32")]
@@ -314,14 +354,15 @@ impl Default for ExtensionMap {
 }
 
 impl ExtensionMap {
-    /// Create a new extension map
-    /// This is usually just called by the `ext![]` macro
+    /// Create a new extension map.
+    /// This is usually just called by the [`ext![]`](./macro.ext!.html) macro.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Creates a new map from a JavaScript value
-    /// This is used internally but must be public due to use in the `graphql_client!` macro
+    /// Creates a new map from a JavaScript value.
+    /// This is used internally but must be public due to use in the
+    /// [`wasm_client!`](./macro.wasm_client!.html) macro.
     #[cfg(target_arch = "wasm32")]
     pub fn from_js(value: JsValue) -> Option<Self> {
         if value.is_object() {
@@ -334,15 +375,15 @@ impl ExtensionMap {
         }
     }
 
-    /// Insert a value into the map
-    /// This is usually called by the `ext![]` macro
+    /// Insert a value into the map.
+    /// This is usually called by the [`ext![]`](./macro.ext!.html) macro.
     pub fn insert<T: Extension>(&mut self, value: T) {
         self.rust.insert(TypeId::of::<T>(), Box::new(value));
     }
 
-    /// Get a value from the map
+    /// Get a value from the map.
     /// The key is only used to get the value out of the JavaScript object,
-    /// if the extension was inserted on the Rust side it doesn't do anything
+    /// if the extension was inserted on the Rust side it doesn't do anything.
     pub fn get<T: Extension, S: Into<String>>(&self, js_key: S) -> Option<T> {
         self.get_rust().or_else(|| self.get_js(js_key.into()))
     }
@@ -368,19 +409,31 @@ impl ExtensionMap {
     }
 }
 
+/// A thread-safe wrapper around [ExtensionMap](./struct.ExtensionMap.html).
 pub type Extensions = Arc<ExtensionMap>;
 
-/// Options that can be passed to a query
-/// This will be combined with `ClientOptions`, but `QueryOptions` takes precedence
-///
-/// * `url` - The URL of your GraphQL Endpoint
-/// * `extra_headers` - A function that returns extra headers. This is a function to allow for dynamic creation of things such as authorization headers
-/// * `request_policy` - The policy to use for this request. See `RequestPolicy`
-/// * `extensions` - Extra extensions passed to the exchanges. Allows for configuration of custom exchanges.
+/// Options that can be passed to a query.
+/// This will be combined with `ClientOptions`, but `QueryOptions` takes precedence.
 #[derive(Default, Clone)]
 pub struct QueryOptions {
+    /// The URL of your GraphQL Endpoint
     pub url: Option<String>,
+    /// A function that returns extra headers. This is a function to allow for dynamic creation
+    /// of things such as authorization headers
     pub extra_headers: Option<Arc<dyn Fn() -> Vec<HeaderPair> + Send + Sync>>,
+    /// The policy to use for this request. See `RequestPolicy`
     pub request_policy: Option<RequestPolicy>,
+    /// Extra extensions passed to the exchanges. Allows for configuration of custom exchanges.
     pub extensions: Option<Extensions>
+}
+
+/// Client trait passed to exchanges. Only exposes methods useful to exchanges
+pub trait Client: Clone + Send + Sync + 'static {
+    /// Rerun a query with that key and push the result to all subscribers.
+    fn rerun_query(&self, query_key: u64);
+
+    /// Push a new result to any subscribers.
+    fn push_result<R>(&self, query_key: u64, result: ExchangeResult<R>)
+    where
+        R: DeserializeOwned + Send + Sync + Clone + 'static;
 }

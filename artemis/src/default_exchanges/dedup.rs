@@ -1,5 +1,5 @@
 use crate::{
-    exchanges::Client,
+    default_exchanges::Client,
     types::{ExchangeResult, Operation, OperationResult},
     Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError
 };
@@ -14,7 +14,8 @@ use std::{
 
 type InFlightCache = Arc<Mutex<HashMap<u64, Vec<Sender<Result<Box<dyn Any + Send>, QueryError>>>>>>;
 
-/// The default deduplication exchange
+/// The default deduplication exchange.
+///
 /// This will keep track of in-flight queries and catch any identical queries before they execute,
 /// instead waiting for the result from the in-flight query
 pub struct DedupExchange;
@@ -114,7 +115,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 mod test {
     use super::DedupExchangeImpl;
     use crate::{
-        exchanges::{Client, DedupExchange},
+        default_exchanges::{Client, DedupExchange},
         types::{Operation, OperationOptions, OperationResult},
         ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
         GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,

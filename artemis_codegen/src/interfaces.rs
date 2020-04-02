@@ -346,7 +346,7 @@ impl<'schema> GqlInterface<'schema> {
 
             impl #name {
                 #[allow(unused_variables)]
-                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                fn selection(variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                     vec![
                         #(#selection_fields,)*
                     ]

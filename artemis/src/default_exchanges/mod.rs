@@ -1,5 +1,5 @@
-//! This module contains the default exchanges
-//! Note that they require the `default-exchanges` feature
+//! This module contains the default exchanges.
+//! Note that these require the `default-exchanges` feature.
 
 use crate::types::{Exchange, Operation};
 use std::{error::Error, fmt};
@@ -11,14 +11,13 @@ mod dedup;
 #[cfg(feature = "default-exchanges")]
 mod fetch;
 
-use crate::{ExchangeResult, GraphQLQuery};
+use crate::{exchange::Client, ExchangeResult, GraphQLQuery};
 #[cfg(feature = "default-exchanges")]
 pub use cache::CacheExchange;
 #[cfg(feature = "default-exchanges")]
 pub use dedup::DedupExchange;
 #[cfg(feature = "default-exchanges")]
 pub use fetch::FetchExchange;
-use serde::de::DeserializeOwned;
 
 #[derive(Debug)]
 enum MiddlewareError {
@@ -45,12 +44,4 @@ impl Exchange for TerminatorExchange {
     ) -> ExchangeResult<Q::ResponseData> {
         Err(MiddlewareError::UnexpectedEndOfChain.into())
     }
-}
-
-/// Client trait passed to exchanges. Only exposes methods useful to exchanges
-pub trait Client: Clone + Send + Sync + 'static {
-    fn rerun_query(&self, query_key: u64);
-    fn push_result<R>(&self, query_key: u64, result: ExchangeResult<R>)
-    where
-        R: DeserializeOwned + Send + Sync + Clone + 'static;
 }

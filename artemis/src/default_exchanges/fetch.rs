@@ -1,5 +1,5 @@
 use crate::{
-    exchanges::Client,
+    default_exchanges::Client,
     types::{ExchangeResult, Operation, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, OperationOptions, QueryBody,
     Response, ResultSource
@@ -49,7 +49,7 @@ impl fmt::Display for FetchError {
     }
 }
 
-/// The default fetch exchange
+/// The default fetch exchange.
 ///
 /// Uses `reqwest` on x86.
 /// On `wasm32` it defaults to `window.fetch`,

@@ -65,7 +65,7 @@ impl<'a> GeneratedModule<'a> {
             OperationType::Mutation => quote!(Mutation),
             OperationType::Subscription => quote!(Subscription)
         };
-        let operation_type = quote!(::artemis::OperationType::#operation_type);
+        let operation_type = quote!(::artemis::exchange::OperationType::#operation_type);
 
         let struct_declaration: Option<_> = match self.options.mode {
             CodegenMode::Cli => Some(quote! {
@@ -127,8 +127,8 @@ impl<'a> GeneratedModule<'a> {
                 type Variables = #module_name::Variables;
                 type ResponseData = #module_name::ResponseData;
 
-                fn build_query(variables: Self::Variables) -> (::artemis::QueryBody<Self::Variables>, ::artemis::OperationMeta) {
-                    let meta = ::artemis::OperationMeta {
+                fn build_query(variables: Self::Variables) -> (::artemis::QueryBody<Self::Variables>, ::artemis::exchange::OperationMeta) {
+                    let meta = ::artemis::exchange::OperationMeta {
                         query_key: #query_string_hash,
                         operation_type: #operation_type,
                         involved_types: #involved_types

@@ -1,5 +1,5 @@
 use crate::{
-    exchanges::Client,
+    default_exchanges::Client,
     types::{ExchangeResult, Operation, OperationResult},
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, OperationMeta, OperationType, QueryError,
     RequestPolicy, Response, ResultSource

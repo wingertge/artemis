@@ -1,13 +1,13 @@
 #[cfg(feature = "default-exchanges")]
-use crate::exchanges::{CacheExchange, DedupExchange, FetchExchange};
+use crate::default_exchanges::{CacheExchange, DedupExchange, FetchExchange};
 use crate::{
-    client::ClientImpl, exchanges::TerminatorExchange, Client, Exchange, ExchangeFactory,
+    client::ClientImpl, default_exchanges::TerminatorExchange, Client, Exchange, ExchangeFactory,
     HeaderPair, RequestPolicy
 };
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
-/// A builder for the artemis client
+/// A builder for the artemis client.
 pub struct ClientBuilder<M: Exchange = TerminatorExchange> {
     exchange: M,
     url: String,

@@ -164,6 +164,8 @@ impl CodegenBuilder {
     /// and save it in a temporary schema file in the `OUT_DIR`.
     /// Returns an `IntrospectionError` if the request fails for any reason.
     ///
+    /// Requires feature: `introspect`
+    ///
     /// # Arguments
     ///
     /// * `schema_url` - The URL of the remote server. e.g. `http://localhost:8080/graphql`
@@ -183,7 +185,7 @@ impl CodegenBuilder {
     }
 
     /// Finish the configuration and generate the queries module.
-    /// It will generate a `mod.rs` and a file for each query in the selected output directory.
+    /// It will generate a `exchanges` and a file for each query in the selected output directory.
     /// It's recommended for that to be an empty directory in `src`.
     ///
     /// This returns an error if an output directory was not set and `OUT_DIR` could not be read,

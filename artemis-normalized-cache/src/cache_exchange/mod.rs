@@ -3,8 +3,11 @@ use crate::{
     types::{NormalizedCacheExtension, NormalizedCacheOptions}
 };
 use artemis::{
-    exchanges::Client, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, GraphQLQuery,
-    Operation, OperationResult, OperationType, QueryError, RequestPolicy, Response, ResultSource
+    exchange::{
+        Client, Exchange, ExchangeFactory, ExchangeResult, Operation, OperationResult,
+        OperationType
+    },
+    DebugInfo, GraphQLQuery, QueryError, RequestPolicy, Response, ResultSource
 };
 #[cfg(target_arch = "wasm32")]
 use parking_lot::RwLock;

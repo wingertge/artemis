@@ -1,6 +1,6 @@
 use crate::queries::wasm::Queries;
 use artemis::{
-    exchanges::{CacheExchange, DedupExchange, FetchExchange},
+    default_exchanges::{CacheExchange, DedupExchange, FetchExchange},
     wasm_client, RequestPolicy
 };
 use wasm_bindgen::prelude::*;

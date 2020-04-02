@@ -295,8 +295,8 @@ pub(crate) fn response_for_query(
 
     let query_info = if context.include_query_info {
         quote! {
-            impl ::artemis::QueryInfo<Variables> for ResponseData {
-                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+            impl ::artemis::codegen::QueryInfo<Variables> for ResponseData {
+                fn selection(variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                     vec![
                         #(#response_data_selection,)*
                     ]

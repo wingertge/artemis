@@ -153,7 +153,7 @@ impl<'a> FieldType<'a> {
             {
                 let args = Self::args_as_string(arguments.to_rust());
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(#field_name, #args)
+                    ::artemis::codegen::FieldSelector::Scalar(#field_name, #args)
                 };
                 self.name.to_string()
             } else if context
@@ -166,7 +166,7 @@ impl<'a> FieldType<'a> {
                 let args = Self::args_as_string(arguments.to_rust());
                 let name = self.name.to_string();
                 field_selector = quote! {
-                    ::artemis::FieldSelector::Scalar(#name, #args)
+                    ::artemis::codegen::FieldSelector::Scalar(#name, #args)
                 };
                 format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
@@ -180,13 +180,13 @@ impl<'a> FieldType<'a> {
                     let selection_fn = quote! { ::std::sync::Arc::new(|typename| #type_ident::selection(typename, variables)) };
 
                     field_selector = quote! {
-                        ::artemis::FieldSelector::Union(#field_name, #args, #selection_fn)
+                        ::artemis::codegen::FieldSelector::Union(#field_name, #args, #selection_fn)
                     }
                 } else {
                     let typename = self.name;
 
                     field_selector = quote! {
-                        ::artemis::FieldSelector::Object(#field_name, #args, #typename, #type_ident::selection(variables))
+                        ::artemis::codegen::FieldSelector::Object(#field_name, #args, #typename, #type_ident::selection(variables))
                     };
                 }
 

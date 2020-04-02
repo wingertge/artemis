@@ -1,13 +1,13 @@
 use crate::{
-    progressive_hash, Exchange, ExchangeResult, GraphQLQuery, HeaderPair, Operation, OperationMeta,
-    QueryBody, QueryError, QueryOptions, RequestPolicy, Response
+    utils::progressive_hash, Exchange, ExchangeResult, GraphQLQuery, HeaderPair, Operation,
+    OperationMeta, QueryBody, QueryError, QueryOptions, RequestPolicy, Response
 };
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "observable")]
 use crate::client::observable::Subscription;
-use crate::types::OperationOptions;
+use crate::{exchange::Client, types::OperationOptions};
 use serde::de::DeserializeOwned;
 
 // SAFETY: JavaScript doesn't have multi-threading
@@ -17,6 +17,8 @@ unsafe impl<M: Exchange> Send for ClientImpl<M> {}
 // The only non-send value is the pointer in JsValue
 unsafe impl<M: Exchange> Sync for ClientImpl<M> {}
 
+/// The internal implementation stored in the [Client](./struct.Client.html).
+/// This is exposed just in case you ever need raw access to the type outside of the wrapper.
 pub struct ClientImpl<M: Exchange> {
     pub(crate) url: String,
     pub(crate) exchange: M,
@@ -28,7 +30,7 @@ pub struct ClientImpl<M: Exchange> {
     pub(crate) fetch: Option<js_sys::Function>
 }
 
-impl<M: Exchange> crate::exchanges::Client for Arc<ClientImpl<M>> {
+impl<M: Exchange> Client for Arc<ClientImpl<M>> {
     fn rerun_query(&self, query_key: u64) {
         if cfg!(feature = "observable") {
             super::observable::rerun_query(self, query_key);

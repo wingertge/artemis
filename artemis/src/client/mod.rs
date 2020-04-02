@@ -1,3 +1,5 @@
+//! Contains client-related types.
+
 use std::sync::Arc;
 
 mod builder;
@@ -6,7 +8,8 @@ mod r#impl;
 mod observable;
 
 use crate::{
-    exchanges::TerminatorExchange, Exchange, GraphQLQuery, QueryError, QueryOptions, Response
+    default_exchanges::TerminatorExchange, Exchange, GraphQLQuery, QueryError, QueryOptions,
+    Response
 };
 pub use builder::ClientBuilder;
 pub use r#impl::ClientImpl;
@@ -15,6 +18,7 @@ mod wasm;
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
 
+/// An Artemis client type used to run queries against
 #[derive(Clone)]
 #[repr(transparent)]
 pub struct Client<M: Exchange = TerminatorExchange>(pub Arc<ClientImpl<M>>);

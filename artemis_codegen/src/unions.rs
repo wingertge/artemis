@@ -289,7 +289,7 @@ impl<'schema> GqlUnion<'schema> {
                 .collect();
             quote! {
                 impl #struct_name {
-                    fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                    fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                         match typename {
                             #(#selections_by_type),*
                         }
@@ -553,15 +553,11 @@ mod tests {
                 pub title: String,
             }
 
-            impl ::artemis::QueryInfo<Variables> for MeowOnOrganization {
-                fn typename(&self) -> &'static str {
-                    "Organization"
-                }
-
+            impl MeowOnOrganization {
                 #[allow(unused_variables)]
-                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                pub fn selection(variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar(String::from("title"), String::new())
+                        ::artemis::codegen::FieldSelector::Scalar(String::from("title"), String::new())
                     ]
                 }
             }
@@ -572,15 +568,11 @@ mod tests {
                 pub first_name: String,
             }
 
-            impl ::artemis::QueryInfo<Variables> for MeowOnUser {
-                fn typename(&self) -> &'static str {
-                    "User"
-                }
-
+            impl MeowOnUser {
                 #[allow(unused_variables)]
-                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                fn selection(variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                     vec![
-                        ::artemis::FieldSelector::Scalar(String::from("firstName"), String::new())
+                        ::artemis::codegen::FieldSelector::Scalar(String::from("firstName"), String::new())
                     ]
                 }
             }
@@ -592,22 +584,8 @@ mod tests {
                 User(MeowOnUser)
             }
 
-            impl ::artemis::QueryInfo<Variables> for Meow {
-                fn typename(&self) -> &'static str {
-                    match self {
-                        Meow::User(inner) => inner.typename(),
-                        Meow::Organization(inner) => inner.typename()
-                    }
-                }
-
-                #[allow(unused_variables)]
-                fn selection(variables: &Variables) -> Vec<::artemis::FieldSelector> {
-                    vec![]
-                }
-            }
-
             impl Meow {
-                fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::FieldSelector> {
+                fn selection(typename: &str, variables: &Variables) -> Vec<::artemis::codegen::FieldSelector> {
                     match typename {
                         "Organization" => Organization::selection(variables),
                         "User" => User::selection(variables)

@@ -1,5 +1,5 @@
 use crate::{
-    client::ClientImpl, progressive_hash, types::Observable, Exchange, ExchangeResult,
+    client::ClientImpl, types::Observable, utils::progressive_hash, Exchange, ExchangeResult,
     GraphQLQuery, QueryError, QueryOptions, Response
 };
 use futures::{channel::mpsc::Sender, SinkExt};

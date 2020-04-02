@@ -1,3 +1,6 @@
+//! Contains utility functions mainly used internally, but they're public for use in
+//! exchanges and macros.
+
 use serde::Serialize;
 use std::num::Wrapping;
 
@@ -15,7 +18,7 @@ pub fn progressive_hash<V: Serialize>(h: u32, x: &V) -> u64 {
     h.0
 }
 
-/// Creates a new `ExtensionMap` and fills it with the passed values
+/// Creates a new `ExtensionMap` and fills it with the passed values.
 ///
 /// # Example
 ///
@@ -39,10 +42,7 @@ macro_rules! ext {
 /// These will just be used by the `graphql_client!` macro and the build script and are not designed to be used manually
 #[cfg(all(target_arch = "wasm32", feature = "observable"))]
 pub mod wasm {
-    use crate::{
-        client::ClientImpl, Exchange, ExtensionMap, HeaderPair, QueryError,
-        QueryOptions
-    };
+    use crate::{client::ClientImpl, Exchange, ExtensionMap, HeaderPair, QueryError, QueryOptions};
     use futures::{future::BoxFuture, Stream, StreamExt};
     use js_sys::Function;
     use serde::Serialize;
@@ -52,9 +52,7 @@ pub mod wasm {
         sync::Arc,
         task::{Context, Poll}
     };
-    use wasm_bindgen::{
-        prelude::*, JsValue, __rt::std::collections::HashMap
-    };
+    use wasm_bindgen::{prelude::*, JsValue, __rt::std::collections::HashMap};
 
     #[wasm_bindgen(typescript_custom_section)]
     const TS_APPEND_CONTENT: &'static str = r#"

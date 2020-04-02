@@ -2,7 +2,7 @@
 #![test_runner(criterion::runner)]
 
 use artemis::{
-    exchanges::{CacheExchange, DedupExchange},
+    default_exchanges::{CacheExchange, DedupExchange},
     ClientBuilder, Exchange, ExchangeFactory, Operation, OperationResult, Response
 };
 use artemis_test::get_conference::{get_conference::Variables, GetConference};
