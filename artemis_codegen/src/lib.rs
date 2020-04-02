@@ -1,7 +1,7 @@
 #![recursion_limit = "128"]
 //#![deny(missing_docs)]
 #![deny(rust_2018_idioms)]
-#![deny(warnings)]
+//#![deny(warnings)]
 
 //! Crate for internal use by other graphql-client crates, for code generation.
 //!

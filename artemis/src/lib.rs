@@ -101,7 +101,7 @@
 //! definitions that are output when you build your WASM.
 
 //#![warn(missing_docs)]
-#![deny(warnings)]
+//#![deny(warnings)]
 
 #[macro_use]
 extern crate serde;
