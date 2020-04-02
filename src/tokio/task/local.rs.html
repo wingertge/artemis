@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/task/local.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>local.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.14/src/task/local.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>local.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -556,17 +556,40 @@
 <span id="556">556</span>
 <span id="557">557</span>
 <span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Runs `!Send` futures on the current thread.</span>
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">runtime</span>::<span class="ident">task</span>::{<span class="self">self</span>, <span class="ident">JoinHandle</span>, <span class="ident">Task</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sync</span>::<span class="ident">AtomicWaker</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">task</span>::{<span class="self">self</span>, <span class="ident">queue</span>::<span class="ident">MpscQueues</span>, <span class="ident">JoinHandle</span>, <span class="ident">Schedule</span>, <span class="ident">Task</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">linked_list</span>::<span class="ident">LinkedList</span>;
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::<span class="ident">Cell</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cell</span>::{<span class="ident">Cell</span>, <span class="ident">RefCell</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">VecDeque</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>::{<span class="self">self</span>, <span class="ident">NonNull</span>};
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">rc</span>::<span class="ident">Rc</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Poll</span>;
 
 <span class="kw">use</span> <span class="ident">pin_project_lite</span>::<span class="ident">pin_project</span>;
 
@@ -665,35 +688,51 @@
     <span class="doccomment">/// [local task set]: struct.LocalSet.html</span>
     <span class="doccomment">/// [`Runtime::block_on`]: ../struct.Runtime.html#method.block_on</span>
     <span class="doccomment">/// [`task::spawn_local`]: fn.spawn.html</span>
-    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
     <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LocalSet</span> {
-        <span class="ident">scheduler</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Scheduler</span><span class="op">&gt;</span>,
+        <span class="doccomment">/// Current scheduler tick</span>
+        <span class="ident">tick</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+
+        <span class="doccomment">/// State available from thread-local</span>
+        <span class="ident">context</span>: <span class="ident">Context</span>,
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-<span class="kw">struct</span> <span class="ident">Scheduler</span> {
-    <span class="ident">tick</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+<span class="doccomment">/// State available from the thread-local</span>
+<span class="kw">struct</span> <span class="ident">Context</span> {
+    <span class="doccomment">/// Owned task set and local run queue</span>
+    <span class="ident">tasks</span>: <span class="ident">RefCell</span><span class="op">&lt;</span><span class="ident">Tasks</span><span class="op">&gt;</span>,
 
-    <span class="ident">queues</span>: <span class="ident">MpscQueues</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// State shared between threads.</span>
+    <span class="ident">shared</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span>,
+}
 
-    <span class="doccomment">/// Used to notify the `LocalFuture` when a task in the local task set is</span>
-    <span class="doccomment">/// notified.</span>
+<span class="kw">struct</span> <span class="ident">Tasks</span> {
+    <span class="doccomment">/// Collection of all active tasks spawned onto this executor.</span>
+    <span class="ident">owned</span>: <span class="ident">LinkedList</span><span class="op">&lt;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Local run queue sender and receiver.</span>
+    <span class="ident">queue</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">task</span>::<span class="ident">Notified</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+}
+
+<span class="doccomment">/// LocalSet state shared between threads.</span>
+<span class="kw">struct</span> <span class="ident">Shared</span> {
+    <span class="doccomment">/// Remote run queue sender</span>
+    <span class="ident">queue</span>: <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">task</span>::<span class="ident">Notified</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+
+    <span class="doccomment">/// Wake the `LocalSet` task</span>
     <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>,
 }
 
 <span class="macro">pin_project</span><span class="macro">!</span> {
     <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
-    <span class="kw">struct</span> <span class="ident">LocalFuture</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> {
-        <span class="ident">scheduler</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">Scheduler</span><span class="op">&gt;</span>,
+    <span class="kw">struct</span> <span class="ident">RunUntil</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span><span class="op">&gt;</span> {
+        <span class="ident">local_set</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">LocalSet</span>,
         <span class="attribute">#[<span class="ident">pin</span>]</span>
         <span class="ident">future</span>: <span class="ident">F</span>,
     }
 }
 
-<span class="macro">thread_local</span><span class="macro">!</span> {
-    <span class="kw">static</span> <span class="ident">CURRENT_TASK_SET</span>: <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NonNull</span><span class="op">&lt;</span><span class="ident">Scheduler</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>);
-}
+<span class="macro">scoped_thread_local</span><span class="macro">!</span>(<span class="kw">static</span> <span class="ident">CURRENT</span>: <span class="ident">Context</span>);
 
 <span class="macro">cfg_rt_util</span><span class="macro">!</span> {
     <span class="doccomment">/// Spawns a `!Send` future on the local task set.</span>
@@ -732,32 +771,43 @@
         <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">F</span>::<span class="ident">Output</span>: <span class="lifetime">&#39;static</span>,
     {
-        <span class="ident">CURRENT_TASK_SET</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">current</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">current</span> <span class="op">=</span> <span class="ident">current</span>
-                .<span class="ident">get</span>()
-                .<span class="ident">expect</span>(<span class="string">&quot;`spawn_local` called from outside of a task::LocalSet!&quot;</span>);
-            <span class="kw">let</span> (<span class="ident">task</span>, <span class="ident">handle</span>) <span class="op">=</span> <span class="ident">task</span>::<span class="ident">joinable_local</span>(<span class="ident">future</span>);
-            <span class="kw">unsafe</span> {
-                <span class="comment">// safety: this function is unsafe to call outside of the local</span>
-                <span class="comment">// thread. Since the call above to get the current task set</span>
-                <span class="comment">// would not succeed if we were outside of a local set, this is</span>
-                <span class="comment">// safe.</span>
-                <span class="ident">current</span>.<span class="ident">as_ref</span>().<span class="ident">queues</span>.<span class="ident">push_local</span>(<span class="ident">task</span>);
-            }
+        <span class="ident">CURRENT</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">maybe_cx</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">maybe_cx</span>
+                .<span class="ident">expect</span>(<span class="string">&quot;`spawn_local` called from outside of a `task::LocalSet`&quot;</span>);
 
+            <span class="comment">// Safety: Tasks are only polled and dropped from the thread that</span>
+            <span class="comment">// spawns them.</span>
+            <span class="kw">let</span> (<span class="ident">task</span>, <span class="ident">handle</span>) <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">task</span>::<span class="ident">joinable_local</span>(<span class="ident">future</span>) };
+            <span class="ident">cx</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">queue</span>.<span class="ident">push_back</span>(<span class="ident">task</span>);
             <span class="ident">handle</span>
         })
     }
 }
 
+<span class="doccomment">/// Initial queue capacity</span>
+<span class="kw">const</span> <span class="ident">INITIAL_CAPACITY</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">64</span>;
+
 <span class="doccomment">/// Max number of tasks to poll per tick.</span>
 <span class="kw">const</span> <span class="ident">MAX_TASKS_PER_TICK</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">61</span>;
 
+<span class="doccomment">/// How often it check the remote queue first</span>
+<span class="kw">const</span> <span class="ident">REMOTE_FIRST_INTERVAL</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">31</span>;
+
 <span class="kw">impl</span> <span class="ident">LocalSet</span> {
     <span class="doccomment">/// Returns a new local task set.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">scheduler</span>: <span class="ident">Rc</span>::<span class="ident">new</span>(<span class="ident">Scheduler</span>::<span class="ident">new</span>()),
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LocalSet</span> {
+        <span class="ident">LocalSet</span> {
+            <span class="ident">tick</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="number">0</span>),
+            <span class="ident">context</span>: <span class="ident">Context</span> {
+                <span class="ident">tasks</span>: <span class="ident">RefCell</span>::<span class="ident">new</span>(<span class="ident">Tasks</span> {
+                    <span class="ident">owned</span>: <span class="ident">LinkedList</span>::<span class="ident">new</span>(),
+                    <span class="ident">queue</span>: <span class="ident">VecDeque</span>::<span class="ident">with_capacity</span>(<span class="ident">INITIAL_CAPACITY</span>),
+                }),
+                <span class="ident">shared</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">Shared</span> {
+                    <span class="ident">queue</span>: <span class="ident">Mutex</span>::<span class="ident">new</span>(<span class="ident">VecDeque</span>::<span class="ident">with_capacity</span>(<span class="ident">INITIAL_CAPACITY</span>)),
+                    <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>::<span class="ident">new</span>(),
+                }),
+            },
         }
     }
 
@@ -802,12 +852,8 @@
         <span class="ident">F</span>: <span class="ident">Future</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
         <span class="ident">F</span>::<span class="ident">Output</span>: <span class="lifetime">&#39;static</span>,
     {
-        <span class="kw">let</span> (<span class="ident">task</span>, <span class="ident">handle</span>) <span class="op">=</span> <span class="ident">task</span>::<span class="ident">joinable_local</span>(<span class="ident">future</span>);
-        <span class="kw">unsafe</span> {
-            <span class="comment">// safety: since `LocalSet` is not Send or Sync, this is</span>
-            <span class="comment">// always being called from the local thread.</span>
-            <span class="self">self</span>.<span class="ident">scheduler</span>.<span class="ident">queues</span>.<span class="ident">push_local</span>(<span class="ident">task</span>);
-        }
+        <span class="kw">let</span> (<span class="ident">task</span>, <span class="ident">handle</span>) <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">task</span>::<span class="ident">joinable_local</span>(<span class="ident">future</span>) };
+        <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">queue</span>.<span class="ident">push_back</span>(<span class="ident">task</span>);
         <span class="ident">handle</span>
     }
 
@@ -912,25 +958,83 @@
     <span class="kw">where</span>
         <span class="ident">F</span>: <span class="ident">Future</span>,
     {
-        <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">scheduler</span>.<span class="ident">clone</span>();
-        <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">LocalFuture</span> { <span class="ident">scheduler</span>, <span class="ident">future</span> };
-        <span class="ident">future</span>.<span class="kw">await</span>
+        <span class="kw">let</span> <span class="ident">run_until</span> <span class="op">=</span> <span class="ident">RunUntil</span> {
+            <span class="ident">future</span>,
+            <span class="ident">local_set</span>: <span class="self">self</span>,
+        };
+        <span class="ident">run_until</span>.<span class="kw">await</span>
+    }
+
+    <span class="doccomment">/// Tick the scheduler, returning whether the local future needs to be</span>
+    <span class="doccomment">/// notified again.</span>
+    <span class="kw">fn</span> <span class="ident">tick</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">MAX_TASKS_PER_TICK</span> {
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">next_task</span>() {
+                <span class="comment">// Run the task</span>
+                <span class="comment">//</span>
+                <span class="comment">// Safety: As spawned tasks are `!Send`, `run_unchecked` must be</span>
+                <span class="comment">// used. We are responsible for maintaining the invariant that</span>
+                <span class="comment">// `run_unchecked` is only called on threads that spawned the</span>
+                <span class="comment">// task initially. Because `LocalSet` itself is `!Send`, and</span>
+                <span class="comment">// `spawn_local` spawns into the `LocalSet` on the current</span>
+                <span class="comment">// thread, the invariant is maintained.</span>
+                <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">coop</span>::<span class="ident">budget</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">task</span>.<span class="ident">run</span>()),
+                <span class="comment">// We have fully drained the queue of notified tasks, so the</span>
+                <span class="comment">// local future doesn&#39;t need to be notified again — it can wait</span>
+                <span class="comment">// until something else wakes a task in the local set.</span>
+                <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="bool-val">false</span>,
+            }
+        }
+
+        <span class="bool-val">true</span>
+    }
+
+    <span class="kw">fn</span> <span class="ident">next_task</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">task</span>::<span class="ident">Notified</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tick</span>.<span class="ident">get</span>();
+        <span class="self">self</span>.<span class="ident">tick</span>.<span class="ident">set</span>(<span class="ident">tick</span>.<span class="ident">wrapping_add</span>(<span class="number">1</span>));
+
+        <span class="kw">if</span> <span class="ident">tick</span> <span class="op">%</span> <span class="ident">REMOTE_FIRST_INTERVAL</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> {
+            <span class="self">self</span>.<span class="ident">context</span>
+                .<span class="ident">shared</span>
+                .<span class="ident">queue</span>
+                .<span class="ident">lock</span>()
+                .<span class="ident">unwrap</span>()
+                .<span class="ident">pop_front</span>()
+                .<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">queue</span>.<span class="ident">pop_front</span>())
+        } <span class="kw">else</span> {
+            <span class="self">self</span>.<span class="ident">context</span>
+                .<span class="ident">tasks</span>
+                .<span class="ident">borrow_mut</span>()
+                .<span class="ident">queue</span>
+                .<span class="ident">pop_front</span>()
+                .<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">shared</span>.<span class="ident">queue</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">pop_front</span>())
+        }
+    }
+
+    <span class="kw">fn</span> <span class="ident">with</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> {
+        <span class="ident">CURRENT</span>.<span class="ident">set</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>, <span class="ident">f</span>)
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">LocalSet</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">fmt</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
+        <span class="ident">fmt</span>.<span class="ident">debug_struct</span>(<span class="string">&quot;LocalSet&quot;</span>).<span class="ident">finish</span>()
     }
 }
 
 <span class="kw">impl</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">LocalSet</span> {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> ();
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">as_ref</span>().<span class="ident">scheduler</span>.<span class="ident">clone</span>();
-        <span class="ident">scheduler</span>.<span class="ident">waker</span>.<span class="ident">register_by_ref</span>(<span class="ident">cx</span>.<span class="ident">waker</span>());
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+        <span class="comment">// Register the waker before starting to work</span>
+        <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">shared</span>.<span class="ident">waker</span>.<span class="ident">register_by_ref</span>(<span class="ident">cx</span>.<span class="ident">waker</span>());
 
-        <span class="kw">if</span> <span class="ident">scheduler</span>.<span class="ident">with</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">scheduler</span>.<span class="ident">tick</span>()) {
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">with</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">tick</span>()) {
             <span class="comment">// If `tick` returns true, we need to notify the local future again:</span>
             <span class="comment">// there are still tasks remaining in the run queue.</span>
             <span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
             <span class="ident">Poll</span>::<span class="ident">Pending</span>
-        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">scheduler</span>.<span class="ident">is_empty</span>() {
+        } <span class="kw">else</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow</span>().<span class="ident">owned</span>.<span class="ident">is_empty</span>() {
             <span class="comment">// If the scheduler has no remaining futures, we&#39;re done!</span>
             <span class="ident">Poll</span>::<span class="ident">Ready</span>(())
         } <span class="kw">else</span> {
@@ -943,27 +1047,59 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">LocalSet</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span>::<span class="ident">new</span>()
+    <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LocalSet</span> {
+        <span class="ident">LocalSet</span>::<span class="ident">new</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">LocalSet</span> {
+    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+        <span class="self">self</span>.<span class="ident">with</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="comment">// Loop required here to ensure borrow is dropped between iterations</span>
+            <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">while_let_loop</span>)]</span>
+            <span class="kw">loop</span> {
+                <span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">owned</span>.<span class="ident">pop_back</span>() {
+                    <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">task</span>,
+                    <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">break</span>,
+                };
+
+                <span class="comment">// Safety: same as `run_unchecked`.</span>
+                <span class="ident">task</span>.<span class="ident">shutdown</span>();
+            }
+
+            <span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">queue</span>.<span class="ident">drain</span>(..) {
+                <span class="ident">task</span>.<span class="ident">shutdown</span>();
+            }
+
+            <span class="kw">for</span> <span class="ident">task</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">context</span>.<span class="ident">shared</span>.<span class="ident">queue</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">drain</span>(..) {
+                <span class="ident">task</span>.<span class="ident">shutdown</span>();
+            }
+
+            <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">context</span>.<span class="ident">tasks</span>.<span class="ident">borrow</span>().<span class="ident">owned</span>.<span class="ident">is_empty</span>());
+        });
     }
 }
 
 <span class="comment">// === impl LocalFuture ===</span>
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">F</span>: <span class="ident">Future</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">LocalFuture</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span> {
-    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">F</span>::<span class="ident">Output</span>;
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Future</span><span class="op">&gt;</span> <span class="ident">Future</span> <span class="kw">for</span> <span class="ident">RunUntil</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">T</span>::<span class="ident">Output</span>;
 
-    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">this</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
-        <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">scheduler</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">this</span>.<span class="ident">future</span>;
-        <span class="ident">scheduler</span>.<span class="ident">waker</span>.<span class="ident">register_by_ref</span>(<span class="ident">cx</span>.<span class="ident">waker</span>());
-        <span class="ident">scheduler</span>.<span class="ident">with</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">output</span>) <span class="op">=</span> <span class="ident">future</span>.<span class="ident">as_mut</span>().<span class="ident">poll</span>(<span class="ident">cx</span>) {
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="self">self</span>: <span class="ident">Pin</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="op">&gt;</span>, <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">task</span>::<span class="ident">Context</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Poll</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Output</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">me</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">project</span>();
+
+        <span class="ident">me</span>.<span class="ident">local_set</span>.<span class="ident">with</span>(<span class="op">|</span><span class="op">|</span> {
+            <span class="ident">me</span>.<span class="ident">local_set</span>
+                .<span class="ident">context</span>
+                .<span class="ident">shared</span>
+                .<span class="ident">waker</span>
+                .<span class="ident">register_by_ref</span>(<span class="ident">cx</span>.<span class="ident">waker</span>());
+
+            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">output</span>) <span class="op">=</span> <span class="ident">me</span>.<span class="ident">future</span>.<span class="ident">poll</span>(<span class="ident">cx</span>) {
                 <span class="kw">return</span> <span class="ident">Poll</span>::<span class="ident">Ready</span>(<span class="ident">output</span>);
             }
 
-            <span class="kw">if</span> <span class="ident">scheduler</span>.<span class="ident">tick</span>() {
+            <span class="kw">if</span> <span class="ident">me</span>.<span class="ident">local_set</span>.<span class="ident">tick</span>() {
                 <span class="comment">// If `tick` returns `true`, we need to notify the local future again:</span>
                 <span class="comment">// there are still tasks remaining in the run queue.</span>
                 <span class="ident">cx</span>.<span class="ident">waker</span>().<span class="ident">wake_by_ref</span>();
@@ -974,145 +1110,51 @@
     }
 }
 
-<span class="comment">// === impl Scheduler ===</span>
-
-<span class="kw">impl</span> <span class="ident">Schedule</span> <span class="kw">for</span> <span class="ident">Scheduler</span> {
-    <span class="kw">fn</span> <span class="ident">bind</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw-2">&amp;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">is_current</span>());
-        <span class="kw">unsafe</span> {
-            <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">add_task</span>(<span class="ident">task</span>);
-        }
+<span class="kw">impl</span> <span class="ident">Shared</span> {
+    <span class="doccomment">/// Schedule the provided task on the scheduler.</span>
+    <span class="kw">fn</span> <span class="ident">schedule</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="ident">task</span>::<span class="ident">Notified</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+        <span class="ident">CURRENT</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">maybe_cx</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">maybe_cx</span> {
+            <span class="prelude-val">Some</span>(<span class="ident">cx</span>) <span class="kw">if</span> <span class="ident">cx</span>.<span class="ident">shared</span>.<span class="ident">ptr_eq</span>(<span class="self">self</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">cx</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">queue</span>.<span class="ident">push_back</span>(<span class="ident">task</span>);
+            }
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>().<span class="ident">push_back</span>(<span class="ident">task</span>);
+                <span class="self">self</span>.<span class="ident">waker</span>.<span class="ident">wake</span>();
+            }
+        });
     }
 
-    <span class="kw">fn</span> <span class="ident">release</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
-        <span class="comment">// This will be called when dropping the local runtime.</span>
-        <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">release_remote</span>(<span class="ident">task</span>);
-    }
-
-    <span class="kw">fn</span> <span class="ident">release_local</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw-2">&amp;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
-        <span class="macro">debug_assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">is_current</span>());
-        <span class="kw">unsafe</span> {
-            <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">release_local</span>(<span class="ident">task</span>);
-        }
-    }
-
-    <span class="kw">fn</span> <span class="ident">schedule</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_current</span>() {
-            <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">push_local</span>(<span class="ident">task</span>) };
-        } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">lock</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">remote</span>();
-            <span class="ident">lock</span>.<span class="ident">schedule</span>(<span class="ident">task</span>, <span class="bool-val">false</span>);
-
-            <span class="self">self</span>.<span class="ident">waker</span>.<span class="ident">wake</span>();
-
-            <span class="ident">drop</span>(<span class="ident">lock</span>);
-        }
+    <span class="kw">fn</span> <span class="ident">ptr_eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">Shared</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Scheduler</span> {
-    <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">tick</span>: <span class="ident">Cell</span>::<span class="ident">new</span>(<span class="number">0</span>),
-            <span class="ident">queues</span>: <span class="ident">MpscQueues</span>::<span class="ident">new</span>(),
-            <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>::<span class="ident">new</span>(),
-        }
-    }
-
-    <span class="kw">fn</span> <span class="ident">with</span><span class="op">&lt;</span><span class="ident">F</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">F</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">F</span> {
-        <span class="kw">struct</span> <span class="ident">Entered</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-            <span class="ident">current</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Cell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NonNull</span><span class="op">&lt;</span><span class="ident">Scheduler</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-        }
-
-        <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Entered</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-            <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-                <span class="self">self</span>.<span class="ident">current</span>.<span class="ident">set</span>(<span class="prelude-val">None</span>);
-            }
-        }
-
-        <span class="ident">CURRENT_TASK_SET</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">current</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">prev</span> <span class="op">=</span> <span class="ident">current</span>.<span class="ident">replace</span>(<span class="prelude-val">Some</span>(<span class="ident">NonNull</span>::<span class="ident">from</span>(<span class="self">self</span>)));
-            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">prev</span>.<span class="ident">is_none</span>(), <span class="string">&quot;nested call to local::Scheduler::with&quot;</span>);
-            <span class="kw">let</span> <span class="ident">_entered</span> <span class="op">=</span> <span class="ident">Entered</span> { <span class="ident">current</span> };
-            <span class="ident">f</span>()
+<span class="kw">impl</span> <span class="ident">task</span>::<span class="ident">Schedule</span> <span class="kw">for</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">bind</span>(<span class="ident">task</span>: <span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Shared</span><span class="op">&gt;</span> {
+        <span class="ident">CURRENT</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">maybe_cx</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">maybe_cx</span>.<span class="ident">expect</span>(<span class="string">&quot;scheduler context missing&quot;</span>);
+            <span class="ident">cx</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">owned</span>.<span class="ident">push_front</span>(<span class="ident">task</span>);
+            <span class="ident">cx</span>.<span class="ident">shared</span>.<span class="ident">clone</span>()
         })
     }
 
-    <span class="kw">fn</span> <span class="ident">is_current</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">CURRENT_TASK_SET</span>
-            .<span class="ident">try_with</span>(<span class="op">|</span><span class="ident">current</span><span class="op">|</span> {
-                <span class="ident">current</span>
-                    .<span class="ident">get</span>()
-                    .<span class="ident">iter</span>()
-                    .<span class="ident">any</span>(<span class="op">|</span><span class="ident">current</span><span class="op">|</span> <span class="ident">ptr</span>::<span class="ident">eq</span>(<span class="ident">current</span>.<span class="ident">as_ptr</span>(), <span class="self">self</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="kw">_</span>))
-            })
-            .<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>)
+    <span class="kw">fn</span> <span class="ident">release</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="kw-2">&amp;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Task</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>::<span class="ident">NonNull</span>;
+
+        <span class="ident">CURRENT</span>.<span class="ident">with</span>(<span class="op">|</span><span class="ident">maybe_cx</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">maybe_cx</span>.<span class="ident">expect</span>(<span class="string">&quot;scheduler context missing&quot;</span>);
+
+            <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">cx</span>.<span class="ident">shared</span>.<span class="ident">ptr_eq</span>(<span class="self">self</span>));
+
+            <span class="kw">let</span> <span class="ident">ptr</span> <span class="op">=</span> <span class="ident">NonNull</span>::<span class="ident">from</span>(<span class="ident">task</span>.<span class="ident">header</span>());
+            <span class="comment">// safety: task must be contained by list. It is inserted into the</span>
+            <span class="comment">// list in `bind`.</span>
+            <span class="kw">unsafe</span> { <span class="ident">cx</span>.<span class="ident">tasks</span>.<span class="ident">borrow_mut</span>().<span class="ident">owned</span>.<span class="ident">remove</span>(<span class="ident">ptr</span>) }
+        })
     }
 
-    <span class="doccomment">/// Tick the scheduler, returning whether the local future needs to be</span>
-    <span class="doccomment">/// notified again.</span>
-    <span class="kw">fn</span> <span class="ident">tick</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="self">self</span>.<span class="ident">is_current</span>());
-        <span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">MAX_TASKS_PER_TICK</span> {
-            <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">tick</span>.<span class="ident">get</span>().<span class="ident">wrapping_add</span>(<span class="number">1</span>);
-            <span class="self">self</span>.<span class="ident">tick</span>.<span class="ident">set</span>(<span class="ident">tick</span>);
-
-            <span class="kw">let</span> <span class="ident">task</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw">unsafe</span> {
-                <span class="comment">// safety: we must be on the local thread to call this. The assertion</span>
-                <span class="comment">// the top of this method ensures that `tick` is only called locally.</span>
-                <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">next_task</span>(<span class="ident">tick</span>)
-            } {
-                <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">task</span>,
-                <span class="comment">// We have fully drained the queue of notified tasks, so the</span>
-                <span class="comment">// local future doesn&#39;t need to be notified again — it can wait</span>
-                <span class="comment">// until something else wakes a task in the local set.</span>
-                <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="bool-val">false</span>,
-            };
-
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">task</span>) <span class="op">=</span> <span class="ident">task</span>.<span class="ident">run</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="op">|</span><span class="op">|</span> <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">into</span>())) {
-                <span class="kw">unsafe</span> {
-                    <span class="comment">// safety: we must be on the local thread to call this. The</span>
-                    <span class="comment">// the top of this method ensures that `tick` is only called locally.</span>
-                    <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">push_local</span>(<span class="ident">task</span>);
-                }
-            }
-        }
-
-        <span class="bool-val">true</span>
-    }
-
-    <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="kw">unsafe</span> {
-            <span class="comment">// safety: this method may not be called from threads other than the</span>
-            <span class="comment">// thread that owns the `Queues`. since `Scheduler` is not `Send` or</span>
-            <span class="comment">// `Sync`, that shouldn&#39;t happen.</span>
-            <span class="op">!</span><span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">has_tasks_remaining</span>()
-        }
-    }
-}
-
-<span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Scheduler</span> {
-    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="kw">unsafe</span> {
-            <span class="comment">// safety: these functions are unsafe to call outside of the local</span>
-            <span class="comment">// thread. Since the `Scheduler` type is not `Send` or `Sync`, we</span>
-            <span class="comment">// know it will be dropped only from the local thread.</span>
-            <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">shutdown</span>();
-
-            <span class="comment">// Wait until all tasks have been released.</span>
-            <span class="comment">// XXX: this is a busy loop, but we don&#39;t really have any way to park</span>
-            <span class="comment">// the thread here?</span>
-            <span class="kw">loop</span> {
-                <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">drain_pending_drop</span>();
-                <span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">drain_queues</span>();
-
-                <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">queues</span>.<span class="ident">has_tasks_remaining</span>() {
-                    <span class="kw">break</span>;
-                }
-
-                <span class="ident">std</span>::<span class="ident">thread</span>::<span class="ident">yield_now</span>();
-            }
-        }
+    <span class="kw">fn</span> <span class="ident">schedule</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">task</span>: <span class="ident">task</span>::<span class="ident">Notified</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) {
+        <span class="ident">Shared</span>::<span class="ident">schedule</span>(<span class="self">self</span>, <span class="ident">task</span>);
     }
 }
 </pre></div>

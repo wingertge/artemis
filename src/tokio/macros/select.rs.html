@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/macros/select.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>select.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.14/src/macros/select.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>select.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -881,7 +881,7 @@
 <span class="doccomment">/// The `select!` macro must be used inside of async functions, closures, and</span>
 <span class="doccomment">/// blocks.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// The `select` macro accepts one or more branches with the following pattern:</span>
+<span class="doccomment">/// The `select!` macro accepts one or more branches with the following pattern:</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```text</span>
 <span class="doccomment">/// &lt;pattern&gt; = &lt;async expression&gt; (, if &lt;precondition&gt;)? =&gt; &lt;handler&gt;,</span>
@@ -901,7 +901,7 @@
 <span class="doccomment">/// expression.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Additionally, each branch may include an optional `if` precondition. This</span>
-<span class="doccomment">/// precondition is evaluated **before** the &lt;async expression&gt;. If the</span>
+<span class="doccomment">/// precondition is evaluated **before** the `&lt;async expression&gt;`. If the</span>
 <span class="doccomment">/// precondition returns `false`, the branch is entirely disabled. This</span>
 <span class="doccomment">/// capability is useful when using `select!` within a loop.</span>
 <span class="doccomment">///</span>
@@ -918,7 +918,7 @@
 <span class="doccomment">/// 4. Once an `&lt;async expression&gt;` returns a value, attempt to apply the value</span>
 <span class="doccomment">///    to the provided `&lt;pattern&gt;`, if the pattern matches, evaluate `&lt;handler&gt;`</span>
 <span class="doccomment">///    and return. If the pattern **does not** match, disable the current branch</span>
-<span class="doccomment">///    and for the remainder of the current call to `select!. Continue from step 3.</span>
+<span class="doccomment">///    and for the remainder of the current call to `select!`. Continue from step 3.</span>
 <span class="doccomment">/// 5. If **all** branches are disabled, evaluate the `else` expression. If none</span>
 <span class="doccomment">///    is provided, panic.</span>
 <span class="doccomment">///</span>
@@ -1087,7 +1087,7 @@
 <span class="doccomment">/// }</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Using the same future in multiple select! expressions can be done by passing</span>
+<span class="doccomment">/// Using the same future in multiple `select!` expressions can be done by passing</span>
 <span class="doccomment">/// a reference to the future. Doing so requires the future to be [`Unpin`]. A</span>
 <span class="doccomment">/// future can be made [`Unpin`] by either using [`Box::pin`] or stack pinning.</span>
 <span class="doccomment">///</span>

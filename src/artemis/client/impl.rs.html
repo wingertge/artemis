@@ -142,10 +142,10 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">progressive_hash</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">HeaderPair</span>, <span class="ident">Operation</span>, <span class="ident">OperationMeta</span>,
-    <span class="ident">OperationResult</span>, <span class="ident">QueryBody</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
+    <span class="ident">QueryBody</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
 };
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">vec</span>};
+<span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;observable&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">client</span>::<span class="ident">observable</span>::<span class="ident">Subscription</span>;

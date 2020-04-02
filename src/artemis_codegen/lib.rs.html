@@ -365,7 +365,7 @@
 <span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;128&quot;</span>]</span>
 <span class="comment">//#![deny(missing_docs)]</span>
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">rust_2018_idioms</span>)]</span>
-<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>)]</span>
+<span class="comment">//#![deny(warnings)]</span>
 
 <span class="doccomment">//! Crate for internal use by other graphql-client crates, for code generation.</span>
 <span class="doccomment">//!</span>
@@ -427,7 +427,7 @@ static QUERY_CACHE: CacheMap&lt;(String, graphql_parser::query::Document)&gt; =
         <span class="ident">CacheMap</span>::<span class="ident">default</span>();
 }
 
-<span class="doccomment">/// Global error type for codegen crate</span>
+<span class="doccomment">/// An error that happened during code generation</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CodegenError</span> {
     <span class="doccomment">/// An IO Error</span>
@@ -436,7 +436,7 @@ static QUERY_CACHE: CacheMap&lt;(String, graphql_parser::query::Document)&gt; =
     <span class="ident">QueryParsingError</span>(<span class="ident">graphql_parser</span>::<span class="ident">query</span>::<span class="ident">ParseError</span>),
     <span class="doccomment">/// An error that occurred while parsing the schema</span>
     <span class="ident">SchemaParsingError</span>(<span class="ident">graphql_parser</span>::<span class="ident">schema</span>::<span class="ident">ParseError</span>),
-    <span class="doccomment">/// An error that occured during serialization</span>
+    <span class="doccomment">/// An error that occurred during serialization</span>
     <span class="ident">SerializationError</span>(<span class="ident">serde_json</span>::<span class="ident">Error</span>),
     <span class="doccomment">/// An internal error while parsing union types</span>
     <span class="ident">UnionError</span>(<span class="ident">unions</span>::<span class="ident">UnionError</span>),

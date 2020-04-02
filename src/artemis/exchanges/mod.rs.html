@@ -54,7 +54,6 @@
 <span id="54">54</span>
 <span id="55">55</span>
 <span id="56">56</span>
-<span id="57">57</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This module contains the default exchanges</span>
 <span class="doccomment">//! Note that they require the `default-exchanges` feature</span>
@@ -69,7 +68,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;default-exchanges&quot;</span>)]</span>
 <span class="kw">mod</span> <span class="ident">fetch</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">client</span>::<span class="ident">ClientImpl</span>, <span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">OperationResult</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;default-exchanges&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">cache</span>::<span class="ident">CacheExchange</span>;
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;default-exchanges&quot;</span>)]</span>
@@ -77,7 +76,6 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;default-exchanges&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">fetch</span>::<span class="ident">FetchExchange</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">de</span>::<span class="ident">DeserializeOwned</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">enum</span> <span class="ident">MiddlewareError</span> {

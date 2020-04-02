@@ -1,1 +1,1 @@
-initSidebarItems({"macro":[["wasm_client",""]]});
+initSidebarItems({"macro":[["wasm_client","Generate a WASM client wrapper that gets exported in your WASM binary This is required because WASM doesn't support generics and the regular Client uses a lot of them. It will hard-code your exchanges, as well as other options you may pass to the macro."]]});

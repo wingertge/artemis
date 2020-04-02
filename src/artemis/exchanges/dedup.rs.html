@@ -243,7 +243,6 @@
 <span id="243">243</span>
 <span id="244">244</span>
 <span id="245">245</span>
-<span id="246">246</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">exchanges</span>::<span class="ident">Client</span>,
@@ -361,8 +360,7 @@
 <span class="kw">mod</span> <span class="ident">test</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">DedupExchangeImpl</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::{
-        <span class="ident">client</span>::<span class="ident">ClientImpl</span>,
-        <span class="ident">exchanges</span>::{<span class="ident">Client</span>, <span class="ident">DedupExchange</span>, <span class="ident">TerminatorExchange</span>},
+        <span class="ident">exchanges</span>::{<span class="ident">Client</span>, <span class="ident">DedupExchange</span>},
         <span class="ident">types</span>::{<span class="ident">Operation</span>, <span class="ident">OperationOptions</span>, <span class="ident">OperationResult</span>},
         <span class="ident">ClientBuilder</span>, <span class="ident">DebugInfo</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">ExchangeResult</span>, <span class="ident">FieldSelector</span>,
         <span class="ident">GraphQLQuery</span>, <span class="ident">OperationMeta</span>, <span class="ident">OperationType</span>, <span class="ident">QueryBody</span>, <span class="ident">QueryInfo</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>,
@@ -373,7 +371,7 @@
         <span class="ident">GetConference</span>
     };
     <span class="kw">use</span> <span class="ident">lazy_static</span>::<span class="ident">lazy_static</span>;
-    <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
+    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
     <span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">time</span>::<span class="ident">delay_for</span>;
 
     <span class="macro">lazy_static</span><span class="macro">!</span> {

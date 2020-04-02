@@ -309,9 +309,92 @@
 <span id="309">309</span>
 <span id="310">310</span>
 <span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A modern GraphQL Client with common built-in features</span>
 <span class="doccomment">//! as well as the ability to extend its functionality through exchanges</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Getting Started</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The first step is to write some queries in `.graphql` files and then add the following to your</span>
+<span class="doccomment">//! `build.rs` (create it if necessary):</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```ignore</span>
+<span class="doccomment">//! use artemis_build::CodegenBuilder;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! fn main() {</span>
+<span class="doccomment">//!     CodegenBuilder::new()</span>
+<span class="doccomment">//!         .introspect_schema(&quot;http://localhost:8080/graphql&quot;, None, Vec::new())</span>
+<span class="doccomment">//!         .unwrap()</span>
+<span class="doccomment">//!         .add_query(&quot;queries/x.graphql&quot;)</span>
+<span class="doccomment">//!         .with_out_dir(&quot;src/queries&quot;)</span>
+<span class="doccomment">//!         .build()</span>
+<span class="doccomment">//!         .unwrap();</span>
+<span class="doccomment">//! }</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Afterwards, you can use the crate in your application as such:</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//! # tokio_test::block_on(async {</span>
+<span class="doccomment">//! use artemis::Client;</span>
+<span class="doccomment">//! use artemis_test::get_conference::{GetConference, get_conference::Variables};</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let client = Client::builder(&quot;http://localhost:8080/graphql&quot;)</span>
+<span class="doccomment">//!     .with_default_exchanges()</span>
+<span class="doccomment">//!     .build();</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! let result = client.query(GetConference, Variables { id: &quot;1&quot;.to_string() }).await.unwrap();</span>
+<span class="doccomment">//! assert!(result.data.is_some());</span>
+<span class="doccomment">//! # });</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! For more info see the relevant method and struct documentation.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! # Build</span>
 <span class="doccomment">//!</span>
@@ -359,10 +442,24 @@
 <span class="doccomment">//! The fetch exchange will serialize the query, send it over the network and deserialize the response.</span>
 <span class="doccomment">//! This works on x86 using `reqwest`, or `fetch` if you&#39;re using WASM.</span>
 <span class="doccomment">//! This should be your last exchange in the chain, as it never forwards a query.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # WASM</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! WASM support requires some minor boilerplate in your code.</span>
+<span class="doccomment">//! First, there&#39;s a `wasm` module in your queries. this contains an automatically generated enum</span>
+<span class="doccomment">//! containing all your queries. This is used for transmitting type data across the WASM</span>
+<span class="doccomment">//! boundary.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Second, you have to use the [graphql_client! macro](../artemis_codegen_proc_macro/macro.wasm_client!.html)</span>
+<span class="doccomment">//! to generate a WASM interop client that has hard-coded types for your queries, again, to</span>
+<span class="doccomment">//! eliminate the unsupported generics and transmit type data across the boundary.</span>
+<span class="doccomment">//! The queries type passed to the macro must be the enum generated as mentioned above.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Documentation of the JavaScript types and methods can be found in the TypeScript</span>
+<span class="doccomment">//! definitions that are output when you build your WASM.</span>
 
 <span class="comment">//#![warn(missing_docs)]</span>
-<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">warnings</span>)]</span>
-<span class="attribute">#![<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
+<span class="comment">//#![deny(warnings)]</span>
 
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">serde</span>;
@@ -383,11 +480,6 @@
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>::<span class="ident">DeserializeOwned</span>, <span class="ident">Serialize</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::<span class="kw-2">*</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">utils</span>::<span class="kw-2">*</span>;
-
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">client</span>::<span class="ident">ClientImpl</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>)]</span>
-<span class="kw">use</span> <span class="ident">wasm_bindgen</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Clone</span>)]</span>

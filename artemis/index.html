@@ -1,5 +1,34 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `artemis` crate."><meta name="keywords" content="rust, rustlang, rust-lang, artemis"><title>artemis - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../artemis/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate artemis</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all artemis's items</p></a><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'artemis', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/artemis/lib.rs.html#1-311' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>artemis</a></span></h1><div class='docblock'><p>A modern GraphQL Client with common built-in features
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `artemis` crate."><meta name="keywords" content="rust, rustlang, rust-lang, artemis"><title>artemis - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../artemis/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate artemis</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all artemis's items</p></a><div class="block items"><ul><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'artemis', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/artemis/lib.rs.html#1-357' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>artemis</a></span></h1><div class='docblock'><p>A modern GraphQL Client with common built-in features
 as well as the ability to extend its functionality through exchanges</p>
+<h1 id="getting-started" class="section-header"><a href="#getting-started">Getting Started</a></h1>
+<p>The first step is to write some queries in <code>.graphql</code> files and then add the following to your
+<code>build.rs</code> (create it if necessary):</p>
+
+<div class='information'><div class='tooltip ignore'>ⓘ<span class='tooltiptext'>This example is not tested</span></div></div><div class="example-wrap"><pre class="rust rust-example-rendered ignore">
+<span class="kw">use</span> <span class="ident">artemis_build</span>::<span class="ident">CodegenBuilder</span>;
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="ident">CodegenBuilder</span>::<span class="ident">new</span>()
+        .<span class="ident">introspect_schema</span>(<span class="string">&quot;http://localhost:8080/graphql&quot;</span>, <span class="prelude-val">None</span>, <span class="ident">Vec</span>::<span class="ident">new</span>())
+        .<span class="ident">unwrap</span>()
+        .<span class="ident">add_query</span>(<span class="string">&quot;queries/x.graphql&quot;</span>)
+        .<span class="ident">with_out_dir</span>(<span class="string">&quot;src/queries&quot;</span>)
+        .<span class="ident">build</span>()
+        .<span class="ident">unwrap</span>();
+}</pre></div>
+<p>Afterwards, you can use the crate in your application as such:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="kw">use</span> <span class="ident">artemis</span>::<span class="ident">Client</span>;
+<span class="kw">use</span> <span class="ident">artemis_test</span>::<span class="ident">get_conference</span>::{<span class="ident">GetConference</span>, <span class="ident">get_conference</span>::<span class="ident">Variables</span>};
+
+<span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">Client</span>::<span class="ident">builder</span>(<span class="string">&quot;http://localhost:8080/graphql&quot;</span>)
+    .<span class="ident">with_default_exchanges</span>()
+    .<span class="ident">build</span>();
+
+<span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">query</span>(<span class="ident">GetConference</span>, <span class="ident">Variables</span> { <span class="ident">id</span>: <span class="string">&quot;1&quot;</span>.<span class="ident">to_string</span>() }).<span class="kw">await</span>.<span class="ident">unwrap</span>();
+<span class="macro">assert</span><span class="macro">!</span>(<span class="ident">result</span>.<span class="ident">data</span>.<span class="ident">is_some</span>());</pre></div>
+<p>For more info see the relevant method and struct documentation.</p>
 <h1 id="build" class="section-header"><a href="#build">Build</a></h1>
 <p>This crate uses code generation to take your GraphQL files and turn them into
 strongly typed Rust modules. These contain the query struct, a zero-size type
@@ -34,13 +63,28 @@ see the <code>artemis-normalized-cache</code> crate.</p>
 <p>The fetch exchange will serialize the query, send it over the network and deserialize the response.
 This works on x86 using <code>reqwest</code>, or <code>fetch</code> if you're using WASM.
 This should be your last exchange in the chain, as it never forwards a query.</p>
+<h1 id="wasm" class="section-header"><a href="#wasm">WASM</a></h1>
+<p>WASM support requires some minor boilerplate in your code.
+First, there's a <code>wasm</code> module in your queries. this contains an automatically generated enum
+containing all your queries. This is used for transmitting type data across the WASM
+boundary.</p>
+<p>Second, you have to use the <a href="../artemis_codegen_proc_macro/macro.wasm_client!.html">graphql_client! macro</a>
+to generate a WASM interop client that has hard-coded types for your queries, again, to
+eliminate the unsupported generics and transmit type data across the boundary.
+The queries type passed to the macro must be the enum generated as mentioned above.</p>
+<p>Documentation of the JavaScript types and methods can be found in the TypeScript
+definitions that are output when you build your WASM.</p>
 </div><h2 id='reexports' class='section-header'><a href="#reexports">Re-exports</a></h2>
 <table><tr><td><code>pub use client::<a class="struct" href="../artemis/client/struct.Client.html" title="struct artemis::client::Client">Client</a>;</code></td></tr><tr><td><code>pub use <a class="mod" href="../artemis/types/index.html" title="mod artemis::types">types</a>::*;</code></td></tr></table><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
 <table><tr class='module-item'><td><a class="mod" href="client/index.html" title='artemis::client mod'>client</a></td><td class='docblock-short'></td></tr><tr class='module-item'><td><a class="mod" href="exchanges/index.html" title='artemis::exchanges mod'>exchanges</a></td><td class='docblock-short'><p>This module contains the default exchanges
 Note that they require the <code>default-exchanges</code> feature</p>
 </td></tr><tr class='module-item'><td><a class="mod" href="types/index.html" title='artemis::types mod'>types</a></td><td class='docblock-short'></td></tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
 <table><tr class='module-item'><td><a class="macro" href="macro.ext.html" title='artemis::ext macro'>ext</a></td><td class='docblock-short'><p>Creates a new <code>ExtensionMap</code> and fills it with the passed values</p>
-</td></tr><tr class='module-item'><td><a class="macro" href="macro.wasm_client.html" title='artemis::wasm_client macro'>wasm_client</a></td><td class='docblock-short'></td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+</td></tr><tr class='module-item'><td><a class="macro" href="macro.wasm_client.html" title='artemis::wasm_client macro'>wasm_client</a></td><td class='docblock-short'><p>Generate a WASM client wrapper that gets exported in your WASM binary
+This is required because WASM doesn't support generics and the regular
+Client uses a lot of them. It will hard-code your exchanges, as well
+as other options you may pass to the macro.</p>
+</td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table><tr class='module-item'><td><a class="struct" href="struct.ClientBuilder.html" title='artemis::ClientBuilder struct'>ClientBuilder</a></td><td class='docblock-short'><p>A builder for the artemis client</p>
 </td></tr><tr class='module-item'><td><a class="struct" href="struct.Error.html" title='artemis::Error struct'>Error</a></td><td class='docblock-short'><p>An element in the top-level <code>errors</code> array of a response body.</p>
 </td></tr><tr class='module-item'><td><a class="struct" href="struct.Location.html" title='artemis::Location struct'>Location</a></td><td class='docblock-short'><p>Represents a location inside a query string. Used in errors. See <a href="../artemis/struct.Error.html" title="`Error`"><code>Error</code></a>.</p>

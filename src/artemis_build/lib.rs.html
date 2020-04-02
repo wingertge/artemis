@@ -231,7 +231,118 @@
 <span id="231">231</span>
 <span id="232">232</span>
 <span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! This crate allows you to statically generate all files needed to use [artemis](../artemis/index.html).</span>
+<span class="doccomment">//! While you could write these by hand, they&#39;re quite complex and hand-writing can easily introduce</span>
+<span class="doccomment">//! errors, so this module allows you to instead have them generated automatically from `.graphql`</span>
+<span class="doccomment">//! files. All you need apart from the files is an introspected schema in JSON or `.graphql` format,</span>
+<span class="doccomment">//! or alternatively a server that has introspection enabled. Note that the second option requires</span>
+<span class="doccomment">//! the `introspect` feature to be enabled.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Usage</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! ```ignore</span>
+<span class="doccomment">//! use artemis_build::CodegenBuilder;</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! CodegenBuilder::new()</span>
+<span class="doccomment">//!     .introspect_schema(&quot;http://localhost:8080/graphql&quot;, None, Vec::new())</span>
+<span class="doccomment">//!     .unwrap()</span>
+<span class="doccomment">//!     .add_query(&quot;my_query.graphql&quot;)</span>
+<span class="doccomment">//!     .with_out_dir(&quot;src/queries&quot;)</span>
+<span class="doccomment">//!     .build();</span>
+<span class="doccomment">//! ```</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The only required option is the schema - in this case we&#39;re introspecting one from</span>
+<span class="doccomment">//! `http://localhost:8080/graphql`, with no authorization header and no extra headers - but if</span>
+<span class="doccomment">//! you don&#39;t call `add_query` at least once the code generator won&#39;t do much. The out dir specifies</span>
+<span class="doccomment">//! the directory to output your query module to. It will generate a `mod.rs` in this directory,</span>
+<span class="doccomment">//! along with a file for each query and a global query enum for WASM support. **Make sure this</span>
+<span class="doccomment">//! directory doesn&#39;t already have a `mod.rs` or it will be overridden.**</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! The output directory defaults to `OUT_DIR`, but for good autocomplete I recommend putting the</span>
+<span class="doccomment">//! files somewhere in `src` where your IDE picks them up.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! For more information see each function definition.</span>
+
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
+
 <span class="kw">use</span> <span class="ident">artemis_codegen</span>::{
     <span class="ident">deprecation</span>::<span class="ident">DeprecationStrategy</span>, <span class="ident">generate_module_token_stream</span>, <span class="ident">generate_root_token_stream</span>,
     <span class="ident">CodegenError</span>, <span class="ident">CodegenMode</span>, <span class="ident">GraphQLClientCodegenOptions</span>
@@ -251,12 +362,17 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;introspect&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">introspect</span>::<span class="ident">IntrospectionError</span>;
 
+<span class="doccomment">/// An error that occurred in the build function</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">BuildError</span> {
+    <span class="doccomment">/// The arguments passed to the code generator were invalid</span>
     <span class="ident">ArgumentError</span>(<span class="ident">String</span>),
+    <span class="doccomment">/// There was an error during code generation</span>
     <span class="ident">CodegenError</span>(<span class="ident">CodegenError</span>),
+    <span class="doccomment">/// A file IO error occurred</span>
     <span class="ident">IoError</span>(<span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span>)
 }
+
 <span class="kw">impl</span> <span class="ident">Error</span> <span class="kw">for</span> <span class="ident">BuildError</span> {}
 <span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">BuildError</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
@@ -280,6 +396,10 @@
     }
 }
 
+<span class="doccomment">/// Configuration object for code generation</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This is used to generate the query structs and modules that are required</span>
+<span class="doccomment">/// as well as TypeScript definitions and some static analysis info.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CodegenBuilder</span> {
     <span class="ident">query_paths</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PathBuf</span><span class="op">&gt;</span>,
@@ -291,6 +411,9 @@
 }
 
 <span class="kw">impl</span> <span class="ident">CodegenBuilder</span> {
+    <span class="doccomment">/// Create a new codegen builder with default configuration values.</span>
+    <span class="doccomment">/// Note that a schema `must` be set, either by setting a file or introspecting it.</span>
+    <span class="doccomment">/// All other configuration is optional, though it won&#39;t do much if you don&#39;t add any queries.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">query_paths</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
@@ -302,36 +425,61 @@
         }
     }
 
+    <span class="doccomment">/// Add a query to have the code generator generate a module for it.</span>
+    <span class="doccomment">/// This is currently opt-in for each file to prevent accidentally generating unneeded code,</span>
+    <span class="doccomment">/// but a directory based approach may be added later.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_query</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">query_path</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">query_paths</span>.<span class="ident">push</span>(<span class="ident">query_path</span>.<span class="ident">as_ref</span>().<span class="ident">to_path_buf</span>());
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// A comma-separated list of derives to add to the generated `Variables` and input structs.</span>
+    <span class="doccomment">/// The default derives are `Serialize` and `Clone`, with `Deserialize` added if the target</span>
+    <span class="doccomment">/// arch is `wasm32`. Adding these here won&#39;t break anything, but it&#39;s redundant.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_derives_on_variables</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">derives</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">variable_derives</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">derives</span>.<span class="ident">into</span>());
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// A comma-separated list of derives to add to the generated `ResponseData` and output structs.</span>
+    <span class="doccomment">/// The default derives are `Deserialize` and `Clone`, with `Serialize` added if the target</span>
+    <span class="doccomment">/// arch is `wasm32`. Adding these here won&#39;t break anything, but it&#39;s redundant.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_derives_on_response</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">derives</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">response_derives</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">derives</span>.<span class="ident">into</span>());
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Set the deprecation strategy used for codegen. Can be used to either warn or completely</span>
+    <span class="doccomment">/// fail the build if any of your GraphQL queries contain deprecated fields.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_deprecation_strategy</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">strategy</span>: <span class="ident">DeprecationStrategy</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">deprecation_strategy</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">strategy</span>);
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Set the output directory for the query module. Defaults to `OUT_DIR`, but it&#39;s recommended</span>
+    <span class="doccomment">/// to put this in an otherwise empty folder in `src`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_out_dir</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">out_dir</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">output_directory</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">out_dir</span>.<span class="ident">as_ref</span>().<span class="ident">to_path_buf</span>());
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Sets the schema from a JSON or GraphQL file. The schema should be the result of an</span>
+    <span class="doccomment">/// introspection query done against the API you&#39;re generating code for.</span>
+    <span class="doccomment">/// If this isn&#39;t set, `introspect_schema` must be used.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_schema</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span><span class="op">&gt;</span>(<span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">schema_path</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">schema_path</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">schema_path</span>.<span class="ident">as_ref</span>().<span class="ident">to_path_buf</span>());
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Introspect a schema from a remote server. This will download the introspection result</span>
+    <span class="doccomment">/// and save it in a temporary schema file in the `OUT_DIR`.</span>
+    <span class="doccomment">/// Returns an `IntrospectionError` if the request fails for any reason.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Arguments</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// * `schema_url` - The URL of the remote server. e.g. `http://localhost:8080/graphql`</span>
+    <span class="doccomment">/// * `authorization` - An optional authorization header that should be added to the request</span>
+    <span class="doccomment">/// * `extra_headers` - Optional extra headers to be added to the introspection query</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;introspect&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">introspect_schema</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(
         <span class="kw-2">mut</span> <span class="self">self</span>,
@@ -345,6 +493,12 @@
         <span class="prelude-val">Ok</span>(<span class="self">self</span>)
     }
 
+    <span class="doccomment">/// Finish the configuration and generate the queries module.</span>
+    <span class="doccomment">/// It will generate a `mod.rs` and a file for each query in the selected output directory.</span>
+    <span class="doccomment">/// It&#39;s recommended for that to be an empty directory in `src`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This returns an error if an output directory was not set and `OUT_DIR` could not be read,</span>
+    <span class="doccomment">/// a schema was not found or an error occurred during codegen or IO.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">build</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">BuildError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">schema_path</span>.<span class="ident">is_none</span>() {
             <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;introspect&quot;</span>) {

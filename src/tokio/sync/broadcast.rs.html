@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.13/src/sync/broadcast.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>broadcast.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.14/src/sync/broadcast.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>broadcast.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1044,7 +1044,6 @@
 <span id="1044">1044</span>
 <span id="1045">1045</span>
 <span id="1046">1046</span>
-<span id="1047">1047</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A multi-producer, multi-consumer broadcast queue. Each sent value is seen by</span>
 <span class="doccomment">//! all consumers.</span>
@@ -1156,12 +1155,13 @@
 <span class="doccomment">//!     assert_eq!(30, rx.recv().await.unwrap());</span>
 <span class="doccomment">//! }</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">cell</span>::<span class="ident">CausalCell</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">cell</span>::<span class="ident">UnsafeCell</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">future</span>::<span class="ident">AtomicWaker</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">spin_loop_hint</span>, <span class="ident">AtomicBool</span>, <span class="ident">AtomicPtr</span>, <span class="ident">AtomicUsize</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">loom</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">Condvar</span>, <span class="ident">Mutex</span>};
 
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">mem</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ptr</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="ident">Context</span>, <span class="ident">Poll</span>, <span class="ident">Waker</span>};
@@ -1340,10 +1340,10 @@
 <span class="doccomment">/// A write in the buffer</span>
 <span class="kw">struct</span> <span class="ident">Write</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Uniquely identifies this write</span>
-    <span class="ident">pos</span>: <span class="ident">CausalCell</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
+    <span class="ident">pos</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// The written value</span>
-    <span class="ident">val</span>: <span class="ident">CausalCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">val</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="doccomment">/// Tracks a waiting receiver</span>
@@ -1356,7 +1356,7 @@
     <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>,
 
     <span class="doccomment">/// Next pointer in the stack of waiting senders.</span>
-    <span class="ident">next</span>: <span class="ident">CausalCell</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">WaitNode</span><span class="op">&gt;</span>,
+    <span class="ident">next</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="kw-2">*</span><span class="kw">const</span> <span class="ident">WaitNode</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">struct</span> <span class="ident">RecvGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
@@ -1427,8 +1427,8 @@
             <span class="ident">rem</span>: <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">lock</span>: <span class="ident">AtomicUsize</span>::<span class="ident">new</span>(<span class="number">0</span>),
             <span class="ident">write</span>: <span class="ident">Write</span> {
-                <span class="ident">pos</span>: <span class="ident">CausalCell</span>::<span class="ident">new</span>((<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">wrapping_sub</span>(<span class="ident">capacity</span> <span class="kw">as</span> <span class="ident">u64</span>)),
-                <span class="ident">val</span>: <span class="ident">CausalCell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
+                <span class="ident">pos</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>((<span class="ident">i</span> <span class="kw">as</span> <span class="ident">u64</span>).<span class="ident">wrapping_sub</span>(<span class="ident">capacity</span> <span class="kw">as</span> <span class="ident">u64</span>)),
+                <span class="ident">val</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="prelude-val">None</span>),
             },
         });
     }
@@ -1448,7 +1448,7 @@
         <span class="ident">wait</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">WaitNode</span> {
             <span class="ident">queued</span>: <span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">false</span>),
             <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>::<span class="ident">new</span>(),
-            <span class="ident">next</span>: <span class="ident">CausalCell</span>::<span class="ident">new</span>(<span class="ident">ptr</span>::<span class="ident">null</span>()),
+            <span class="ident">next</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="ident">ptr</span>::<span class="ident">null</span>()),
         }),
     };
 
@@ -1562,7 +1562,7 @@
             <span class="ident">wait</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">WaitNode</span> {
                 <span class="ident">queued</span>: <span class="ident">AtomicBool</span>::<span class="ident">new</span>(<span class="bool-val">false</span>),
                 <span class="ident">waker</span>: <span class="ident">AtomicWaker</span>::<span class="ident">new</span>(),
-                <span class="ident">next</span>: <span class="ident">CausalCell</span>::<span class="ident">new</span>(<span class="ident">ptr</span>::<span class="ident">null</span>()),
+                <span class="ident">next</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="ident">ptr</span>::<span class="ident">null</span>()),
             }),
         }
     }
@@ -1972,7 +1972,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">Shared</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="comment">// Clear the wait stack</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">curr</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>.<span class="ident">wait_stack</span>.<span class="ident">get_mut</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">WaitNode</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">curr</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">wait_stack</span>.<span class="ident">with_mut</span>(<span class="op">|</span><span class="ident">ptr</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">WaitNode</span>);
 
         <span class="kw">while</span> <span class="op">!</span><span class="ident">curr</span>.<span class="ident">is_null</span>() {
             <span class="kw">let</span> <span class="ident">waiter</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">Arc</span>::<span class="ident">from_raw</span>(<span class="ident">curr</span>) };
@@ -2028,7 +2028,7 @@
         <span class="kw">if</span> <span class="number">1</span> <span class="op">=</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">lock</span>.<span class="ident">fetch_sub</span>(<span class="number">2</span>, <span class="ident">SeqCst</span>) <span class="op">-</span> <span class="number">2</span> {
             <span class="comment">// First acquire the lock to make sure our sender is waiting on the</span>
             <span class="comment">// condition variable, otherwise the notification could be lost.</span>
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">tail</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>();
+            <span class="ident">mem</span>::<span class="ident">drop</span>(<span class="ident">tail</span>.<span class="ident">lock</span>().<span class="ident">unwrap</span>());
             <span class="comment">// Wake up senders</span>
             <span class="ident">condvar</span>.<span class="ident">notify_all</span>();
         }
@@ -2048,8 +2048,6 @@
     }
 
     <span class="kw">fn</span> <span class="ident">drop_no_rem_dec</span>(<span class="self">self</span>) {
-        <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">mem</span>;
-
         <span class="self">self</span>.<span class="ident">slot</span>.<span class="ident">rx_unlock</span>(<span class="self">self</span>.<span class="ident">tail</span>, <span class="self">self</span>.<span class="ident">condvar</span>, <span class="bool-val">false</span>);
 
         <span class="ident">mem</span>::<span class="ident">forget</span>(<span class="self">self</span>);
