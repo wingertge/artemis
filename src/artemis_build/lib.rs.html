@@ -308,6 +308,8 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! This crate allows you to statically generate all files needed to use [artemis](../artemis/index.html).</span>
 <span class="doccomment">//! While you could write these by hand, they&#39;re quite complex and hand-writing can easily introduce</span>
@@ -475,6 +477,8 @@
     <span class="doccomment">/// and save it in a temporary schema file in the `OUT_DIR`.</span>
     <span class="doccomment">/// Returns an `IntrospectionError` if the request fails for any reason.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// Requires feature: `introspect`</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Arguments</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// * `schema_url` - The URL of the remote server. e.g. `http://localhost:8080/graphql`</span>
@@ -494,7 +498,7 @@
     }
 
     <span class="doccomment">/// Finish the configuration and generate the queries module.</span>
-    <span class="doccomment">/// It will generate a `mod.rs` and a file for each query in the selected output directory.</span>
+    <span class="doccomment">/// It will generate a `exchanges` and a file for each query in the selected output directory.</span>
     <span class="doccomment">/// It&#39;s recommended for that to be an empty directory in `src`.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This returns an error if an output directory was not set and `OUT_DIR` could not be read,</span>

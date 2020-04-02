@@ -58,8 +58,8 @@
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">error</span>::<span class="ident">Error</span>, <span class="ident">fmt</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 
-<span class="doccomment">/// A query error wrapper that allows for cheap and easy cloning across threads</span>
-<span class="doccomment">/// If a `std::error::Error` is needed, use `QueryError.compat()`</span>
+<span class="doccomment">/// A query error wrapper that allows for cheap and easy cloning across threads.</span>
+<span class="doccomment">/// If a `std::error::Error` is needed, use `QueryError.compat()`.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">QueryError</span> {
     <span class="ident">inner</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span><span class="op">&gt;</span><span class="op">&gt;</span>
@@ -67,7 +67,7 @@
 
 <span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">QueryError</span> {
     <span class="doccomment">/// This is just for testing. Wrapped Errors can&#39;t reasonably be compared,</span>
-    <span class="doccomment">/// so this will always return false</span>
+    <span class="doccomment">/// so this will always return false.</span>
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="bool-val">false</span>
     }

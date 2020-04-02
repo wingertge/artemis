@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["Client",""],["ClientBuilder","A builder for the artemis client"],["ClientImpl",""]]});
+initSidebarItems({"struct":[["Client","An Artemis client type used to run queries against"],["ClientBuilder","A builder for the artemis client."],["ClientImpl","The internal implementation stored in the Client. This is exposed just in case you ever need raw access to the type outside of the wrapper."]]});

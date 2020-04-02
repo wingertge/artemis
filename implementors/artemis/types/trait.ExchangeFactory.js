@@ -1,4 +1,3 @@
 (function() {var implementors = {};
-implementors["artemis"] = [];
 implementors["artemis_load_gen"] = [{"text":"impl&lt;TNext:&nbsp;<a class=\"trait\" href=\"artemis/types/trait.Exchange.html\" title=\"trait artemis::types::Exchange\">Exchange</a>&gt; <a class=\"trait\" href=\"artemis/types/trait.ExchangeFactory.html\" title=\"trait artemis::types::ExchangeFactory\">ExchangeFactory</a>&lt;TNext&gt; for <a class=\"struct\" href=\"artemis_load_gen/struct.DummyFetchExchange.html\" title=\"struct artemis_load_gen::DummyFetchExchange\">DummyFetchExchange</a>","synthetic":false,"types":["artemis_load_gen::DummyFetchExchange"]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

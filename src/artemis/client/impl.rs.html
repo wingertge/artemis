@@ -139,17 +139,19 @@
 <span id="139">139</span>
 <span id="140">140</span>
 <span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">progressive_hash</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">HeaderPair</span>, <span class="ident">Operation</span>, <span class="ident">OperationMeta</span>,
-    <span class="ident">QueryBody</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
+    <span class="ident">utils</span>::<span class="ident">progressive_hash</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">HeaderPair</span>, <span class="ident">Operation</span>,
+    <span class="ident">OperationMeta</span>, <span class="ident">QueryBody</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
 };
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;observable&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">client</span>::<span class="ident">observable</span>::<span class="ident">Subscription</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">types</span>::<span class="ident">OperationOptions</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">exchange</span>::<span class="ident">Client</span>, <span class="ident">types</span>::<span class="ident">OperationOptions</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">de</span>::<span class="ident">DeserializeOwned</span>;
 
 <span class="comment">// SAFETY: JavaScript doesn&#39;t have multi-threading</span>
@@ -159,6 +161,8 @@
 <span class="comment">// The only non-send value is the pointer in JsValue</span>
 <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span><span class="op">&gt;</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">ClientImpl</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span> {}
 
+<span class="doccomment">/// The internal implementation stored in the [Client](./struct.Client.html).</span>
+<span class="doccomment">/// This is exposed just in case you ever need raw access to the type outside of the wrapper.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ClientImpl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">url</span>: <span class="ident">String</span>,
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">exchange</span>: <span class="ident">M</span>,
@@ -170,7 +174,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">fetch</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">js_sys</span>::<span class="ident">Function</span><span class="op">&gt;</span>
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span><span class="op">&gt;</span> <span class="kw">crate</span>::<span class="ident">exchanges</span>::<span class="ident">Client</span> <span class="kw">for</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ClientImpl</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span><span class="op">&gt;</span> <span class="ident">Client</span> <span class="kw">for</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ClientImpl</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">rerun_query</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">query_key</span>: <span class="ident">u64</span>) {
         <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;observable&quot;</span>) {
             <span class="kw">super</span>::<span class="ident">observable</span>::<span class="ident">rerun_query</span>(<span class="self">self</span>, <span class="ident">query_key</span>);

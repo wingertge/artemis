@@ -214,7 +214,7 @@
             <span class="ident">OperationType</span>::<span class="ident">Mutation</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">Mutation</span>),
             <span class="ident">OperationType</span>::<span class="ident">Subscription</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">quote</span><span class="macro">!</span>(<span class="ident">Subscription</span>)
         };
-        <span class="kw">let</span> <span class="ident">operation_type</span> <span class="op">=</span> <span class="macro">quote</span><span class="macro">!</span>(::<span class="ident">artemis</span>::<span class="ident">OperationType</span>::#<span class="ident">operation_type</span>);
+        <span class="kw">let</span> <span class="ident">operation_type</span> <span class="op">=</span> <span class="macro">quote</span><span class="macro">!</span>(::<span class="ident">artemis</span>::<span class="ident">exchange</span>::<span class="ident">OperationType</span>::#<span class="ident">operation_type</span>);
 
         <span class="kw">let</span> <span class="ident">struct_declaration</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">mode</span> {
             <span class="ident">CodegenMode</span>::<span class="ident">Cli</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="macro">quote</span><span class="macro">!</span> {
@@ -276,8 +276,8 @@
                 <span class="kw">type</span> <span class="ident">Variables</span> <span class="op">=</span> #<span class="ident">module_name</span>::<span class="ident">Variables</span>;
                 <span class="kw">type</span> <span class="ident">ResponseData</span> <span class="op">=</span> #<span class="ident">module_name</span>::<span class="ident">ResponseData</span>;
 
-                <span class="kw">fn</span> <span class="ident">build_query</span>(<span class="ident">variables</span>: <span class="self">Self</span>::<span class="ident">Variables</span>) <span class="op">-</span><span class="op">&gt;</span> (::<span class="ident">artemis</span>::<span class="ident">QueryBody</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Variables</span><span class="op">&gt;</span>, ::<span class="ident">artemis</span>::<span class="ident">OperationMeta</span>) {
-                    <span class="kw">let</span> <span class="ident">meta</span> <span class="op">=</span> ::<span class="ident">artemis</span>::<span class="ident">OperationMeta</span> {
+                <span class="kw">fn</span> <span class="ident">build_query</span>(<span class="ident">variables</span>: <span class="self">Self</span>::<span class="ident">Variables</span>) <span class="op">-</span><span class="op">&gt;</span> (::<span class="ident">artemis</span>::<span class="ident">QueryBody</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">Variables</span><span class="op">&gt;</span>, ::<span class="ident">artemis</span>::<span class="ident">exchange</span>::<span class="ident">OperationMeta</span>) {
+                    <span class="kw">let</span> <span class="ident">meta</span> <span class="op">=</span> ::<span class="ident">artemis</span>::<span class="ident">exchange</span>::<span class="ident">OperationMeta</span> {
                         <span class="ident">query_key</span>: #<span class="ident">query_string_hash</span>,
                         <span class="ident">operation_type</span>: #<span class="ident">operation_type</span>,
                         <span class="ident">involved_types</span>: #<span class="ident">involved_types</span>

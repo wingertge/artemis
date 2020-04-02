@@ -658,11 +658,15 @@
 <span id="658">658</span>
 <span id="659">659</span>
 <span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">store</span>::<span class="ident">data</span>::{<span class="ident">InMemoryData</span>, <span class="ident">Link</span>};
 <span class="kw">use</span> <span class="ident">artemis</span>::{
-    <span class="ident">exchanges</span>::<span class="ident">Client</span>, <span class="ident">progressive_hash</span>, <span class="ident">types</span>::<span class="ident">OperationOptions</span>, <span class="ident">FieldSelector</span>, <span class="ident">GraphQLQuery</span>,
-    <span class="ident">Operation</span>, <span class="ident">OperationResult</span>, <span class="ident">QueryError</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
+    <span class="ident">codegen</span>::<span class="ident">FieldSelector</span>,
+    <span class="ident">exchange</span>::{<span class="ident">Client</span>, <span class="ident">Operation</span>, <span class="ident">OperationOptions</span>, <span class="ident">OperationResult</span>},
+    <span class="ident">utils</span>::<span class="ident">progressive_hash</span>,
+    <span class="ident">GraphQLQuery</span>, <span class="ident">QueryError</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>
 };
 <span class="kw">use</span> <span class="ident">flurry</span>::{<span class="ident">epoch</span>, <span class="ident">epoch</span>::<span class="ident">Guard</span>};
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>)]</span>

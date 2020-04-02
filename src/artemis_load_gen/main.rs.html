@@ -110,9 +110,9 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">queries</span>::<span class="ident">get_conference</span>::{<span class="ident">get_conference</span>::<span class="ident">Variables</span>, <span class="ident">GetConference</span>};
 <span class="kw">use</span> <span class="ident">artemis</span>::{
-    <span class="ident">exchanges</span>::{<span class="ident">CacheExchange</span>, <span class="ident">Client</span>, <span class="ident">DedupExchange</span>},
-    <span class="ident">ClientBuilder</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">ExchangeResult</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">Operation</span>,
-    <span class="ident">OperationResult</span>, <span class="ident">Response</span>
+    <span class="ident">default_exchanges</span>::{<span class="ident">CacheExchange</span>, <span class="ident">DedupExchange</span>},
+    <span class="ident">exchange</span>::{<span class="ident">Client</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">ExchangeResult</span>, <span class="ident">Operation</span>, <span class="ident">OperationResult</span>},
+    <span class="ident">ClientBuilder</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">Response</span>
 };
 <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">Rng</span>;
 <span class="kw">use</span> <span class="ident">rayon</span>::{<span class="ident">iter</span>, <span class="ident">iter</span>::<span class="ident">ParallelIterator</span>};

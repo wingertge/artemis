@@ -111,15 +111,15 @@
 <span id="111">111</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;default-exchanges&quot;</span>)]</span>
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">exchanges</span>::{<span class="ident">CacheExchange</span>, <span class="ident">DedupExchange</span>, <span class="ident">FetchExchange</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">default_exchanges</span>::{<span class="ident">CacheExchange</span>, <span class="ident">DedupExchange</span>, <span class="ident">FetchExchange</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">client</span>::<span class="ident">ClientImpl</span>, <span class="ident">exchanges</span>::<span class="ident">TerminatorExchange</span>, <span class="ident">Client</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>,
+    <span class="ident">client</span>::<span class="ident">ClientImpl</span>, <span class="ident">default_exchanges</span>::<span class="ident">TerminatorExchange</span>, <span class="ident">Client</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>,
     <span class="ident">HeaderPair</span>, <span class="ident">RequestPolicy</span>
 };
 <span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">Mutex</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">sync</span>::<span class="ident">Arc</span>};
 
-<span class="doccomment">/// A builder for the artemis client</span>
+<span class="doccomment">/// A builder for the artemis client.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ClientBuilder</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span> <span class="op">=</span> <span class="ident">TerminatorExchange</span><span class="op">&gt;</span> {
     <span class="ident">exchange</span>: <span class="ident">M</span>,
     <span class="ident">url</span>: <span class="ident">String</span>,

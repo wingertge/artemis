@@ -639,8 +639,8 @@
 
     <span class="kw">let</span> <span class="ident">query_info</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">context</span>.<span class="ident">include_query_info</span> {
         <span class="macro">quote</span><span class="macro">!</span> {
-            <span class="kw">impl</span> ::<span class="ident">artemis</span>::<span class="ident">QueryInfo</span><span class="op">&lt;</span><span class="ident">Variables</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ResponseData</span> {
-                <span class="kw">fn</span> <span class="ident">selection</span>(<span class="ident">variables</span>: <span class="kw-2">&amp;</span><span class="ident">Variables</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>::<span class="ident">artemis</span>::<span class="ident">FieldSelector</span><span class="op">&gt;</span> {
+            <span class="kw">impl</span> ::<span class="ident">artemis</span>::<span class="ident">codegen</span>::<span class="ident">QueryInfo</span><span class="op">&lt;</span><span class="ident">Variables</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ResponseData</span> {
+                <span class="kw">fn</span> <span class="ident">selection</span>(<span class="ident">variables</span>: <span class="kw-2">&amp;</span><span class="ident">Variables</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span>::<span class="ident">artemis</span>::<span class="ident">codegen</span>::<span class="ident">FieldSelector</span><span class="op">&gt;</span> {
                     <span class="macro">vec</span><span class="macro">!</span>[
                         #(#<span class="ident">response_data_selection</span>,)<span class="op">*</span>
                     ]

@@ -355,6 +355,32 @@
 <span id="355">355</span>
 <span id="356">356</span>
 <span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A modern GraphQL Client with common built-in features</span>
 <span class="doccomment">//! as well as the ability to extend its functionality through exchanges</span>
@@ -457,6 +483,12 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Documentation of the JavaScript types and methods can be found in the TypeScript</span>
 <span class="doccomment">//! definitions that are output when you build your WASM.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! # Features</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! * `default-exchanges` **(default)** - Include default exchanges and the related builder method</span>
+<span class="doccomment">//! * `observable` **(default)** - Include support for observable and all related types. Includes</span>
+<span class="doccomment">//! `tokio` on x86.</span>
 
 <span class="comment">//#![warn(missing_docs)]</span>
 <span class="comment">//#![deny(warnings)]</span>
@@ -467,21 +499,41 @@
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">async_trait</span>;
 
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">fmt</span>, <span class="ident">fmt</span>::<span class="ident">Display</span>};
+<span class="kw">use</span> <span class="ident">types</span>::<span class="kw-2">*</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">client</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">default_exchanges</span>;
 <span class="kw">mod</span> <span class="ident">error</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">exchanges</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">types</span>;
-<span class="kw">mod</span> <span class="ident">utils</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">types</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">artemis_codegen_proc_macro</span>::<span class="ident">wasm_client</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client</span>::{<span class="ident">Client</span>, <span class="ident">ClientBuilder</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">error</span>::<span class="ident">QueryError</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">de</span>::<span class="ident">DeserializeOwned</span>, <span class="ident">Serialize</span>};
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::<span class="kw-2">*</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">utils</span>::<span class="kw-2">*</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;observable&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::<span class="ident">Observable</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">types</span>::{
+    <span class="ident">DebugInfo</span>, <span class="ident">ExtensionMap</span>, <span class="ident">Extensions</span>, <span class="ident">HeaderPair</span>, <span class="ident">QueryOptions</span>, <span class="ident">RequestPolicy</span>, <span class="ident">ResultSource</span>
+};
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">utils</span>::<span class="ident">wasm</span>;
 
-<span class="doccomment">/// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.</span>
+<span class="doccomment">/// Types used by custom exchanges. Regular users probably don&#39;t need these.</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">exchange</span> {
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">types</span>::{
+        <span class="ident">Client</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">ExchangeResult</span>, <span class="ident">Extension</span>, <span class="ident">Operation</span>, <span class="ident">OperationMeta</span>,
+        <span class="ident">OperationOptions</span>, <span class="ident">OperationResult</span>, <span class="ident">OperationType</span>
+    };
+}
+
+<span class="doccomment">/// Types used only by the code generator. Exchanges may use these, but they shouldn&#39;t</span>
+<span class="doccomment">/// be created/implemented manually.</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">codegen</span> {
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">types</span>::{<span class="ident">FieldSelector</span>, <span class="ident">QueryInfo</span>};
+}
+
+<span class="doccomment">/// The form in which queries are sent over HTTP in most implementations. This will be built using the [GraphQLQuery](./trait.GraphQLQuery.html) trait normally.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">QueryBody</span><span class="op">&lt;</span><span class="ident">Variables</span>: <span class="ident">Serialize</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">Clone</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The values for the variables. They must match those declared in the queries. This should be the `Variables` struct from the generated module corresponding to the query.</span>
@@ -686,7 +738,7 @@
     }
 }
 
-<span class="doccomment">/// Part of a path in a query. It can be an object key or an array index. See [`Error`].</span>
+<span class="doccomment">/// Part of a path in a query. It can be an object key or an array index. See [Error](./struct.Error.html).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">untagged</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PathFragment</span> {
@@ -696,7 +748,7 @@
     <span class="ident">Index</span>(<span class="ident">i32</span>)
 }
 
-<span class="doccomment">/// Represents a location inside a query string. Used in errors. See [`Error`].</span>
+<span class="doccomment">/// Represents a location inside a query string. Used in errors. See [Error](./struct.Error.html).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Copy</span>, <span class="ident">Default</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Location</span> {
     <span class="doccomment">/// The line number in the query string where the error originated (starting from 1).</span>

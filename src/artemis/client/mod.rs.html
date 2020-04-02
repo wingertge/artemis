@@ -144,7 +144,13 @@
 <span id="144">144</span>
 <span id="145">145</span>
 <span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! Contains client-related types.</span>
+
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="kw">mod</span> <span class="ident">builder</span>;
@@ -153,7 +159,8 @@
 <span class="kw">mod</span> <span class="ident">observable</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">exchanges</span>::<span class="ident">TerminatorExchange</span>, <span class="ident">Exchange</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>, <span class="ident">Response</span>
+    <span class="ident">default_exchanges</span>::<span class="ident">TerminatorExchange</span>, <span class="ident">Exchange</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">QueryError</span>, <span class="ident">QueryOptions</span>,
+    <span class="ident">Response</span>
 };
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">builder</span>::<span class="ident">ClientBuilder</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">r#impl</span>::<span class="ident">ClientImpl</span>;
@@ -162,6 +169,7 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_arch</span> <span class="op">=</span> <span class="string">&quot;wasm32&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">wasm</span>::<span class="kw-2">*</span>;
 
+<span class="doccomment">/// An Artemis client type used to run queries against</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="attribute">#[<span class="ident">repr</span>(<span class="ident">transparent</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Client</span><span class="op">&lt;</span><span class="ident">M</span>: <span class="ident">Exchange</span> <span class="op">=</span> <span class="ident">TerminatorExchange</span><span class="op">&gt;</span>(<span class="kw">pub</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ClientImpl</span><span class="op">&lt;</span><span class="ident">M</span><span class="op">&gt;</span><span class="op">&gt;</span>);
