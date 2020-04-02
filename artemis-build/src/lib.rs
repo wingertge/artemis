@@ -32,6 +32,7 @@
 
 #![warn(missing_docs)]
 #![deny(warnings)]
+#![allow(unused_parens)]
 
 use artemis_codegen::{
     deprecation::DeprecationStrategy, generate_module_token_stream, generate_root_token_stream,
