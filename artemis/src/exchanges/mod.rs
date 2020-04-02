@@ -11,7 +11,7 @@ mod dedup;
 #[cfg(feature = "default-exchanges")]
 mod fetch;
 
-use crate::{client::ClientImpl, ExchangeResult, GraphQLQuery, OperationResult};
+use crate::{ExchangeResult, GraphQLQuery};
 #[cfg(feature = "default-exchanges")]
 pub use cache::CacheExchange;
 #[cfg(feature = "default-exchanges")]
@@ -19,7 +19,6 @@ pub use dedup::DedupExchange;
 #[cfg(feature = "default-exchanges")]
 pub use fetch::FetchExchange;
 use serde::de::DeserializeOwned;
-use std::sync::Arc;
 
 #[derive(Debug)]
 enum MiddlewareError {

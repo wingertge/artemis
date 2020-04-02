@@ -4,14 +4,13 @@ use crate::{
     DebugInfo, Exchange, ExchangeFactory, GraphQLQuery, HeaderPair, OperationOptions, QueryBody,
     Response, ResultSource
 };
+#[cfg(target_arch = "wasm32")]
 use futures::future::BoxFuture;
 use std::{
     error::Error,
     fmt,
     future::Future,
-    io,
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll}
 };
 #[cfg(target_arch = "wasm32")]
@@ -19,12 +18,15 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Debug)]
 pub enum FetchError {
+    #[cfg(not(target_arch = "wasm32"))]
     NetworkError(Box<dyn Error + Send + Sync>),
+    #[cfg(target_arch = "wasm32")]
     NotOk(u16, String, String),
     #[cfg(target_arch = "wasm32")]
     DecodeError(std::io::Error),
     #[cfg(not(target_arch = "wasm32"))]
     DecodeError(reqwest::Error),
+    #[cfg(target_arch = "wasm32")]
     EncodeError(serde_json::Error)
 }
 impl Error for FetchError {}
@@ -32,9 +34,12 @@ impl Error for FetchError {}
 impl fmt::Display for FetchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             FetchError::NetworkError(e) => write!(f, "fetch error: {}", e),
             FetchError::DecodeError(e) => write!(f, "decoding error: {}", e),
+            #[cfg(target_arch = "wasm32")]
             FetchError::EncodeError(e) => write!(f, "encoding error: {}", e),
+            #[cfg(target_arch = "wasm32")]
             FetchError::NotOk(status_code, status_text, body) => write!(
                 f,
                 "server returned error code: {} {}\n{}",
@@ -107,7 +112,7 @@ impl FetchExchange {
         options: OperationOptions,
         query: QueryBody<Q::Variables>
     ) -> BoxFuture<'static, Result<Response<Q::ResponseData>, FetchError>> {
-        use wasm_bindgen::{prelude::*, JsCast, JsValue};
+        use wasm_bindgen::{prelude::*, JsCast};
         use wasm_bindgen_futures::JsFuture;
         use web_sys::RequestMode;
 
@@ -119,7 +124,7 @@ impl FetchExchange {
 
             let headers = web_sys::Headers::new().unwrap();
             for HeaderPair(key, value) in extra_headers {
-                headers.set(key.as_str(), value.as_str());
+                headers.set(key.as_str(), value.as_str()).unwrap();
             }
             let headers = headers.into();
             init.headers(&headers);
@@ -155,7 +160,7 @@ impl FetchExchange {
             }
 
             serde_json::from_slice(&body)
-                .map_err(io::Error::from)
+                .map_err(std::io::Error::from)
                 .map_err(FetchError::DecodeError)
         };
 

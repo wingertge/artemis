@@ -1,6 +1,4 @@
 use std::{error::Error, fmt, sync::Arc};
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsValue;
 
 /// A query error wrapper that allows for cheap and easy cloning across threads
 /// If a `std::error::Error` is needed, use `QueryError.compat()`
@@ -12,7 +10,7 @@ pub struct QueryError {
 impl PartialEq for QueryError {
     /// This is just for testing. Wrapped Errors can't reasonably be compared,
     /// so this will always return false
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         false
     }
 }

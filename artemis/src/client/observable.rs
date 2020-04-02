@@ -1,6 +1,6 @@
 use crate::{
     client::ClientImpl, progressive_hash, types::Observable, Exchange, ExchangeResult,
-    GraphQLQuery, OperationResult, QueryError, QueryOptions, Response
+    GraphQLQuery, QueryError, QueryOptions, Response
 };
 use futures::{channel::mpsc::Sender, SinkExt};
 use serde::de::DeserializeOwned;
@@ -26,7 +26,7 @@ pub fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
     options: QueryOptions
 ) -> super::observable::OperationObservable<Q, M> {
     let (query, meta) = Q::build_query(variables.clone());
-    let (mut sender, receiver) = futures::channel::mpsc::channel(8);
+    let (sender, receiver) = futures::channel::mpsc::channel(8);
     let key = progressive_hash(meta.query_key, &variables);
 
     let operation = client.create_request_operation::<Q>(query, meta, options);
@@ -34,11 +34,11 @@ pub fn subscribe_with_options<Q: GraphQLQuery + 'static, M: Exchange>(
     let observable = {
         let mut subscriptions = client.active_subscriptions.lock();
         let index = if let Some(subscription) = subscriptions.get_mut(&key) {
-            subscription.listeners.push(sender.clone())
+            subscription.listeners.push(sender)
         } else {
             let client = client.clone();
             let subscription = Subscription {
-                listeners: vec![sender.clone()].into(),
+                listeners: vec![sender].into(),
                 rerun: Arc::new(move || {
                     let client = client.clone();
                     let operation = operation.clone();

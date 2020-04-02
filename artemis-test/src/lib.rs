@@ -1,4 +1,4 @@
-mod queries;
+pub mod queries;
 pub use queries::*;
 
 #[cfg(target_arch = "wasm32")]

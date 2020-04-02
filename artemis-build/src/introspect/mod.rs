@@ -10,15 +10,24 @@ use std::{
 
 mod query;
 
+/// An error that occurred during schema introspection
 #[derive(Debug)]
 pub enum IntrospectionError {
+    /// The remote server returned a non-ok response code. The message contains the body.
     RemoteError(String),
+    /// There was an error during serialization to JSON.
     SerializationError(serde_json::Error),
+    /// There was an error during deserialization from JSON.
+    /// This means the response was not a valid schema.
     DeserializationError(reqwest::Error),
+    /// A network error occurred.
     NetworkError(reqwest::Error),
+    /// An error occurred while writing the temporary schema file.
     IoError(std::io::Error),
+    /// The arguments passed to the introspection logic were invalid.
     ArgumentError(String)
 }
+
 impl Error for IntrospectionError {}
 impl fmt::Display for IntrospectionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -33,6 +42,9 @@ impl fmt::Display for IntrospectionError {
     }
 }
 
+/// An extra header to be passed to the introspection query.
+/// Authorization tokens are passed separately as the second argument, this is only for
+/// more exotic header requirements.
 pub struct Header {
     key: &'static str,
     value: &'static str

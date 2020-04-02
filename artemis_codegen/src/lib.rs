@@ -63,7 +63,7 @@ lazy_static! {
         CacheMap::default();
 }
 
-/// Global error type for codegen crate
+/// An error that happened during code generation
 #[derive(Debug)]
 pub enum CodegenError {
     /// An IO Error
@@ -72,7 +72,7 @@ pub enum CodegenError {
     QueryParsingError(graphql_parser::query::ParseError),
     /// An error that occurred while parsing the schema
     SchemaParsingError(graphql_parser::schema::ParseError),
-    /// An error that occured during serialization
+    /// An error that occurred during serialization
     SerializationError(serde_json::Error),
     /// An internal error while parsing union types
     UnionError(unions::UnionError),

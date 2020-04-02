@@ -1,11 +1,9 @@
 use crate::{
     client::ClientImpl,
     wasm::{JsQueryOptions, QueryCollection},
-    Client, ClientBuilder, Exchange, ExchangeFactory, OperationMeta, QueryBody, QueryOptions,
-    RequestPolicy
+    Client, Exchange, QueryOptions
 };
 use js_sys::Function;
-use serde_json::Value;
 use std::{marker::PhantomData, sync::Arc};
 use wasm_bindgen::JsValue;
 

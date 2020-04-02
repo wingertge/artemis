@@ -1,9 +1,9 @@
 use crate::{
     progressive_hash, Exchange, ExchangeResult, GraphQLQuery, HeaderPair, Operation, OperationMeta,
-    OperationResult, QueryBody, QueryError, QueryOptions, RequestPolicy, Response
+    QueryBody, QueryError, QueryOptions, RequestPolicy, Response
 };
 use parking_lot::Mutex;
-use std::{collections::HashMap, sync::Arc, vec};
+use std::{collections::HashMap, sync::Arc};
 
 #[cfg(feature = "observable")]
 use crate::client::observable::Subscription;

@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-pub const OPERATION_NAME: &str = "IntrospectionQuery";
-pub const QUERY: &str = r#"
+pub(crate) const OPERATION_NAME: &str = "IntrospectionQuery";
+pub(crate) const QUERY: &str = r#"
 query IntrospectionQuery {
   __schema {
     queryType {
@@ -103,4 +103,4 @@ fragment TypeRef on __Type {
 }"#;
 
 #[derive(Serialize, Clone)]
-pub struct Variables;
+pub(crate) struct Variables;

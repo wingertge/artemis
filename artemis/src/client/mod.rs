@@ -9,7 +9,6 @@ use crate::{
     exchanges::TerminatorExchange, Exchange, GraphQLQuery, QueryError, QueryOptions, Response
 };
 pub use builder::ClientBuilder;
-use futures::{TryFutureExt, TryStreamExt};
 pub use r#impl::ClientImpl;
 #[cfg(target_arch = "wasm32")]
 mod wasm;

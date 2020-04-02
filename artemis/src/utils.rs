@@ -1,7 +1,5 @@
 use serde::Serialize;
 use std::num::Wrapping;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 /// When we have separate values it's useful to run a progressive
 /// version of djb2 where we pretend that we're still looping over
@@ -42,21 +40,20 @@ macro_rules! ext {
 #[cfg(all(target_arch = "wasm32", feature = "observable"))]
 pub mod wasm {
     use crate::{
-        ClientImpl, DebugInfo, Error, Exchange, ExtensionMap, GraphQLQuery, HeaderPair, QueryError,
-        QueryOptions, RequestPolicy, Response
+        client::ClientImpl, Exchange, ExtensionMap, HeaderPair, QueryError,
+        QueryOptions
     };
     use futures::{future::BoxFuture, Stream, StreamExt};
-    use js_sys::{Array, Function};
+    use js_sys::Function;
     use serde::Serialize;
     use std::{
-        any::Any,
         future::Future,
         pin::Pin,
         sync::Arc,
         task::{Context, Poll}
     };
     use wasm_bindgen::{
-        closure::Closure, prelude::*, JsCast, JsValue, __rt::std::collections::HashMap
+        prelude::*, JsValue, __rt::std::collections::HashMap
     };
 
     #[wasm_bindgen(typescript_custom_section)]
@@ -160,14 +157,12 @@ export interface ArtemisClient<Q> {
 
     impl From<JsQueryOptions> for QueryOptions {
         fn from(options: JsQueryOptions) -> Self {
-            unsafe {
-                let extensions = ExtensionMap::from_js(options.extensions2());
-                QueryOptions {
-                    url: options.url2().map(|url| url.parse().unwrap()),
-                    extra_headers: options.headers2().map(convert_header_fn),
-                    request_policy: options.request_policy2().map(Into::into),
-                    extensions: extensions.map(Arc::new)
-                }
+            let extensions = ExtensionMap::from_js(options.extensions2());
+            QueryOptions {
+                url: options.url2().map(|url| url.parse().unwrap()),
+                extra_headers: options.headers2().map(convert_header_fn),
+                request_policy: options.request_policy2().map(Into::into),
+                extensions: extensions.map(Arc::new)
             }
         }
     }
@@ -237,7 +232,7 @@ export interface ArtemisClient<Q> {
         })
     }
 
-    pub fn bind_stream<S, Item>(mut stream: S, callback: Function)
+    pub fn bind_stream<S, Item>(stream: S, callback: Function)
     where
         S: Stream<Item = Result<Item, QueryError>> + 'static,
         Item: Serialize + 'static
@@ -253,7 +248,7 @@ export interface ArtemisClient<Q> {
                 };
                 let ok = serde_wasm_bindgen::to_value(&ok).unwrap();
                 let err = serde_wasm_bindgen::to_value(&err).unwrap();
-                callback.0.call2(&this, &ok, &err);
+                callback.0.call2(&this, &ok, &err).unwrap();
             }
         });
         wasm_bindgen_futures::spawn_local(fut);

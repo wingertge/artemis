@@ -6,8 +6,6 @@ use crate::{
 };
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 /// A builder for the artemis client
 pub struct ClientBuilder<M: Exchange = TerminatorExchange> {

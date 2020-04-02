@@ -1,6 +1,43 @@
 //! A modern GraphQL Client with common built-in features
 //! as well as the ability to extend its functionality through exchanges
 //!
+//! # Getting Started
+//!
+//! The first step is to write some queries in `.graphql` files and then add the following to your
+//! `build.rs` (create it if necessary):
+//!
+//! ```ignore
+//! use artemis_build::CodegenBuilder;
+//!
+//! fn main() {
+//!     CodegenBuilder::new()
+//!         .introspect_schema("http://localhost:8080/graphql", None, Vec::new())
+//!         .unwrap()
+//!         .add_query("queries/x.graphql")
+//!         .with_out_dir("src/queries")
+//!         .build()
+//!         .unwrap();
+//! }
+//! ```
+//!
+//! Afterwards, you can use the crate in your application as such:
+//!
+//! ```
+//! # tokio_test::block_on(async {
+//! use artemis::Client;
+//! use artemis_test::get_conference::{GetConference, get_conference::Variables};
+//!
+//! let client = Client::builder("http://localhost:8080/graphql")
+//!     .with_default_exchanges()
+//!     .build();
+//!
+//! let result = client.query(GetConference, Variables { id: "1".to_string() }).await.unwrap();
+//! assert!(result.data.is_some());
+//! # });
+//! ```
+//!
+//! For more info see the relevant method and struct documentation.
+//!
 //! # Build
 //!
 //! This crate uses code generation to take your GraphQL files and turn them into
@@ -47,10 +84,24 @@
 //! The fetch exchange will serialize the query, send it over the network and deserialize the response.
 //! This works on x86 using `reqwest`, or `fetch` if you're using WASM.
 //! This should be your last exchange in the chain, as it never forwards a query.
+//!
+//! # WASM
+//!
+//! WASM support requires some minor boilerplate in your code.
+//! First, there's a `wasm` module in your queries. this contains an automatically generated enum
+//! containing all your queries. This is used for transmitting type data across the WASM
+//! boundary.
+//!
+//! Second, you have to use the [graphql_client! macro](../artemis_codegen_proc_macro/macro.wasm_client!.html)
+//! to generate a WASM interop client that has hard-coded types for your queries, again, to
+//! eliminate the unsupported generics and transmit type data across the boundary.
+//! The queries type passed to the macro must be the enum generated as mentioned above.
+//!
+//! Documentation of the JavaScript types and methods can be found in the TypeScript
+//! definitions that are output when you build your WASM.
 
 //#![warn(missing_docs)]
 #![deny(warnings)]
-#![allow(unused)]
 
 #[macro_use]
 extern crate serde;
@@ -71,11 +122,6 @@ pub use error::QueryError;
 use serde::{de::DeserializeOwned, Serialize};
 pub use types::*;
 pub use utils::*;
-
-use crate::client::ClientImpl;
-use std::sync::Arc;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
 
 /// The form in which queries are sent over HTTP in most implementations. This will be built using the [`GraphQLQuery`] trait normally.
 #[derive(Debug, Serialize, Clone)]

@@ -31,6 +31,7 @@ criterion = "0.3"
 criterion-macro = "0.3"
 rand = "0.7"
 wasm-bindgen-test = "0.3"
+artemis-build = { path = "../artemis-build" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }

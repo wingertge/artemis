@@ -12,3 +12,7 @@ proc-macro = true
 [dependencies]
 syn = "1"
 artemis_codegen = { path = "../artemis_codegen" }
+
+[dev-dependencies]
+artemis = { path = "../artemis" }
+artemis-test = { path = "../artemis-test" }

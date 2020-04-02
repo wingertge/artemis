@@ -1,7 +1,6 @@
 use crate::{client::ClientImpl, exchanges::Client, GraphQLQuery, QueryBody, QueryError, Response};
 #[cfg(feature = "observable")]
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
-use parking_lot::RwLock;
 use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
 use std::{
     any::{Any, TypeId},
@@ -11,9 +10,7 @@ use std::{
     task::Poll
 };
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsValue;
 
 /// The result type returned by exchanges
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;
@@ -359,7 +356,7 @@ impl ExtensionMap {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn get_js<T: Extension>(&self, js_key: String) -> Option<T> {
+    fn get_js<T: Extension>(&self, _js_key: String) -> Option<T> {
         None
     }
 

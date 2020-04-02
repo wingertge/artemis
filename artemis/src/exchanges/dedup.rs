@@ -114,8 +114,7 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 mod test {
     use super::DedupExchangeImpl;
     use crate::{
-        client::ClientImpl,
-        exchanges::{Client, DedupExchange, TerminatorExchange},
+        exchanges::{Client, DedupExchange},
         types::{Operation, OperationOptions, OperationResult},
         ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
         GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,
@@ -126,7 +125,7 @@ mod test {
         GetConference
     };
     use lazy_static::lazy_static;
-    use std::{sync::Arc, time::Duration};
+    use std::time::Duration;
     use tokio::time::delay_for;
 
     lazy_static! {
