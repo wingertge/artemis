@@ -66,14 +66,14 @@ impl QueryStore {
     /// The current state is cloned, so feel free to modify and return it.
     /// * `dependencies` - This is passed into the update closure and should simply be passed
     /// through.
-    pub fn update_query<Q: GraphQLQuery, F>(
-        &self,
+    pub fn update_query<'a, Q: GraphQLQuery, F>(
+        &'a self,
         _query: Q,
         variables: Q::Variables,
         updater_fn: F,
         dependencies: &mut HashSet<String>
     ) where
-        F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
+        F: FnOnce(Option<Q::ResponseData>) -> Option<Q::ResponseData> + 'a
     {
         self.store
             .update_query::<Q, _>(variables, updater_fn, dependencies);
@@ -87,13 +87,13 @@ impl From<Arc<Store>> for QueryStore {
 }
 
 impl Store {
-    pub fn update_query<Q: GraphQLQuery, F>(
+    pub fn update_query<'a, Q: GraphQLQuery, F>(
         &self,
         variables: Q::Variables,
         updater_fn: F,
         dependencies: &mut HashSet<String>
     ) where
-        F: Fn(Option<Q::ResponseData>) -> Option<Q::ResponseData>
+        F: FnOnce(Option<Q::ResponseData>) -> Option<Q::ResponseData> + 'a
     {
         let (query, meta) = Q::build_query(variables.clone());
         let key = progressive_hash(meta.query_key, &variables);

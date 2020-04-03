@@ -83,16 +83,16 @@ impl NormalizedCacheExtension {
     /// ```
     /// # use artemis_normalized_cache::NormalizedCacheExtension;
     /// # use artemis_test::queries::get_conferences::{GetConferences, get_conferences::{self, Variables, ResponseData}};
-    /// # use artemis_test::queries::get_conference::get_conference;
+    /// # use artemis_test::get_conference::{GetConference, get_conference};
     ///
     /// let extension = NormalizedCacheExtension::new()
-    ///     .update(|current_data: &Option<get_conference::ResponseData>, store, dependencies| {
-    ///         let conference = current_data.unwrap().conference.unwrap();
-    ///         store.update_query(GetConferences, Variables, |data| {
+    ///     .update::<GetConference, _>(|current_data, store, dependencies| {
+    ///         let conference = current_data.as_ref().unwrap().conference.as_ref().unwrap();
+    ///         store.update_query(GetConferences, Variables, move |mut data| {
     ///             if let Some(ResponseData { conferences: Some(ref mut conferences) }) = data {
     ///                 conferences.push(get_conferences::GetConferencesConferences {
-    ///                     id: conference.id,
-    ///                     name: conference.name
+    ///                     id: conference.id.clone(),
+    ///                     name: conference.name.clone()
     ///                 });
     ///             }
     ///             data
