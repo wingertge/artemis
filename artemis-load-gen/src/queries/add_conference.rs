@@ -102,7 +102,7 @@ impl ::artemis::GraphQLQuery for AddConference {
         let meta = ::artemis::exchange::OperationMeta {
             query_key: 1806959457u32,
             operation_type: ::artemis::exchange::OperationType::Mutation,
-            involved_types: vec!["Conference", "Talk"]
+            involved_types: vec!["Talk", "Conference"]
         };
         let body = ::artemis::QueryBody {
             variables,

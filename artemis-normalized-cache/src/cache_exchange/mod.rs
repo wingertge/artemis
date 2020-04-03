@@ -1,3 +1,6 @@
+//! Contains the exchange factory and implementation. The factory is the only thing needed for most
+//! users and is reexported from the root.
+
 use crate::{
     store::Store,
     types::{NormalizedCacheExtension, NormalizedCacheOptions}
@@ -23,12 +26,14 @@ use wasm_bindgen::JsValue;
 #[cfg(test)]
 mod tests;
 
+/// The normalized cache exchange. This will store normalized queries by unique ID.
 #[derive(Default)]
 pub struct NormalizedCacheExchange {
     options: Option<NormalizedCacheOptions>
 }
 
 impl NormalizedCacheExchange {
+    /// Create a new cache exchange with extra options.
     #[allow(unused)]
     pub fn with_options(options: NormalizedCacheOptions) -> Self {
         Self {
@@ -36,6 +41,7 @@ impl NormalizedCacheExchange {
         }
     }
 
+    /// Create a new cache exchange with default options
     #[allow(unused)]
     pub fn new() -> Self {
         Self { options: None }
@@ -57,6 +63,8 @@ impl<TNext: Exchange> ExchangeFactory<TNext> for NormalizedCacheExchange {
     }
 }
 
+/// The implementation of the normalized cache. Exposed in case someone needs it, but most users
+/// shouldn't.
 pub struct NormalizedCacheImpl<TNext: Exchange> {
     next: TNext,
     store: Arc<Store>,

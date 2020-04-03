@@ -39,20 +39,22 @@ macro_rules! ext {
 }
 
 /// Utilities for JS interop
-/// These will just be used by the `graphql_client!` macro and the build script and are not designed to be used manually
-#[cfg(all(target_arch = "wasm32", feature = "observable"))]
+/// These will just be used by the [`wasm_client!`](./macro.wasm_client!.html) macro and the build
+/// script and are not designed to be used manually
+#[cfg(target_arch = "wasm32")]
 pub mod wasm {
     use crate::{client::ClientImpl, Exchange, ExtensionMap, HeaderPair, QueryError, QueryOptions};
     use futures::{future::BoxFuture, Stream, StreamExt};
     use js_sys::Function;
     use serde::Serialize;
     use std::{
+        collections::HashMap,
         future::Future,
         pin::Pin,
         sync::Arc,
         task::{Context, Poll}
     };
-    use wasm_bindgen::{prelude::*, JsValue, __rt::std::collections::HashMap};
+    use wasm_bindgen::{prelude::*, JsValue};
 
     #[wasm_bindgen(typescript_custom_section)]
     const TS_APPEND_CONTENT: &'static str = r#"
@@ -230,6 +232,7 @@ export interface ArtemisClient<Q> {
         })
     }
 
+    #[cfg(feature = "observable")]
     pub fn bind_stream<S, Item>(stream: S, callback: Function)
     where
         S: Stream<Item = Result<Item, QueryError>> + 'static,

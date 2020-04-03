@@ -45,12 +45,27 @@ pub fn is_root(typename: &str) -> bool {
     typename == "Query" || typename == "Mutation" || typename == "Subscription"
 }
 
+/// A reference to the store used to run custom query updates
 #[derive(Clone)]
 pub struct QueryStore {
     pub(crate) store: Arc<Store>
 }
 
 impl QueryStore {
+    /// Run a custom update function against the cache.
+    ///
+    /// # Parameters
+    ///
+    /// * `_query` - The [`GraphQLQuery`](../artemis/trait.GraphQLQuery.html) object for the query
+    /// you want to update.
+    /// * `variables` - The `Variables` for the query you want to update. It will only update
+    /// cached results for that set of variables.
+    /// * `updater_fn` - The custom updater function. This takes in an `Option<ResponseData>` that
+    /// represents the current state and should return an `Option<ResponseData>` that represents
+    /// the new state. `None` means deleting the entry in this context.
+    /// The current state is cloned, so feel free to modify and return it.
+    /// * `dependencies` - This is passed into the update closure and should simply be passed
+    /// through.
     pub fn update_query<Q: GraphQLQuery, F>(
         &self,
         _query: Q,
