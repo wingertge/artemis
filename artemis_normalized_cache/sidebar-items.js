@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["NormalizedCacheExtension",""],["NormalizedCacheOptions",""],["QueryStore",""],["Store",""]]});
+initSidebarItems({"mod":[["cache_exchange","Contains the exchange factory and implementation. The factory is the only thing needed for most users and is reexported from the root."]],"struct":[["NormalizedCacheExtension","A query extension that lets you pass additional logic into the cache."],["NormalizedCacheOptions","Options to pass to the normalized cache."],["QueryStore","A reference to the store used to run custom query updates"]]});

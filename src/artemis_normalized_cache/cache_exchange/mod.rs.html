@@ -330,7 +330,18 @@
 <span id="330">330</span>
 <span id="331">331</span>
 <span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="doccomment">//! Contains the exchange factory and implementation. The factory is the only thing needed for most</span>
+<span class="doccomment">//! users and is reexported from the root.</span>
+
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">store</span>::<span class="ident">Store</span>,
     <span class="ident">types</span>::{<span class="ident">NormalizedCacheExtension</span>, <span class="ident">NormalizedCacheOptions</span>}
@@ -356,12 +367,14 @@
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span>;
 
+<span class="doccomment">/// The normalized cache exchange. This will store normalized queries by unique ID.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NormalizedCacheExchange</span> {
     <span class="ident">options</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NormalizedCacheOptions</span><span class="op">&gt;</span>
 }
 
 <span class="kw">impl</span> <span class="ident">NormalizedCacheExchange</span> {
+    <span class="doccomment">/// Create a new cache exchange with extra options.</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_options</span>(<span class="ident">options</span>: <span class="ident">NormalizedCacheOptions</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
@@ -369,6 +382,7 @@
         }
     }
 
+    <span class="doccomment">/// Create a new cache exchange with default options</span>
     <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">options</span>: <span class="prelude-val">None</span> }
@@ -390,6 +404,8 @@
     }
 }
 
+<span class="doccomment">/// The implementation of the normalized cache. Exposed in case someone needs it, but most users</span>
+<span class="doccomment">/// shouldn&#39;t.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">NormalizedCacheImpl</span><span class="op">&lt;</span><span class="ident">TNext</span>: <span class="ident">Exchange</span><span class="op">&gt;</span> {
     <span class="ident">next</span>: <span class="ident">TNext</span>,
     <span class="ident">store</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Store</span><span class="op">&gt;</span>,
