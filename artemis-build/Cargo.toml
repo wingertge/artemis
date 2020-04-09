@@ -1,8 +1,13 @@
 [package]
 name = "artemis-build"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
+description = "Build time tooling for the artemis crate."
+repository = "https://github.com/wingertge/artemis.git"
+keywords = ["build", "artemis"]
+categories = ["web-programming", "development-tools::build-utils", "development-tools"]
+license = "MIT OR Apache-2.0"
 
 [features]
 rustfmt = ["rustfmt-nightly"]

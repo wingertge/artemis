@@ -1,8 +1,14 @@
 [package]
 name = "artemis"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
+description = "An integrated GraphQL Client that supports caching, fetching and others through extensible exchanges in Rust and with WASM."
+readme = "README.md"
+repository = "https://github.com/wingertge/artemis.git"
+keywords = ["graphql", "web", "async", "cache", "wasm"]
+categories = ["asynchronous", "wasm", "web-programming", "web-programming::http-client"]
+license = "MIT OR Apache-2.0"
 
 [[bench]]
 name = "integration_bench"

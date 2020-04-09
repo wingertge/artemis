@@ -1,8 +1,11 @@
 [package]
 name = "artemis-codegen-proc-macro"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
+description = "Proc macros for the artemis crate."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/wingertge/artemis.git"
 
 [lib]
 proc-macro = true
@@ -11,8 +14,8 @@ proc-macro = true
 
 [dependencies]
 syn = "1"
-artemis_codegen = { path = "../artemis_codegen" }
+artemis_codegen = { path = "../artemis_codegen", version = "0.1.0-alpha.0" }
 
 [dev-dependencies]
-artemis = { path = "../artemis" }
-artemis-test = { path = "../artemis-test" }
+# artemis = { path = "../artemis" }
+# artemis-test = { path = "../artemis-test" }

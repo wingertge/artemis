@@ -21,4 +21,4 @@ heck = "0.3"
 dprint-plugin-typescript = "0.9.8"
 
 [dev-dependencies]
-artemis = { path = "../artemis", version = "0.1.0-alpha.0" }
+artemis = { path = "../artemis" }
