@@ -9,7 +9,6 @@ fn query(file_name: &str) -> String {
 }
 
 #[rustversion::nightly]
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), Box<dyn Error>> {
     generate_code()?;
 
@@ -20,7 +19,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 #[rustversion::not(nightly)]
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> Result<(), Box<dyn Error>> {
     generate_code()?;
 
@@ -35,7 +33,7 @@ fn generate_code() -> Result<(), Box<dyn Error>> {
         .add_query(query("get_conference.graphql"))
         .add_query(query("get_conferences.graphql"))
         .add_query(query("add_conference.graphql"))
-        .introspect_schema("http://localhost:8080/graphql", None, Vec::new())?
+        .with_schema("api-schema.json")
         .build()?;
 
     Ok(())

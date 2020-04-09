@@ -1,6 +1,10 @@
 use crate::{
-    deprecation::DeprecationStrategy, fragments::GqlFragment, normalization::Normalization,
-    schema::Schema, selection::Selection, CodegenError
+    deprecation::DeprecationStrategy,
+    fragments::GqlFragment,
+    normalization::Normalization,
+    schema::{Schema, DEFAULT_SCALARS},
+    selection::Selection,
+    CodegenError
 };
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
@@ -104,6 +108,27 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
         } else {
             Err(CodegenError::TypeError(format!("Unknown type: {}", ty)))
         }
+    }
+
+    pub(crate) fn is_scalar(&self, name: &str) -> bool {
+        self.schema
+            .scalars
+            .get(&name)
+            .map(|s| s.is_required.set(true))
+            .is_some()
+            || DEFAULT_SCALARS.contains(&name)
+    }
+
+    pub(crate) fn is_enum(&self, name: &str) -> bool {
+        self.schema
+            .enums
+            .get(&name)
+            .map(|enm| enm.is_required.set(true))
+            .is_some()
+    }
+
+    pub(crate) fn is_union(&self, name: &str) -> bool {
+        self.schema.unions.contains_key(&name)
     }
 
     /// Expand the deserialization data structures for the given field.

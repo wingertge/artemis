@@ -1,9 +1,9 @@
 use crate::{
-    default_exchanges::Client,
+    exchange::Client,
     types::{ExchangeResult, Operation, OperationResult},
     Exchange, ExchangeFactory, GraphQLQuery, OperationType, QueryError
 };
-use futures::channel::oneshot::{self, Sender};
+use futures::channel::{oneshot, oneshot::Sender};
 use std::{
     any::Any,
     collections::HashMap,
@@ -115,7 +115,8 @@ impl<TNext: Exchange> Exchange for DedupExchangeImpl<TNext> {
 mod test {
     use super::DedupExchangeImpl;
     use crate::{
-        default_exchanges::{Client, DedupExchange},
+        default_exchanges::DedupExchange,
+        exchange::Client,
         types::{Operation, OperationOptions, OperationResult},
         ClientBuilder, DebugInfo, Exchange, ExchangeFactory, ExchangeResult, FieldSelector,
         GraphQLQuery, OperationMeta, OperationType, QueryBody, QueryInfo, RequestPolicy, Response,

@@ -473,12 +473,12 @@ pub(crate) fn response_fields_for_selection(
                                 .trim_end_matches(", ")
                         ))
                     })?;
-                let (field_selector, ty) = schema_field.type_.to_rust(
-                    context,
-                    &format!("{}{}", prefix.to_camel_case(), alias.to_camel_case()),
-                    name,
-                    f.arguments.to_vec()
-                );
+                let prefix = format!("{}{}", prefix.to_camel_case(), alias.to_camel_case());
+                let ty = schema_field.type_.to_rust(context, &prefix);
+                let field_selector =
+                    schema_field
+                        .type_
+                        .field_selector(context, &prefix, name, f.arguments.clone());
 
                 selectors.push(field_selector);
 
@@ -554,10 +554,12 @@ fn get_fragment_selectors(
                     .ok_or_else(|| CodegenError::TypeError("".to_string()))
                     .unwrap();
                 let alias = alias.to_camel_case();
-                let (field_selector, _) =
-                    schema_field
-                        .type_
-                        .to_rust(context, &alias, name, field.arguments.to_vec());
+                let field_selector = schema_field.type_.field_selector(
+                    context,
+                    &alias,
+                    name,
+                    field.arguments.to_vec()
+                );
 
                 vec![field_selector]
             }
@@ -590,7 +592,187 @@ pub(crate) fn field_rename_annotation(graphql_name: &str, rust_name: &str) -> Op
     }
 }
 
+#[cfg(test)]
 mod tests {
+    use crate::{
+        deprecation::DeprecationStatus,
+        field_type::FieldType,
+        fragments::{FragmentTarget, GqlFragment},
+        objects::{GqlObject, GqlObjectField},
+        query::QueryContext,
+        selection::{Selection, SelectionField, SelectionFragmentSpread, SelectionItem},
+        shared::get_fragment_selectors
+    };
+    use quote::quote;
+    use std::cell::Cell;
+
+    #[test]
+    fn fragment_selector_returns_flattened_selectors() {
+        let schema = crate::schema::Schema::new();
+        let ctx = QueryContext::new_empty(&schema);
+        let fragment_on = GqlObject {
+            name: "Test",
+            is_required: Cell::new(true),
+            description: None,
+            fields: Vec::new()
+        };
+        let schema_fields = vec![
+            GqlObjectField {
+                name: "field_1",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("ID")
+            },
+            GqlObjectField {
+                name: "field_2",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("ID")
+            },
+        ];
+        let base_field = SelectionField {
+            name: "",
+            arguments: Vec::new(),
+            alias: None,
+            fields: Selection(Vec::new())
+        };
+        let fragment = GqlFragment {
+            name: "Fragment",
+            is_required: Cell::new(true),
+            on: FragmentTarget::Object(&fragment_on),
+            selection: Selection(vec![
+                SelectionItem::Field(SelectionField {
+                    name: "field_1",
+                    ..base_field.clone()
+                }),
+                SelectionItem::Field(SelectionField {
+                    name: "field_2",
+                    ..base_field
+                }),
+            ])
+        };
+
+        let selector: Vec<String> = get_fragment_selectors(&fragment, &schema_fields, &ctx)
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect();
+        let expected = vec![
+            quote!(::artemis::codegen::FieldSelector::Scalar(
+                "field_1",
+                String::new()
+            ))
+            .to_string(),
+            quote!(::artemis::codegen::FieldSelector::Scalar(
+                "field_2",
+                String::new()
+            ))
+            .to_string(),
+        ];
+
+        assert_eq!(selector, expected);
+    }
+
+    #[test]
+    fn nested_fragment_selector_returns_flattened_selectors() {
+        let schema = crate::schema::Schema::new();
+        let mut ctx = QueryContext::new_empty(&schema);
+        let fragment_on = GqlObject {
+            name: "Test",
+            is_required: Cell::new(true),
+            description: None,
+            fields: Vec::new()
+        };
+        let schema_fields = vec![
+            GqlObjectField {
+                name: "field_1",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("ID")
+            },
+            GqlObjectField {
+                name: "field_2",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("ID")
+            },
+            GqlObjectField {
+                name: "field_3",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("ID")
+            },
+            GqlObjectField {
+                name: "field_test",
+                description: None,
+                deprecation: DeprecationStatus::Current,
+                type_: FieldType::new("Test")
+            },
+        ];
+        let base_field = SelectionField {
+            name: "",
+            arguments: Vec::new(),
+            alias: None,
+            fields: Selection(Vec::new())
+        };
+        let fragment = GqlFragment {
+            name: "Fragment",
+            is_required: Cell::new(true),
+            on: FragmentTarget::Object(&fragment_on),
+            selection: Selection(vec![
+                SelectionItem::Field(SelectionField {
+                    name: "field_1",
+                    ..base_field.clone()
+                }),
+                SelectionItem::FragmentSpread(SelectionFragmentSpread {
+                    fragment_name: "Fragment2"
+                }),
+            ])
+        };
+        let fragment2 = GqlFragment {
+            name: "Fragment2",
+            is_required: Cell::new(true),
+            on: FragmentTarget::Object(&fragment_on),
+            selection: Selection(vec![
+                SelectionItem::Field(SelectionField {
+                    name: "field_2",
+                    ..base_field.clone()
+                }),
+                SelectionItem::Field(SelectionField {
+                    name: "field_3",
+                    ..base_field.clone()
+                }),
+            ])
+        };
+
+        ctx.fragments.insert("Fragment", fragment);
+        ctx.fragments.insert("Fragment2", fragment2);
+
+        let selector: Vec<String> =
+            get_fragment_selectors(ctx.fragments.get("Fragment").unwrap(), &schema_fields, &ctx)
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect();
+        let expected = vec![
+            quote!(::artemis::codegen::FieldSelector::Scalar(
+                "field_1",
+                String::new()
+            ))
+            .to_string(),
+            quote!(::artemis::codegen::FieldSelector::Scalar(
+                "field_2",
+                String::new()
+            ))
+            .to_string(),
+            quote!(::artemis::codegen::FieldSelector::Scalar(
+                "field_3",
+                String::new()
+            ))
+            .to_string(),
+        ];
+
+        assert_eq!(selector, expected);
+    }
+
     #[test]
     fn keyword_replace() {
         use super::keyword_replace;

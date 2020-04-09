@@ -115,8 +115,8 @@ impl Parse for WasmClientInput {
 #[allow(clippy::cmp_owned)]
 pub fn wasm_client(input: WasmClientInput) -> TokenStream {
     let exchange_ident = input.exchange_idents.iter().fold(
-        quote!(::artemis::exchanges::TerminatorExchange),
-        |current, item| quote!(<#item as ::artemis::ExchangeFactory<#current>>::Output)
+        quote!(::artemis::default_exchanges::TerminatorExchange),
+        |current, item| quote!(<#item as ::artemis::exchange::ExchangeFactory<#current>>::Output)
     );
     let exchange_initializers = input
         .exchange_initializers

@@ -99,7 +99,7 @@ impl<'schema> GqlInput<'schema> {
         let mut fields: Vec<&GqlObjectField<'_>> = self.fields.values().collect();
         fields.sort_unstable_by(|a, b| a.name.cmp(&b.name));
         let fields = fields.iter().map(|field| {
-            let (_, ty) = field.type_.to_rust(&context, "", "", Vec::new());
+            let ty = field.type_.to_rust(&context, "");
 
             // If the type is recursive, we have to box it
             let ty = if let Some(input) = context.schema.inputs.get(field.type_.inner_name_str()) {

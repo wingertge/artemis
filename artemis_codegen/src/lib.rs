@@ -180,7 +180,7 @@ pub fn generate_root_token_stream(
             pub mod wasm {
                 use wasm_bindgen::prelude::*;
                 use std::sync::Arc;
-                use artemis::{client::ClientImpl, GraphQLQuery, QueryOptions, Exchange, wasm::{JsQueryError, QueryCollection}};
+                use artemis::{client::ClientImpl, GraphQLQuery, QueryOptions, wasm::{JsQueryError, QueryCollection}, exchange::Exchange};
                 #(use super::#modules::*;)*
 
                 #enum_

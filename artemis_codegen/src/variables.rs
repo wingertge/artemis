@@ -19,7 +19,7 @@ impl<'query> Variable<'query> {
         match &self.default {
             Some(default) => {
                 let fn_name = Ident::new(&format!("default_{}", self.name), Span::call_site());
-                let (_, ty) = self.ty.to_rust(context, "", "", Vec::new());
+                let ty = self.ty.to_rust(context, "");
                 let value = graphql_parser_value_to_literal(
                     default,
                     context,

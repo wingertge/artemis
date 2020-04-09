@@ -126,68 +126,52 @@ impl<'a> FieldType<'a> {
         qualified
     }
 
-    /// Takes a field type with its name.
-    pub(crate) fn to_rust(
+    pub(crate) fn field_selector(
         &self,
-        context: &QueryContext<'_, '_>,
+        ctx: &QueryContext<'_, '_>,
         prefix: &str,
         field_name: &str,
-        arguments: Vec<(String, ArgumentValue)>
-    ) -> (TokenStream, TokenStream) {
+        args: Vec<(String, ArgumentValue)>
+    ) -> TokenStream {
+        let args = Self::args_as_string(args.to_rust());
+
+        if ctx.is_scalar(self.name) || ctx.is_enum(self.name) {
+            quote! {
+                ::artemis::codegen::FieldSelector::Scalar(#field_name, #args)
+            }
+        } else if ctx.is_union(self.name) {
+            let type_ident = Ident::new(prefix, Span::call_site());
+            let selection_fn = quote! { ::std::sync::Arc::new(|typename| #type_ident::selection(typename, variables)) };
+
+            quote! {
+                ::artemis::codegen::FieldSelector::Union(#field_name, #args, #selection_fn)
+            }
+        } else {
+            let type_ident = Ident::new(prefix, Span::call_site());
+            let typename = self.name;
+
+            quote! {
+                ::artemis::codegen::FieldSelector::Object(#field_name, #args, #typename, #type_ident::selection(variables))
+            }
+        }
+    }
+
+    /// Takes a field type with its name.
+    pub(crate) fn to_rust(&self, context: &QueryContext<'_, '_>, prefix: &str) -> TokenStream {
         let prefix: &str = if prefix.is_empty() {
             self.inner_name_str()
         } else {
             prefix
         };
 
-        let field_selector;
-
         let full_name = {
-            if context
-                .schema
-                .scalars
-                .get(&self.name)
-                .map(|s| s.is_required.set(true))
-                .is_some()
-                || DEFAULT_SCALARS.iter().any(|elem| elem == &self.name)
-            {
-                let args = Self::args_as_string(arguments.to_rust());
-                field_selector = quote! {
-                    ::artemis::codegen::FieldSelector::Scalar(#field_name, #args)
-                };
+            if context.is_scalar(self.name) {
                 self.name.to_string()
-            } else if context
-                .schema
-                .enums
-                .get(&self.name)
-                .map(|enm| enm.is_required.set(true))
-                .is_some()
-            {
-                let args = Self::args_as_string(arguments.to_rust());
-                let name = self.name.to_string();
-                field_selector = quote! {
-                    ::artemis::codegen::FieldSelector::Scalar(#name, #args)
-                };
+            } else if context.is_enum(self.name) {
                 format!("{}{}", ENUMS_PREFIX, self.name)
             } else {
                 if prefix.is_empty() {
                     panic!("Empty prefix for {:?}", self);
-                }
-                let args = Self::args_as_string(arguments.to_rust());
-                let type_ident = Ident::new(prefix, Span::call_site());
-
-                if context.schema.unions.get(&self.name).is_some() {
-                    let selection_fn = quote! { ::std::sync::Arc::new(|typename| #type_ident::selection(typename, variables)) };
-
-                    field_selector = quote! {
-                        ::artemis::codegen::FieldSelector::Union(#field_name, #args, #selection_fn)
-                    }
-                } else {
-                    let typename = self.name;
-
-                    field_selector = quote! {
-                        ::artemis::codegen::FieldSelector::Object(#field_name, #args, #typename, #type_ident::selection(variables))
-                    };
                 }
 
                 prefix.to_string()
@@ -232,7 +216,7 @@ impl<'a> FieldType<'a> {
             qualified = quote!(Option<#qualified>);
         }
 
-        (field_selector, qualified)
+        qualified
     }
 
     /// Return the innermost name - we mostly use this for looking types up in our Schema struct.
@@ -356,9 +340,272 @@ impl<'a> std::convert::From<&'a introspection_response::InputValueType> for Fiel
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::introspection_response::{FullTypeFieldsType, TypeRef, __TypeKind};
+    use crate::{
+        enums::GqlEnum,
+        introspection_response::{FullTypeFieldsType, TypeRef, __TypeKind},
+        objects::GqlObject,
+        unions::GqlUnion
+    };
     use graphql_parser::schema::Type as GqlParserType;
+    use std::cell::Cell;
 
+    fn schema() -> crate::schema::Schema<'static> {
+        let mut schema = crate::schema::Schema::new();
+        schema.objects.insert(
+            "Cat",
+            GqlObject {
+                name: "Cat",
+                description: None,
+                fields: Vec::new(),
+                is_required: Cell::new(true)
+            }
+        );
+        schema.scalars.insert(
+            "Age",
+            crate::scalars::Scalar {
+                name: "Age",
+                is_required: Cell::new(true),
+                description: None
+            }
+        );
+        schema.enums.insert(
+            "Animal",
+            GqlEnum {
+                name: "Animal",
+                description: None,
+                is_required: Cell::new(true),
+                variants: Vec::new()
+            }
+        );
+        schema.unions.insert(
+            "Union",
+            GqlUnion {
+                name: "Union",
+                description: None,
+                is_required: Cell::new(true),
+                variants: vec!["Variant1", "Variant2"].into_iter().collect()
+            }
+        );
+        schema
+    }
+
+    fn with_ctx<F>(f: F)
+    where
+        F: FnOnce(&QueryContext<'_, '_>)
+    {
+        let schema = schema();
+        let ctx = QueryContext::new_empty(&schema);
+        f(&ctx);
+    }
+
+    /// ToRust Tests
+    mod to_rust {
+        use super::with_ctx;
+        use crate::field_type::{FieldType, GraphqlTypeQualifier};
+        use quote::quote;
+
+        #[test]
+        fn non_null_type_produces_raw_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Cat").nonnull();
+
+                assert_eq!(ty.to_rust(ctx, "Cat").to_string(), quote!(Cat).to_string());
+            });
+        }
+
+        #[test]
+        fn nullable_type_produces_option() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Cat");
+
+                assert_eq!(
+                    ty.to_rust(ctx, "Cat").to_string(),
+                    quote!(Option<Cat>).to_string()
+                );
+            });
+        }
+
+        #[test]
+        fn scalar_type_produces_raw_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Age").nonnull();
+
+                assert_eq!(ty.to_rust(ctx, "").to_string(), quote!(Age).to_string());
+            })
+        }
+
+        #[test]
+        fn enum_type_produces_raw_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Animal").nonnull();
+
+                assert_eq!(ty.to_rust(ctx, "").to_string(), quote!(Animal).to_string());
+            })
+        }
+
+        #[test]
+        fn list_produces_vec() {
+            with_ctx(|ctx| {
+                let mut ty = FieldType::new("Cat").nonnull();
+                ty.qualifiers.push(GraphqlTypeQualifier::List);
+                ty.qualifiers.push(GraphqlTypeQualifier::Required);
+
+                assert_eq!(
+                    ty.to_rust(ctx, "").to_string(),
+                    quote!(Vec<Cat>).to_string()
+                );
+            })
+        }
+
+        #[test]
+        fn list_of_options_produces_vec_of_option() {
+            with_ctx(|ctx| {
+                let mut ty = FieldType::new("Cat").nonnull();
+                ty.qualifiers.push(GraphqlTypeQualifier::List);
+
+                assert_eq!(
+                    ty.to_rust(ctx, "").to_string(),
+                    quote!(Vec<Option<Cat>>).to_string()
+                );
+            })
+        }
+    }
+
+    /// FieldSelector Tests
+    mod field_selector {
+        use crate::field_type::{tests::with_ctx, FieldType};
+        use quote::quote;
+
+        #[test]
+        fn object_produces_object_field_selector() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Cat").nonnull();
+
+                let selector = ty.field_selector(ctx, "Cat", "cat_field", Vec::new());
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Object(
+                        "cat_field",
+                        String::new(),
+                        "Cat",
+                        Cat::selection(variables)
+                    )
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+
+        #[test]
+        fn scalar_produces_scalar_field_selector() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Age").nonnull();
+
+                let selector = ty.field_selector(ctx, "Age", "age_field", Vec::new());
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Scalar("age_field", String::new())
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+
+        #[test]
+        fn enum_produces_scalar_field_selector() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Animal").nonnull();
+
+                let selector = ty.field_selector(ctx, "Animal", "animal_field", Vec::new());
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Scalar("animal_field", String::new())
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+
+        #[test]
+        fn union_produces_union_field_selector() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Union").nonnull();
+
+                let selector = ty.field_selector(ctx, "Union", "union_field", Vec::new());
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Union(
+                        "union_field",
+                        String::new(),
+                        ::std::sync::Arc::new(|typename| Union::selection(typename, variables))
+                    )
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+    }
+
+    /// Typescript Tests
+    mod typescript {
+        use super::with_ctx;
+        use crate::field_type::{FieldType, GraphqlTypeQualifier};
+
+        #[test]
+        fn non_null_type_produces_typescript_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Cat").nonnull();
+
+                assert_eq!(ty.to_typescript(ctx, "Cat"), "Cat");
+            });
+        }
+
+        #[test]
+        fn nullable_type_produces_maybe() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Cat");
+
+                assert_eq!(ty.to_typescript(ctx, "Cat"), "Maybe<Cat>");
+            });
+        }
+
+        #[test]
+        fn scalar_type_produces_typescript_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Age").nonnull();
+
+                assert_eq!(ty.to_typescript(ctx, ""), "Age");
+            })
+        }
+
+        #[test]
+        fn enum_type_produces_typescript_typename() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Animal").nonnull();
+
+                assert_eq!(ty.to_typescript(ctx, ""), "Animal");
+            })
+        }
+
+        #[test]
+        fn list_produces_array() {
+            with_ctx(|ctx| {
+                let mut ty = FieldType::new("Cat").nonnull();
+                ty.qualifiers.push(GraphqlTypeQualifier::List);
+                ty.qualifiers.push(GraphqlTypeQualifier::Required);
+
+                assert_eq!(ty.to_typescript(ctx, ""), "Array<Cat>");
+            })
+        }
+
+        #[test]
+        fn list_of_options_produces_array_of_maybe() {
+            with_ctx(|ctx| {
+                let mut ty = FieldType::new("Cat").nonnull();
+                ty.qualifiers.push(GraphqlTypeQualifier::List);
+
+                assert_eq!(ty.to_typescript(ctx, ""), "Array<Maybe<Cat>>");
+            })
+        }
+    }
+
+    // TODO: These tests are awful, replace them ASAP
     #[test]
     fn field_type_from_graphql_parser_schema_type_works() {
         let ty = GqlParserType::NamedType("Cat".to_owned());
@@ -369,6 +616,7 @@ mod tests {
         assert_eq!(FieldType::from(&ty), FieldType::new("Cat").nonnull());
     }
 
+    // TODO: These tests are awful, replace them ASAP
     #[test]
     fn field_type_from_introspection_response_works() {
         let ty = FullTypeFieldsType {

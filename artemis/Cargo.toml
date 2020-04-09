@@ -21,7 +21,6 @@ parking_lot = "0.10"
 bincode = "1"
 
 futures = { version = "0.3", optional = true }
-
 stable-vec = { version = "0.4", optional = true }
 
 [dev-dependencies]

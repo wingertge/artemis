@@ -1,6 +1,6 @@
 {
   "name": "Remote Schema",
-  "schemaPath": "artemis-load-gen/src/api-schema.json",
+  "schemaPath": "artemis-test/api-schema.json",
   "extensions": {
     "endpoints": {
       "Remote GraphQL Endpoint": {

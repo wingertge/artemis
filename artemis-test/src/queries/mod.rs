@@ -6,8 +6,9 @@ pub mod wasm {
     use super::{add_conference::*, get_conference::*, get_conferences::*};
     use artemis::{
         client::ClientImpl,
+        exchange::Exchange,
         wasm::{JsQueryError, QueryCollection},
-        Exchange, GraphQLQuery, QueryOptions
+        GraphQLQuery, QueryOptions
     };
     use std::sync::Arc;
     use wasm_bindgen::prelude::*;

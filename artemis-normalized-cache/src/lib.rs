@@ -31,7 +31,6 @@
 //!
 //! TODO: Don't steal urlq's docs you plagiarist
 
-#![deny(missing_docs)]
 #![allow(unused_parens)]
 #![cfg_attr(test, feature(proc_macro_hygiene))]
 

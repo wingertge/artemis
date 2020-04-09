@@ -6,7 +6,7 @@ fn query(file_name: &str) -> String {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    generate_code()?;
+    //generate_code()?;
 
     Ok(())
 }
