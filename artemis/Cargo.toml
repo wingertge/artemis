@@ -19,7 +19,7 @@ observable = ["tokio", "stable-vec", "futures"]
 default-exchanges = ["reqwest"]
 
 [dependencies]
-artemis-codegen-proc-macro = { path = "../artemis-codegen-proc-macro" }
+artemis-codegen-proc-macro = { path = "../artemis-codegen-proc-macro", version = "^0.1.0-alpha.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"

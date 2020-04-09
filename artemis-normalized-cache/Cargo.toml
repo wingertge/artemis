@@ -8,12 +8,12 @@ readme = "README.md"
 repository = "https://github.com/wingertge/artemis.git"
 keywords = ["caching", "graphql", "web", "artemis", "exchange"]
 categories = ["web-programming", "wasm", "asynchronous", "caching"]
-licens = "MIT OR Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-artemis = { path = "../artemis" }
+artemis = { path = "../artemis", version = "^0.1.0-alpha.0" }
 serde = "1"
 serde_json = "1"
 async-trait = "0.1"

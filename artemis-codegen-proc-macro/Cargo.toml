@@ -14,8 +14,8 @@ proc-macro = true
 
 [dependencies]
 syn = "1"
-artemis_codegen = { path = "../artemis_codegen", version = "0.1.0-alpha.0" }
+artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0-alpha.0" }
 
 [dev-dependencies]
-# artemis = { path = "../artemis" }
-# artemis-test = { path = "../artemis-test" }
+artemis = { path = "../artemis" }
+artemis-test = { path = "../artemis-test" }
