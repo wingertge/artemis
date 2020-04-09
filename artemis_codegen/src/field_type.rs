@@ -49,7 +49,7 @@ impl<'a> FieldType<'a> {
 
     pub(crate) fn args_as_string(args: Option<TokenStream>) -> TokenStream {
         if let Some(arguments) = args {
-            quote!(String::from(#arguments))
+            quote!(#arguments)
         } else {
             quote!(String::new())
         }
@@ -475,6 +475,7 @@ mod tests {
     mod field_selector {
         use crate::field_type::{tests::with_ctx, FieldType};
         use quote::quote;
+        use crate::shared::ArgumentValue;
 
         #[test]
         fn object_produces_object_field_selector() {
@@ -534,6 +535,48 @@ mod tests {
                         "union_field",
                         String::new(),
                         ::std::sync::Arc::new(|typename| Union::selection(typename, variables))
+                    )
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+
+        #[test]
+        fn static_args_produces_static_format() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Age").nonnull();
+                let args = vec![
+                    ("arg1".to_string(), ArgumentValue::Int(5)),
+                    ("arg2".to_string(), ArgumentValue::Boolean(false))
+                ];
+
+                let selector = ty.field_selector(ctx, "Age", "age_field", args);
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Scalar(
+                        "age_field",
+                        format!("(arg1:5,arg2:false)")
+                    )
+                };
+
+                assert_eq!(selector.to_string(), expected.to_string())
+            })
+        }
+
+        #[test]
+        fn variable_args_produces_format() {
+            with_ctx(|ctx| {
+                let ty = FieldType::new("Age").nonnull();
+                let args = vec![
+                    ("arg1".to_string(), ArgumentValue::Variable("arg_1".to_string())),
+                    ("arg2".to_string(), ArgumentValue::Variable("arg_2".to_string()))
+                ];
+
+                let selector = ty.field_selector(ctx, "Age", "age_field", args);
+                let expected = quote! {
+                    ::artemis::codegen::FieldSelector::Scalar(
+                        "age_field",
+                        format!("(arg1:{:?},arg2:{:?})", variables.arg_1, variables.arg_2)
                     )
                 };
 

@@ -281,7 +281,7 @@ impl ToRust for Vec<(String, ArgumentValue)> {
         let formatted_vars = format!("({})", fields);
 
         let idents = if !placeholder_idents.is_empty() {
-            quote!(,#(&variables.#placeholder_idents),*)
+            quote!(,#(variables.#placeholder_idents),*)
         } else {
             quote!()
         };
