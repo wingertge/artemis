@@ -32,7 +32,7 @@ negative values are formatted as the two’s complement representation.</p>
     }
 }
 
-<span class="kw">let</span> <span class="ident">l</span> <span class="op">=</span> <span class="ident">Length</span>(<span class="ident">i32</span>::<span class="ident">max_value</span>());
+<span class="kw">let</span> <span class="ident">l</span> <span class="op">=</span> <span class="ident">Length</span>(<span class="ident">i32</span>::<span class="ident">MAX</span>);
 
 <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;l as hex is: {:X}&quot;</span>, <span class="ident">l</span>), <span class="string">&quot;l as hex is: 7FFFFFFF&quot;</span>);
 

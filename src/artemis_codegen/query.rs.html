@@ -259,10 +259,39 @@
 <span id="259">259</span>
 <span id="260">260</span>
 <span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">deprecation</span>::<span class="ident">DeprecationStrategy</span>, <span class="ident">fragments</span>::<span class="ident">GqlFragment</span>, <span class="ident">normalization</span>::<span class="ident">Normalization</span>,
-    <span class="ident">schema</span>::<span class="ident">Schema</span>, <span class="ident">selection</span>::<span class="ident">Selection</span>, <span class="ident">CodegenError</span>
+    <span class="ident">deprecation</span>::<span class="ident">DeprecationStrategy</span>,
+    <span class="ident">fragments</span>::<span class="ident">GqlFragment</span>,
+    <span class="ident">normalization</span>::<span class="ident">Normalization</span>,
+    <span class="ident">schema</span>::{<span class="ident">Schema</span>, <span class="ident">DEFAULT_SCALARS</span>},
+    <span class="ident">selection</span>::<span class="ident">Selection</span>,
+    <span class="ident">CodegenError</span>
 };
 <span class="kw">use</span> <span class="ident">proc_macro2</span>::{<span class="ident">Span</span>, <span class="ident">TokenStream</span>};
 <span class="kw">use</span> <span class="ident">quote</span>::<span class="ident">quote</span>;
@@ -366,6 +395,27 @@
         } <span class="kw">else</span> {
             <span class="prelude-val">Err</span>(<span class="ident">CodegenError</span>::<span class="ident">TypeError</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Unknown type: {}&quot;</span>, <span class="ident">ty</span>)))
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_scalar</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">schema</span>
+            .<span class="ident">scalars</span>
+            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">is_required</span>.<span class="ident">set</span>(<span class="bool-val">true</span>))
+            .<span class="ident">is_some</span>()
+            <span class="op">|</span><span class="op">|</span> <span class="ident">DEFAULT_SCALARS</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_enum</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">schema</span>
+            .<span class="ident">enums</span>
+            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">enm</span><span class="op">|</span> <span class="ident">enm</span>.<span class="ident">is_required</span>.<span class="ident">set</span>(<span class="bool-val">true</span>))
+            .<span class="ident">is_some</span>()
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">is_union</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">schema</span>.<span class="ident">unions</span>.<span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="ident">name</span>)
     }
 
     <span class="doccomment">/// Expand the deserialization data structures for the given field.</span>

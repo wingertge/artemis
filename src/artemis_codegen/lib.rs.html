@@ -544,7 +544,7 @@ static QUERY_CACHE: CacheMap&lt;(String, graphql_parser::query::Document)&gt; =
             <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">wasm</span> {
                 <span class="kw">use</span> <span class="ident">wasm_bindgen</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
                 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
-                <span class="kw">use</span> <span class="ident">artemis</span>::{<span class="ident">client</span>::<span class="ident">ClientImpl</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">QueryOptions</span>, <span class="ident">Exchange</span>, <span class="ident">wasm</span>::{<span class="ident">JsQueryError</span>, <span class="ident">QueryCollection</span>}};
+                <span class="kw">use</span> <span class="ident">artemis</span>::{<span class="ident">client</span>::<span class="ident">ClientImpl</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">QueryOptions</span>, <span class="ident">wasm</span>::{<span class="ident">JsQueryError</span>, <span class="ident">QueryCollection</span>}, <span class="ident">exchange</span>::<span class="ident">Exchange</span>};
                 #(<span class="kw">use</span> <span class="kw">super</span>::#<span class="ident">modules</span>::<span class="kw-2">*</span>;)<span class="op">*</span>
 
                 #<span class="ident">enum_</span>

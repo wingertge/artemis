@@ -244,13 +244,14 @@
 <span id="244">244</span>
 <span id="245">245</span>
 <span id="246">246</span>
+<span id="247">247</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">default_exchanges</span>::<span class="ident">Client</span>,
+    <span class="ident">exchange</span>::<span class="ident">Client</span>,
     <span class="ident">types</span>::{<span class="ident">ExchangeResult</span>, <span class="ident">Operation</span>, <span class="ident">OperationResult</span>},
     <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">GraphQLQuery</span>, <span class="ident">OperationType</span>, <span class="ident">QueryError</span>
 };
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::<span class="ident">oneshot</span>::{<span class="self">self</span>, <span class="ident">Sender</span>};
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">channel</span>::{<span class="ident">oneshot</span>, <span class="ident">oneshot</span>::<span class="ident">Sender</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{
     <span class="ident">any</span>::<span class="ident">Any</span>,
     <span class="ident">collections</span>::<span class="ident">HashMap</span>,
@@ -362,7 +363,8 @@
 <span class="kw">mod</span> <span class="ident">test</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">DedupExchangeImpl</span>;
     <span class="kw">use</span> <span class="kw">crate</span>::{
-        <span class="ident">default_exchanges</span>::{<span class="ident">Client</span>, <span class="ident">DedupExchange</span>},
+        <span class="ident">default_exchanges</span>::<span class="ident">DedupExchange</span>,
+        <span class="ident">exchange</span>::<span class="ident">Client</span>,
         <span class="ident">types</span>::{<span class="ident">Operation</span>, <span class="ident">OperationOptions</span>, <span class="ident">OperationResult</span>},
         <span class="ident">ClientBuilder</span>, <span class="ident">DebugInfo</span>, <span class="ident">Exchange</span>, <span class="ident">ExchangeFactory</span>, <span class="ident">ExchangeResult</span>, <span class="ident">FieldSelector</span>,
         <span class="ident">GraphQLQuery</span>, <span class="ident">OperationMeta</span>, <span class="ident">OperationType</span>, <span class="ident">QueryBody</span>, <span class="ident">QueryInfo</span>, <span class="ident">RequestPolicy</span>, <span class="ident">Response</span>,

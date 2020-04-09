@@ -2,7 +2,7 @@
 with truncation.</p>
 <p>The result is rounded always using truncation (round towards zero). If the
 result cannot be represented as a 64 bit integer the result will be
-<code>0x8000_0000_0000_0000</code> (<code>std::i64::MIN</code>) or an invalid operation floating
+<code>0x8000_0000_0000_0000</code> (<code>i64::MIN</code>) or an invalid operation floating
 point exception if unmasked (see <a href="fn._mm_setcsr.html"><code>_mm_setcsr</code></a>).</p>
 <p>This corresponds to the <code>CVTTSS2SI</code> instruction (with 64 bit output).</p>
 <p><a href="https://software.intel.com/sites/landingpage/IntrinsicsGuide/#text=_mm_cvttss_si64">Intel's documentation</a></p>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/rand-0.7.3/src/rngs/small.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>small.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://www.rust-lang.org/favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../rand/index.html'><div class='logo-container'><img src='https://www.rust-lang.org/logos/rust-logo-128x128-blk.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/rand-0.6.5/src/rngs/small.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>small.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="https://www.rust-lang.org/favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../rand/index.html'><div class='logo-container'><img src='https://www.rust-lang.org/logos/rust-logo-128x128-blk.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -104,13 +104,6 @@
 <span id="104">104</span>
 <span id="105">105</span>
 <span id="106">106</span>
-<span id="107">107</span>
-<span id="108">108</span>
-<span id="109">109</span>
-<span id="110">110</span>
-<span id="111">111</span>
-<span id="112">112</span>
-<span id="113">113</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">// Copyright 2018 Developers of the Rand project.</span>
 <span class="comment">//</span>
@@ -122,42 +115,37 @@
 
 <span class="doccomment">//! A small fast RNG</span>
 
-<span class="kw">use</span> <span class="ident">rand_core</span>::{<span class="ident">Error</span>, <span class="ident">RngCore</span>, <span class="ident">SeedableRng</span>};
+<span class="kw">use</span> {<span class="ident">RngCore</span>, <span class="ident">SeedableRng</span>, <span class="ident">Error</span>};
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;emscripten&quot;</span>), <span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>))]</span>
-<span class="kw">type</span> <span class="ident">Rng</span> <span class="op">=</span> <span class="ident">rand_pcg</span>::<span class="ident">Pcg64Mcg</span>;
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">all</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;emscripten&quot;</span>), <span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)))]</span>
-<span class="kw">type</span> <span class="ident">Rng</span> <span class="op">=</span> <span class="ident">rand_pcg</span>::<span class="ident">Pcg32</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">all</span>(<span class="ident">all</span>(<span class="ident">rustc_1_26</span>, <span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;emscripten&quot;</span>)), <span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>))]</span>
+<span class="kw">type</span> <span class="ident">Rng</span> <span class="op">=</span> ::<span class="ident">rand_pcg</span>::<span class="ident">Pcg64Mcg</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">all</span>(<span class="ident">all</span>(<span class="ident">rustc_1_26</span>, <span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;emscripten&quot;</span>)), <span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)))]</span>
+<span class="kw">type</span> <span class="ident">Rng</span> <span class="op">=</span> ::<span class="ident">rand_pcg</span>::<span class="ident">Pcg32</span>;
 
-<span class="doccomment">/// A small-state, fast non-crypto PRNG</span>
+<span class="doccomment">/// An RNG recommended when small state, cheap initialization and good</span>
+<span class="doccomment">/// performance are required. The PRNG algorithm in `SmallRng` is chosen to be</span>
+<span class="doccomment">/// efficient on the current platform, **without consideration for cryptography</span>
+<span class="doccomment">/// or security**. The size of its state is much smaller than for [`StdRng`].</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// `SmallRng` may be a good choice when a PRNG with small state, cheap</span>
-<span class="doccomment">/// initialization, good statistical quality and good performance are required.</span>
-<span class="doccomment">/// It is **not** a good choice when security against prediction or</span>
-<span class="doccomment">/// reproducibility are important.</span>
+<span class="doccomment">/// Reproducibility of output from this generator is however not required, thus</span>
+<span class="doccomment">/// future library versions may use a different internal generator with</span>
+<span class="doccomment">/// different output. Further, this generator may not be portable and can</span>
+<span class="doccomment">/// produce different output depending on the architecture. If you require</span>
+<span class="doccomment">/// reproducible output, use a named RNG.</span>
+<span class="doccomment">/// Refer to [The Book](https://rust-random.github.io/book/guide-rngs.html).</span>
+<span class="doccomment">/// </span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// This PRNG is **feature-gated**: to use, you must enable the crate feature</span>
-<span class="doccomment">/// `small_rng`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The algorithm is deterministic but should not be considered reproducible</span>
-<span class="doccomment">/// due to dependence on platform and possible replacement in future</span>
-<span class="doccomment">/// library versions. For a reproducible generator, use a named PRNG from an</span>
-<span class="doccomment">/// external crate, e.g. [rand_pcg] or [rand_chacha].</span>
-<span class="doccomment">/// Refer also to [The Book](https://rust-random.github.io/book/guide-rngs.html).</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// The PRNG algorithm in `SmallRng` is chosen to be</span>
-<span class="doccomment">/// efficient on the current platform, without consideration for cryptography</span>
-<span class="doccomment">/// or security. The size of its state is much smaller than [`StdRng`].</span>
-<span class="doccomment">/// The current algorithm is [`Pcg64Mcg`](rand_pcg::Pcg64Mcg) on 64-bit</span>
-<span class="doccomment">/// platforms and [`Pcg32`](rand_pcg::Pcg32) on 32-bit platforms. Both are</span>
-<span class="doccomment">/// implemented by the [rand_pcg] crate.</span>
+<span class="doccomment">/// The current algorithm is [`Pcg64Mcg`][rand_pcg::Pcg64Mcg] on 64-bit platforms with Rust version</span>
+<span class="doccomment">/// 1.26 and later, or [`Pcg32`][rand_pcg::Pcg32] otherwise. Both are found in</span>
+<span class="doccomment">/// the [rand_pcg] crate.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # Examples</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Initializing `SmallRng` with a random seed can be done using [`SeedableRng::from_entropy`]:</span>
+<span class="doccomment">/// Initializing `SmallRng` with a random seed can be done using [`FromEntropy`]:</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```</span>
-<span class="doccomment">/// use rand::{Rng, SeedableRng};</span>
+<span class="doccomment">/// # use rand::Rng;</span>
+<span class="doccomment">/// use rand::FromEntropy;</span>
 <span class="doccomment">/// use rand::rngs::SmallRng;</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// // Create small, cheap to initialize and fast RNG with a random seed.</span>
@@ -170,6 +158,7 @@
 <span class="doccomment">/// efficient:</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```</span>
+<span class="doccomment">/// use std::iter;</span>
 <span class="doccomment">/// use rand::{SeedableRng, thread_rng};</span>
 <span class="doccomment">/// use rand::rngs::SmallRng;</span>
 <span class="doccomment">///</span>
@@ -178,14 +167,15 @@
 <span class="doccomment">/// let mut thread_rng = thread_rng();</span>
 <span class="doccomment">/// // Create small, cheap to initialize and fast RNGs with random seeds.</span>
 <span class="doccomment">/// // One can generally assume this won&#39;t fail.</span>
-<span class="doccomment">/// let rngs: Vec&lt;SmallRng&gt; = (0..10)</span>
-<span class="doccomment">///     .map(|_| SmallRng::from_rng(&amp;mut thread_rng).unwrap())</span>
+<span class="doccomment">/// let rngs: Vec&lt;SmallRng&gt; = iter::repeat(())</span>
+<span class="doccomment">///     .map(|()| SmallRng::from_rng(&amp;mut thread_rng).unwrap())</span>
+<span class="doccomment">///     .take(10)</span>
 <span class="doccomment">///     .collect();</span>
 <span class="doccomment">/// ```</span>
 <span class="doccomment">///</span>
+<span class="doccomment">/// [`FromEntropy`]: crate::FromEntropy</span>
 <span class="doccomment">/// [`StdRng`]: crate::rngs::StdRng</span>
 <span class="doccomment">/// [`thread_rng`]: crate::thread_rng</span>
-<span class="doccomment">/// [rand_chacha]: https://crates.io/crates/rand_chacha</span>
 <span class="doccomment">/// [rand_pcg]: https://crates.io/crates/rand_pcg</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SmallRng</span>(<span class="ident">Rng</span>);
@@ -201,12 +191,10 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">next_u64</span>()
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">fn</span> <span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dest</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>]) {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">fill_bytes</span>(<span class="ident">dest</span>);
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">fn</span> <span class="ident">try_fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">dest</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">try_fill_bytes</span>(<span class="ident">dest</span>)
     }
@@ -215,12 +203,10 @@
 <span class="kw">impl</span> <span class="ident">SeedableRng</span> <span class="kw">for</span> <span class="ident">SmallRng</span> {
     <span class="kw">type</span> <span class="ident">Seed</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">Rng</span> <span class="kw">as</span> <span class="ident">SeedableRng</span><span class="op">&gt;</span>::<span class="ident">Seed</span>;
 
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">fn</span> <span class="ident">from_seed</span>(<span class="ident">seed</span>: <span class="self">Self</span>::<span class="ident">Seed</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">SmallRng</span>(<span class="ident">Rng</span>::<span class="ident">from_seed</span>(<span class="ident">seed</span>))
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">fn</span> <span class="ident">from_rng</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">RngCore</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="ident">Rng</span>::<span class="ident">from_rng</span>(<span class="ident">rng</span>).<span class="ident">map</span>(<span class="ident">SmallRng</span>)
     }

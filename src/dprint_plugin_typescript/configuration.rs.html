@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/dprint-plugin-typescript-0.9.10/src/configuration.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>configuration.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../dprint_plugin_typescript/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/dprint-plugin-typescript-0.9.11/src/configuration.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>configuration.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../dprint_plugin_typescript/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1377,6 +1377,21 @@
 <span id="1377">1377</span>
 <span id="1378">1378</span>
 <span id="1379">1379</span>
+<span id="1380">1380</span>
+<span id="1381">1381</span>
+<span id="1382">1382</span>
+<span id="1383">1383</span>
+<span id="1384">1384</span>
+<span id="1385">1385</span>
+<span id="1386">1386</span>
+<span id="1387">1387</span>
+<span id="1388">1388</span>
+<span id="1389">1389</span>
+<span id="1390">1390</span>
+<span id="1391">1391</span>
+<span id="1392">1392</span>
+<span id="1393">1393</span>
+<span id="1394">1394</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">HashMap</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>};
@@ -1445,6 +1460,7 @@
             .<span class="ident">arrow_function_use_parentheses</span>(<span class="ident">UseParentheses</span>::<span class="ident">Force</span>)
             .<span class="ident">new_line_kind</span>(<span class="ident">NewLineKind</span>::<span class="ident">LineFeed</span>)
             .<span class="ident">function_expression_space_after_function_keyword</span>(<span class="bool-val">true</span>)
+            .<span class="ident">tagged_template_space_before_literal</span>(<span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// The width of a line the printer will try to stay under. Note that the printer may exceed this width in certain cases.</span>
@@ -2056,6 +2072,14 @@
         <span class="self">self</span>.<span class="ident">insert</span>(<span class="string">&quot;enumDeclaration.trailingCommas&quot;</span>, <span class="ident">value</span>)
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">export_declaration_trailing_commas</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">TrailingCommas</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">insert</span>(<span class="string">&quot;exportDeclaration.trailingCommas&quot;</span>, <span class="ident">value</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">import_declaration_trailing_commas</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">TrailingCommas</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="self">self</span>.<span class="ident">insert</span>(<span class="string">&quot;importDeclaration.trailingCommas&quot;</span>, <span class="ident">value</span>)
+    }
+
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">object_expression_trailing_commas</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">TrailingCommas</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">insert</span>(<span class="string">&quot;objectExpression.trailingCommas&quot;</span>, <span class="ident">value</span>)
     }
@@ -2471,6 +2495,8 @@
         <span class="ident">array_expression_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;arrayExpression.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
         <span class="ident">array_pattern_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;arrayPattern.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
         <span class="ident">enum_declaration_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;enumDeclaration.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
+        <span class="ident">export_declaration_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;exportDeclaration.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
+        <span class="ident">import_declaration_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;importDeclaration.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
         <span class="ident">object_expression_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;objectExpression.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
         <span class="ident">object_pattern_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;objectPattern.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
         <span class="ident">tuple_type_trailing_commas</span>: <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">config</span>, <span class="string">&quot;tupleType.trailingCommas&quot;</span>, <span class="ident">trailing_commas</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">diagnostics</span>),
@@ -2684,6 +2710,10 @@
     <span class="kw">pub</span> <span class="ident">array_pattern_trailing_commas</span>: <span class="ident">TrailingCommas</span>,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;enumDeclaration.trailingCommas&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">enum_declaration_trailing_commas</span>: <span class="ident">TrailingCommas</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;exportDeclaration.trailingCommas&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">export_declaration_trailing_commas</span>: <span class="ident">TrailingCommas</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;importDeclaration.trailingCommas&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">import_declaration_trailing_commas</span>: <span class="ident">TrailingCommas</span>,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;objectPattern.trailingCommas&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">object_pattern_trailing_commas</span>: <span class="ident">TrailingCommas</span>,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename</span> <span class="op">=</span> <span class="string">&quot;objectExpression.trailingCommas&quot;</span>)]</span>
