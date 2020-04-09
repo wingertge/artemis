@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.16/src/sync/mpsc/bounded.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>bounded.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../tokio/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.17/src/sync/mpsc/bounded.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>bounded.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../tokio/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -477,9 +477,6 @@
 <span id="477">477</span>
 <span id="478">478</span>
 <span id="479">479</span>
-<span id="480">480</span>
-<span id="481">481</span>
-<span id="482">482</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">chan</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sync</span>::<span class="ident">mpsc</span>::<span class="ident">error</span>::{<span class="ident">ClosedError</span>, <span class="ident">SendError</span>, <span class="ident">TryRecvError</span>, <span class="ident">TrySendError</span>};
@@ -679,6 +676,203 @@
         <span class="ident">Sender</span> { <span class="ident">chan</span> }
     }
 
+    <span class="doccomment">/// Sends a value, waiting until there is capacity.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// A successful send occurs when it is determined that the other end of the</span>
+    <span class="doccomment">/// channel has not hung up already. An unsuccessful send would be one where</span>
+    <span class="doccomment">/// the corresponding receiver has already been closed. Note that a return</span>
+    <span class="doccomment">/// value of `Err` means that the data will never be received, but a return</span>
+    <span class="doccomment">/// value of `Ok` does not mean that the data will be received. It is</span>
+    <span class="doccomment">/// possible for the corresponding receiver to hang up immediately after</span>
+    <span class="doccomment">/// this function returns `Ok`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Errors</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`]</span>
+    <span class="doccomment">/// being called or the [`Receiver`] handle dropping, the function returns</span>
+    <span class="doccomment">/// an error. The error includes the value passed to `send`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`close`]: Receiver::close</span>
+    <span class="doccomment">/// [`Receiver`]: Receiver</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// In the following example, each call to `send` will block until the</span>
+    <span class="doccomment">/// previously sent value was received.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```rust</span>
+    <span class="doccomment">/// use tokio::sync::mpsc;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// #[tokio::main]</span>
+    <span class="doccomment">/// async fn main() {</span>
+    <span class="doccomment">///     let (mut tx, mut rx) = mpsc::channel(1);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     tokio::spawn(async move {</span>
+    <span class="doccomment">///         for i in 0..10 {</span>
+    <span class="doccomment">///             if let Err(_) = tx.send(i).await {</span>
+    <span class="doccomment">///                 println!(&quot;receiver dropped&quot;);</span>
+    <span class="doccomment">///                 return;</span>
+    <span class="doccomment">///             }</span>
+    <span class="doccomment">///         }</span>
+    <span class="doccomment">///     });</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     while let Some(i) = rx.recv().await {</span>
+    <span class="doccomment">///         println!(&quot;got = {}&quot;, i);</span>
+    <span class="doccomment">///     }</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>;
+
+        <span class="kw">if</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>)).<span class="kw">await</span>.<span class="ident">is_err</span>() {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendError</span>(<span class="ident">value</span>));
+        }
+
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">try_send</span>(<span class="ident">value</span>) {
+            <span class="prelude-val">Ok</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Full</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SendError</span>(<span class="ident">value</span>)),
+        }
+    }
+
+    <span class="doccomment">/// Attempts to immediately send a message on this `Sender`</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This method differs from [`send`] by returning immediately if the channel&#39;s</span>
+    <span class="doccomment">/// buffer is full or no receiver is waiting to acquire some data. Compared</span>
+    <span class="doccomment">/// with [`send`], this function has two failure cases instead of one (one for</span>
+    <span class="doccomment">/// disconnection, one for a full buffer).</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This function may be paired with [`poll_ready`] in order to wait for</span>
+    <span class="doccomment">/// channel capacity before trying to send a value.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Errors</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the channel capacity has been reached, i.e., the channel has `n`</span>
+    <span class="doccomment">/// buffered values where `n` is the argument passed to [`channel`], then an</span>
+    <span class="doccomment">/// error is returned.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`]</span>
+    <span class="doccomment">/// being called or the [`Receiver`] handle dropping, the function returns</span>
+    <span class="doccomment">/// an error. The error includes the value passed to `send`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`send`]: Sender::send</span>
+    <span class="doccomment">/// [`poll_ready`]: Sender::poll_ready</span>
+    <span class="doccomment">/// [`channel`]: channel</span>
+    <span class="doccomment">/// [`close`]: Receiver::close</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// use tokio::sync::mpsc;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// #[tokio::main]</span>
+    <span class="doccomment">/// async fn main() {</span>
+    <span class="doccomment">///     // Create a channel with buffer size 1</span>
+    <span class="doccomment">///     let (mut tx1, mut rx) = mpsc::channel(1);</span>
+    <span class="doccomment">///     let mut tx2 = tx1.clone();</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     tokio::spawn(async move {</span>
+    <span class="doccomment">///         tx1.send(1).await.unwrap();</span>
+    <span class="doccomment">///         tx1.send(2).await.unwrap();</span>
+    <span class="doccomment">///         // task waits until the receiver receives a value.</span>
+    <span class="doccomment">///     });</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     tokio::spawn(async move {</span>
+    <span class="doccomment">///         // This will return an error and send</span>
+    <span class="doccomment">///         // no message if the buffer is full</span>
+    <span class="doccomment">///         let _ = tx2.try_send(3);</span>
+    <span class="doccomment">///     });</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     let mut msg;</span>
+    <span class="doccomment">///     msg = rx.recv().await.unwrap();</span>
+    <span class="doccomment">///     println!(&quot;message {} received&quot;, msg);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     msg = rx.recv().await.unwrap();</span>
+    <span class="doccomment">///     println!(&quot;message {} received&quot;, msg);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     // Third message may have never been sent</span>
+    <span class="doccomment">///     match rx.recv().await {</span>
+    <span class="doccomment">///         Some(msg) =&gt; println!(&quot;message {} received&quot;, msg),</span>
+    <span class="doccomment">///         None =&gt; println!(&quot;the third message was never sent&quot;),</span>
+    <span class="doccomment">///     }</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TrySendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">chan</span>.<span class="ident">try_send</span>(<span class="ident">message</span>)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Sends a value, waiting until there is capacity, but only for a limited time.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Shares the same success and error conditions as [`send`], adding one more</span>
+    <span class="doccomment">/// condition for an unsuccessful send, which is when the provided timeout has</span>
+    <span class="doccomment">/// elapsed, and there is no capacity available.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`send`]: Sender::send</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Errors</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`]</span>
+    <span class="doccomment">/// being called or the [`Receiver`] having been dropped,</span>
+    <span class="doccomment">/// the function returns an error. The error includes the value passed to `send`.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`close`]: Receiver::close</span>
+    <span class="doccomment">/// [`Receiver`]: Receiver</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// In the following example, each call to `send_timeout` will block until the</span>
+    <span class="doccomment">/// previously sent value was received, unless the timeout has elapsed.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```rust</span>
+    <span class="doccomment">/// use tokio::sync::mpsc;</span>
+    <span class="doccomment">/// use tokio::time::{delay_for, Duration};</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// #[tokio::main]</span>
+    <span class="doccomment">/// async fn main() {</span>
+    <span class="doccomment">///     let (mut tx, mut rx) = mpsc::channel(1);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     tokio::spawn(async move {</span>
+    <span class="doccomment">///         for i in 0..10 {</span>
+    <span class="doccomment">///             if let Err(e) = tx.send_timeout(i, Duration::from_millis(100)).await {</span>
+    <span class="doccomment">///                 println!(&quot;send error: #{:?}&quot;, e);</span>
+    <span class="doccomment">///                 return;</span>
+    <span class="doccomment">///             }</span>
+    <span class="doccomment">///         }</span>
+    <span class="doccomment">///     });</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     while let Some(i) = rx.recv().await {</span>
+    <span class="doccomment">///         println!(&quot;got = {}&quot;, i);</span>
+    <span class="doccomment">///         delay_for(Duration::from_millis(200)).await;</span>
+    <span class="doccomment">///     }</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;time&quot;</span>)]</span>
+    <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">docsrs</span>, <span class="ident">doc</span>(<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;time&quot;</span>)))]</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_timeout</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">value</span>: <span class="ident">T</span>,
+        <span class="ident">timeout</span>: <span class="ident">Duration</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendTimeoutError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>;
+
+        <span class="kw">match</span> <span class="kw">crate</span>::<span class="ident">time</span>::<span class="ident">timeout</span>(<span class="ident">timeout</span>, <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))).<span class="kw">await</span> {
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Timeout</span>(<span class="ident">value</span>));
+            }
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>));
+            }
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {}
+        }
+
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">try_send</span>(<span class="ident">value</span>) {
+            <span class="prelude-val">Ok</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Full</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
+            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)),
+        }
+    }
+
     <span class="doccomment">/// Returns `Poll::Ready(Ok(()))` when the channel is able to accept another item.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// If the channel is full, then `Poll::Pending` is returned and the task is notified when a</span>
@@ -760,206 +954,6 @@
             <span class="bool-val">true</span>
         } <span class="kw">else</span> {
             <span class="bool-val">false</span>
-        }
-    }
-
-    <span class="doccomment">/// Attempts to immediately send a message on this `Sender`</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This method differs from [`send`] by returning immediately if the channel&#39;s</span>
-    <span class="doccomment">/// buffer is full or no receiver is waiting to acquire some data. Compared</span>
-    <span class="doccomment">/// with [`send`], this function has two failure cases instead of one (one for</span>
-    <span class="doccomment">/// disconnection, one for a full buffer).</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This function may be paired with [`poll_ready`] in order to wait for</span>
-    <span class="doccomment">/// channel capacity before trying to send a value.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Errors</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the channel capacity has been reached, i.e., the channel has `n`</span>
-    <span class="doccomment">/// buffered values where `n` is the argument passed to [`channel`], then an</span>
-    <span class="doccomment">/// error is returned.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`]</span>
-    <span class="doccomment">/// being called or the [`Receiver`] handle dropping, the function returns</span>
-    <span class="doccomment">/// an error. The error includes the value passed to `send`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// [`send`]: Sender::send</span>
-    <span class="doccomment">/// [`poll_ready`]: Sender::poll_ready</span>
-    <span class="doccomment">/// [`channel`]: channel</span>
-    <span class="doccomment">/// [`close`]: Receiver::close</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// use tokio::sync::mpsc;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// #[tokio::main]</span>
-    <span class="doccomment">/// async fn main() {</span>
-    <span class="doccomment">///     // Create a channel with buffer size 1</span>
-    <span class="doccomment">///     let (mut tx1, mut rx) = mpsc::channel(1);</span>
-    <span class="doccomment">///     let mut tx2 = tx1.clone();</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     tokio::spawn(async move {</span>
-    <span class="doccomment">///         tx1.send(1).await.unwrap();</span>
-    <span class="doccomment">///         tx1.send(2).await.unwrap();</span>
-    <span class="doccomment">///         // task waits until the receiver receives a value.</span>
-    <span class="doccomment">///     });</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     tokio::spawn(async move {</span>
-    <span class="doccomment">///         // This will return an error and send</span>
-    <span class="doccomment">///         // no message if the buffer is full</span>
-    <span class="doccomment">///         let _ = tx2.try_send(3);</span>
-    <span class="doccomment">///     });</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     let mut msg;</span>
-    <span class="doccomment">///     msg = rx.recv().await.unwrap();</span>
-    <span class="doccomment">///     println!(&quot;message {} received&quot;, msg);</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     msg = rx.recv().await.unwrap();</span>
-    <span class="doccomment">///     println!(&quot;message {} received&quot;, msg);</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     // Third message may have never been sent</span>
-    <span class="doccomment">///     match rx.recv().await {</span>
-    <span class="doccomment">///         Some(msg) =&gt; println!(&quot;message {} received&quot;, msg),</span>
-    <span class="doccomment">///         None =&gt; println!(&quot;the third message was never sent&quot;),</span>
-    <span class="doccomment">///     }</span>
-    <span class="doccomment">/// }</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">message</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">TrySendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">chan</span>.<span class="ident">try_send</span>(<span class="ident">message</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="doccomment">/// Sends a value, waiting until there is capacity.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// A successful send occurs when it is determined that the other end of the</span>
-    <span class="doccomment">/// channel has not hung up already. An unsuccessful send would be one where</span>
-    <span class="doccomment">/// the corresponding receiver has already been closed. Note that a return</span>
-    <span class="doccomment">/// value of `Err` means that the data will never be received, but a return</span>
-    <span class="doccomment">/// value of `Ok` does not mean that the data will be received. It is</span>
-    <span class="doccomment">/// possible for the corresponding receiver to hang up immediately after</span>
-    <span class="doccomment">/// this function returns `Ok`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Errors</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`]</span>
-    <span class="doccomment">/// being called or the [`Receiver`] handle dropping, the function returns</span>
-    <span class="doccomment">/// an error. The error includes the value passed to `send`.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// [`close`]: Receiver::close</span>
-    <span class="doccomment">/// [`Receiver`]: Receiver</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Examples</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// In the following example, each call to `send` will block until the</span>
-    <span class="doccomment">/// previously sent value was received.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ```rust</span>
-    <span class="doccomment">/// use tokio::sync::mpsc;</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// #[tokio::main]</span>
-    <span class="doccomment">/// async fn main() {</span>
-    <span class="doccomment">///     let (mut tx, mut rx) = mpsc::channel(1);</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     tokio::spawn(async move {</span>
-    <span class="doccomment">///         for i in 0..10 {</span>
-    <span class="doccomment">///             if let Err(_) = tx.send(i).await {</span>
-    <span class="doccomment">///                 println!(&quot;receiver dropped&quot;);</span>
-    <span class="doccomment">///                 return;</span>
-    <span class="doccomment">///             }</span>
-    <span class="doccomment">///         }</span>
-    <span class="doccomment">///     });</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">///     while let Some(i) = rx.recv().await {</span>
-    <span class="doccomment">///         println!(&quot;got = {}&quot;, i);</span>
-    <span class="doccomment">///     }</span>
-    <span class="doccomment">/// }</span>
-    <span class="doccomment">/// ```</span>
-    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">value</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>;
-
-        <span class="kw">if</span> <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>)).<span class="kw">await</span>.<span class="ident">is_err</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendError</span>(<span class="ident">value</span>));
-        }
-
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">try_send</span>(<span class="ident">value</span>) {
-            <span class="prelude-val">Ok</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Full</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
-            <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SendError</span>(<span class="ident">value</span>)),
-        }
-    }
-}
-
-<span class="macro">cfg_time</span><span class="macro">!</span> {
-    <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="doccomment">/// Sends a value, waiting until there is capacity, but only for a limited time.</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// Shares the same success and error conditions as [`send`], adding one more</span>
-        <span class="doccomment">/// condition for an unsuccessful send, which is when the provided timeout has</span>
-        <span class="doccomment">/// elapsed, and there is no capacity available.</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// [`send`]: Sender::send</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// # Errors</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// If the receive half of the channel is closed, either due to [`close`] being</span>
-        <span class="doccomment">/// called or the [`Receiver`] handle dropping, or if the timeout specified</span>
-        <span class="doccomment">/// elapses before the capacity is available the function returns an error.</span>
-        <span class="doccomment">/// The error includes the value passed to `send_timeout`.</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// [`close`]: Receiver::close</span>
-        <span class="doccomment">/// [`Receiver`]: Receiver</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// # Examples</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// In the following example, each call to `send_timeout` will block until the</span>
-        <span class="doccomment">/// previously sent value was received, unless the timeout has elapsed.</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// ```rust</span>
-        <span class="doccomment">/// use tokio::sync::mpsc;</span>
-        <span class="doccomment">/// use tokio::time::{delay_for, Duration};</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">/// #[tokio::main]</span>
-        <span class="doccomment">/// async fn main() {</span>
-        <span class="doccomment">///     let (mut tx, mut rx) = mpsc::channel(1);</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">///     tokio::spawn(async move {</span>
-        <span class="doccomment">///         for i in 0..10 {</span>
-        <span class="doccomment">///             if let Err(e) = tx.send_timeout(i, Duration::from_millis(100)).await {</span>
-        <span class="doccomment">///                 println!(&quot;send error: #{:?}&quot;, e);</span>
-        <span class="doccomment">///                 return;</span>
-        <span class="doccomment">///             }</span>
-        <span class="doccomment">///         }</span>
-        <span class="doccomment">///     });</span>
-        <span class="doccomment">///</span>
-        <span class="doccomment">///     while let Some(i) = rx.recv().await {</span>
-        <span class="doccomment">///         println!(&quot;got = {}&quot;, i);</span>
-        <span class="doccomment">///         delay_for(Duration::from_millis(200)).await;</span>
-        <span class="doccomment">///     }</span>
-        <span class="doccomment">/// }</span>
-        <span class="doccomment">/// ```</span>
-        <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_timeout</span>(
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-            <span class="ident">value</span>: <span class="ident">T</span>,
-            <span class="ident">timeout</span>: <span class="ident">Duration</span>,
-        ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendTimeoutError</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-            <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="ident">poll_fn</span>;
-
-            <span class="kw">match</span> <span class="kw">crate</span>::<span class="ident">time</span>::<span class="ident">timeout</span>(<span class="ident">timeout</span>, <span class="ident">poll_fn</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">poll_ready</span>(<span class="ident">cx</span>))).<span class="kw">await</span> {
-                <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Timeout</span>(<span class="ident">value</span>));
-                }
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>));
-                }
-                <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {}
-            }
-
-            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">try_send</span>(<span class="ident">value</span>) {
-                <span class="prelude-val">Ok</span>(()) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-                <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Full</span>(<span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(),
-                <span class="prelude-val">Err</span>(<span class="ident">TrySendError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SendTimeoutError</span>::<span class="ident">Closed</span>(<span class="ident">value</span>)),
-            }
         }
     }
 }
