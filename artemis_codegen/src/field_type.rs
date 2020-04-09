@@ -473,9 +473,11 @@ mod tests {
 
     /// FieldSelector Tests
     mod field_selector {
-        use crate::field_type::{tests::with_ctx, FieldType};
+        use crate::{
+            field_type::{tests::with_ctx, FieldType},
+            shared::ArgumentValue
+        };
         use quote::quote;
-        use crate::shared::ArgumentValue;
 
         #[test]
         fn object_produces_object_field_selector() {
@@ -548,7 +550,7 @@ mod tests {
                 let ty = FieldType::new("Age").nonnull();
                 let args = vec![
                     ("arg1".to_string(), ArgumentValue::Int(5)),
-                    ("arg2".to_string(), ArgumentValue::Boolean(false))
+                    ("arg2".to_string(), ArgumentValue::Boolean(false)),
                 ];
 
                 let selector = ty.field_selector(ctx, "Age", "age_field", args);
@@ -568,8 +570,14 @@ mod tests {
             with_ctx(|ctx| {
                 let ty = FieldType::new("Age").nonnull();
                 let args = vec![
-                    ("arg1".to_string(), ArgumentValue::Variable("arg_1".to_string())),
-                    ("arg2".to_string(), ArgumentValue::Variable("arg_2".to_string()))
+                    (
+                        "arg1".to_string(),
+                        ArgumentValue::Variable("arg_1".to_string())
+                    ),
+                    (
+                        "arg2".to_string(),
+                        ArgumentValue::Variable("arg_2".to_string())
+                    ),
                 ];
 
                 let selector = ty.field_selector(ctx, "Age", "age_field", args);

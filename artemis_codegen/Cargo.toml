@@ -1,8 +1,11 @@
 [package]
 name = "artemis_codegen"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "Code generation for the artemis crate"
+repository = "https://github.com/wingertge/artemis.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -18,4 +21,4 @@ heck = "0.3"
 dprint-plugin-typescript = "0.9.8"
 
 [dev-dependencies]
-artemis = { path = "../artemis" }
+artemis = { path = "../artemis", version = "0.1.0-alpha.0" }
