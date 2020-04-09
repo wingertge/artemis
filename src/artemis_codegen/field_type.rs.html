@@ -685,6 +685,14 @@
 <span id="685">685</span>
 <span id="686">686</span>
 <span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">enums</span>::<span class="ident">ENUMS_PREFIX</span>,
@@ -1161,9 +1169,11 @@
 
     <span class="doccomment">/// FieldSelector Tests</span>
     <span class="kw">mod</span> <span class="ident">field_selector</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">field_type</span>::{<span class="ident">tests</span>::<span class="ident">with_ctx</span>, <span class="ident">FieldType</span>};
+        <span class="kw">use</span> <span class="kw">crate</span>::{
+            <span class="ident">field_type</span>::{<span class="ident">tests</span>::<span class="ident">with_ctx</span>, <span class="ident">FieldType</span>},
+            <span class="ident">shared</span>::<span class="ident">ArgumentValue</span>
+        };
         <span class="kw">use</span> <span class="ident">quote</span>::<span class="ident">quote</span>;
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">shared</span>::<span class="ident">ArgumentValue</span>;
 
         <span class="attribute">#[<span class="ident">test</span>]</span>
         <span class="kw">fn</span> <span class="ident">object_produces_object_field_selector</span>() {
@@ -1236,7 +1246,7 @@
                 <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="ident">FieldType</span>::<span class="ident">new</span>(<span class="string">&quot;Age&quot;</span>).<span class="ident">nonnull</span>();
                 <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[
                     (<span class="string">&quot;arg1&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">ArgumentValue</span>::<span class="ident">Int</span>(<span class="number">5</span>)),
-                    (<span class="string">&quot;arg2&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">ArgumentValue</span>::<span class="ident">Boolean</span>(<span class="bool-val">false</span>))
+                    (<span class="string">&quot;arg2&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">ArgumentValue</span>::<span class="ident">Boolean</span>(<span class="bool-val">false</span>)),
                 ];
 
                 <span class="kw">let</span> <span class="ident">selector</span> <span class="op">=</span> <span class="ident">ty</span>.<span class="ident">field_selector</span>(<span class="ident">ctx</span>, <span class="string">&quot;Age&quot;</span>, <span class="string">&quot;age_field&quot;</span>, <span class="ident">args</span>);
@@ -1256,8 +1266,14 @@
             <span class="ident">with_ctx</span>(<span class="op">|</span><span class="ident">ctx</span><span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">ty</span> <span class="op">=</span> <span class="ident">FieldType</span>::<span class="ident">new</span>(<span class="string">&quot;Age&quot;</span>).<span class="ident">nonnull</span>();
                 <span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[
-                    (<span class="string">&quot;arg1&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">ArgumentValue</span>::<span class="ident">Variable</span>(<span class="string">&quot;arg_1&quot;</span>.<span class="ident">to_string</span>())),
-                    (<span class="string">&quot;arg2&quot;</span>.<span class="ident">to_string</span>(), <span class="ident">ArgumentValue</span>::<span class="ident">Variable</span>(<span class="string">&quot;arg_2&quot;</span>.<span class="ident">to_string</span>()))
+                    (
+                        <span class="string">&quot;arg1&quot;</span>.<span class="ident">to_string</span>(),
+                        <span class="ident">ArgumentValue</span>::<span class="ident">Variable</span>(<span class="string">&quot;arg_1&quot;</span>.<span class="ident">to_string</span>())
+                    ),
+                    (
+                        <span class="string">&quot;arg2&quot;</span>.<span class="ident">to_string</span>(),
+                        <span class="ident">ArgumentValue</span>::<span class="ident">Variable</span>(<span class="string">&quot;arg_2&quot;</span>.<span class="ident">to_string</span>())
+                    ),
                 ];
 
                 <span class="kw">let</span> <span class="ident">selector</span> <span class="op">=</span> <span class="ident">ty</span>.<span class="ident">field_selector</span>(<span class="ident">ctx</span>, <span class="string">&quot;Age&quot;</span>, <span class="string">&quot;age_field&quot;</span>, <span class="ident">args</span>);
