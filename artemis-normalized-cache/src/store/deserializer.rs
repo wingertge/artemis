@@ -144,10 +144,10 @@ impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a> {
                 let typename = self
                     .data
                     .read_record(key, "__typename", self.guard)
-                    .ok_or(SerializerError::custom("missing typename"))?;
+                    .ok_or_else(|| SerializerError::custom("missing typename"))?;
                 let typename = typename
                     .as_str()
-                    .ok_or(SerializerError::custom("typename isn't a string"))?;
+                    .ok_or_else(|| SerializerError::custom("typename isn't a string"))?;
                 let selection = (self.selection)(typename);
                 let deserializer = ObjectDeserializer::new(
                     self.data,
@@ -213,12 +213,7 @@ impl<'a, 'de> Deserializer<'de> for UnionSeqDeserializer<'a> {
 
     #[inline]
     fn deserialize_any<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value, Self::Error> {
-        let len = self.keys.len();
-        if len == 0 {
-            visitor.visit_unit()
-        } else {
-            visitor.visit_seq(&mut self)
-        }
+        visitor.visit_seq(&mut self)
     }
 
     forward_to_deserialize_any! {
@@ -338,7 +333,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let scalar = self
                     .data
                     .read_record(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 Ok(scalar.deserialize_any(visitor)?)
             }
             FieldSelector::Object(field_name, args, _, inner_selection) => {
@@ -346,7 +341,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let link = self
                     .data
                     .read_link(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_unit(),
                     Link::Single(key) => visit_object(
@@ -372,17 +367,17 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let link = self
                     .data
                     .read_link(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_unit(),
                     Link::Single(key) => {
                         let typename = self
                             .data
                             .read_record(&key, "__typename", self.guard)
-                            .ok_or(SerializerError::missing())?;
+                            .ok_or_else(|| SerializerError::missing())?;
                         let typename = typename
                             .as_str()
-                            .ok_or(SerializerError::custom("typename isn't a string"))?;
+                            .ok_or_else(|| SerializerError::custom("typename isn't a string"))?;
                         let inner_selection = inner_selection(typename);
                         visit_object(
                             self.data,
@@ -417,7 +412,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let value = self
                     .data
                     .read_record(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 match value {
                     Value::Null => visitor.visit_none(),
                     _ => Ok(visitor.visit_some(value)?)
@@ -428,7 +423,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let link = self
                     .data
                     .read_link(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_none(),
                     Link::Single(key) => {
@@ -458,7 +453,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                 let link = self
                     .data
                     .read_link(self.entity_key, &field_key, self.guard)
-                    .ok_or(SerializerError::missing())?;
+                    .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_none(),
                     Link::Single(key) => {

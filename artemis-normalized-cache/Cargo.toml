@@ -22,7 +22,7 @@ flurry = "0.1"
 lazy_static = "1.4"
 
 [dev-dependencies]
-artemis-test = { path = "../artemis-test" }
+# artemis-test = { path = "../artemis-test" }
 racetrack = "0.0.2"
 tokio = { version = "0.2", features = ["full"] }
 futures = "0.3"
