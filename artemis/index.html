@@ -68,7 +68,7 @@ This should be your last exchange in the chain, as it never forwards a query.</p
 First, there's a <code>wasm</code> module in your queries. this contains an automatically generated enum
 containing all your queries. This is used for transmitting type data across the WASM
 boundary.</p>
-<p>Second, you have to use the <a href="../artemis_codegen_proc_macro/macro.wasm_client!.html">graphql_client! macro</a>
+<p>Second, you have to use the <a href="../artemis_codegen_proc_macro/macro.wasm_client!.html">wasm_client! macro</a>
 to generate a WASM interop client that has hard-coded types for your queries, again, to
 eliminate the unsupported generics and transmit type data across the boundary.
 The queries type passed to the macro must be the enum generated as mentioned above.</p>

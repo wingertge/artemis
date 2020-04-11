@@ -658,14 +658,14 @@
             <span class="string">r#&quot;
             {children}
 
-            {_enum}
+            {enum_}
 
             export interface {name} {{
                 {fields}
             }}
         &quot;#</span>,
             <span class="ident">children</span> <span class="op">=</span> <span class="ident">children</span>,
-            <span class="ident">_enum</span> <span class="op">=</span> <span class="ident">attached_enum</span>,
+            <span class="ident">enum_</span> <span class="op">=</span> <span class="ident">attached_enum</span>,
             <span class="ident">name</span> <span class="op">=</span> <span class="ident">type_name</span>,
             <span class="ident">fields</span> <span class="op">=</span> <span class="ident">object_fields</span>.<span class="ident">join</span>(<span class="string">&quot;,\n&quot;</span>)
         );
