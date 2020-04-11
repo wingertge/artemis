@@ -12,6 +12,7 @@ license = "MIT OR Apache-2.0"
 [features]
 rustfmt = ["rustfmt-nightly"]
 introspect = ["reqwest", "serde", "serde_json", "artemis"]
+fmt-typescript = ["artemis_codegen/fmt-typescript"]
 
 [dependencies]
 artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0-alpha.0" }

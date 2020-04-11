@@ -235,14 +235,14 @@ impl<'schema> GqlInterface<'schema> {
             r#"
             {children}
 
-            {_enum}
+            {enum_}
 
             export interface {name} {{
                 {fields}
             }}
         "#,
             children = children,
-            _enum = attached_enum,
+            enum_ = attached_enum,
             name = type_name,
             fields = object_fields.join(",\n")
         );

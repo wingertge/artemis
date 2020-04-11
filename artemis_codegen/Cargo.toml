@@ -7,6 +7,9 @@ license = "MIT OR Apache-2.0"
 description = "Code generation for the artemis crate"
 repository = "https://github.com/wingertge/artemis.git"
 
+[features]
+fmt-typescript = ["dprint-plugin-typescript"]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -18,7 +21,7 @@ proc-macro2 = { version = "1", features = [] }
 syn = { version = "1", features = ["full", "clone-impls"] }
 quote = "1"
 heck = "0.3"
-dprint-plugin-typescript = "0.9.8"
+dprint-plugin-typescript = { version = "0.9.8", optional = true }
 
 [dev-dependencies]
 artemis = { path = "../artemis" }

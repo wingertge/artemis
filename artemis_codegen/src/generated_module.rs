@@ -78,23 +78,32 @@ impl<'a> GeneratedModule<'a> {
         let types: Vec<_> = types.into_iter().collect();
         let involved_types = quote!(vec![#(#types,)*]);
 
-        let typescript = format!(
+        #[allow(unused_mut)]
+        let mut typescript = format!(
             r#"export namespace {operation_name} {{
-            {definitions}
-        }}"#,
+                {definitions}
+            }}"#,
             operation_name = operation_name_literal,
             definitions = typescript_definitions
         );
-        let format_config =
-            dprint_plugin_typescript::configuration::ConfigurationBuilder::new().build();
-        println!("{}", typescript);
-        let typescript =
-            match dprint_plugin_typescript::format_text("temp.d.ts", &typescript, &format_config)
-                .unwrap()
+
+        #[cfg(feature = "fmt-typescript")]
+        {
+            let format_config =
+                dprint_plugin_typescript::configuration::ConfigurationBuilder::new().build();
+            println!("{}", typescript);
+            typescript = match dprint_plugin_typescript::format_text(
+                "temp.d.ts",
+                &typescript,
+                &format_config
+            )
+            .unwrap()
             {
                 Some(formatted) => formatted,
                 None => panic!("Typescript was ignored even though no ignore comment was present")
             };
+        }
+
         let typescript = quote! {
             #[cfg(target_arch = "wasm32")]
             use wasm_bindgen::prelude::*;
