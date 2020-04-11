@@ -103,7 +103,7 @@ fn main() {
     let n = 25;
     let variable_set: Vec<Variables> = (0..n).map(|i| Variables { id: i.to_string() }).collect();
 
-    let thread_count = 1;
+    let thread_count = 8;
 
     let query_count = Arc::new(AtomicU32::new(0));
 

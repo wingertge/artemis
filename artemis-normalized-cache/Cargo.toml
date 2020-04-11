@@ -1,6 +1,6 @@
 [package]
 name = "artemis-normalized-cache"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 description = "A graph-based normalized cache exchange for the artemis crate."
