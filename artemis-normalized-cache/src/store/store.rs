@@ -1,4 +1,7 @@
-use crate::store::data::{InMemoryData, Link};
+use crate::store::{
+    data::{InMemoryData, Link},
+    deserializer::ObjectDeserializer
+};
 use artemis::{
     codegen::FieldSelector,
     exchange::{Client, Operation, OperationOptions, OperationResult},
@@ -6,9 +9,9 @@ use artemis::{
     GraphQLQuery, QueryError, RequestPolicy, Response
 };
 use flurry::{epoch, epoch::Guard};
+use serde::de::Deserialize;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
-use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet},
     error::Error,
@@ -172,7 +175,13 @@ impl Store {
                 .and_then(|val| val.as_str())
         };
 
-        id.map(|id| format!("{}:{}", typename, id))
+        id.map(|id| {
+            let mut key = String::with_capacity(typename.len() + id.len() + 1);
+            key.push_str(typename);
+            key.push_str(":");
+            key.push_str(id);
+            key
+        })
     }
 
     pub fn write_query<Q: GraphQLQuery>(
@@ -249,7 +258,7 @@ impl Store {
             _ => unreachable!()
         };
 
-        let field_key = format!("{}{}", field_name, args);
+        let field_key = Self::field_key(field_name, args);
         if value.is_null() {
             self.data.write_link(entity_key, field_key, Link::Null);
             return Ok(());
@@ -277,7 +286,7 @@ impl Store {
         self.write_link(
             optimistic_key,
             entity_key,
-            format!("{}{}", field_name, args),
+            Self::field_key(field_name, args),
             Some(Link::Single(key))
         );
         Ok(())
@@ -302,7 +311,7 @@ impl Store {
     ) -> Result<(), StoreError> {
         let (field_name, args, typename, inner) = match selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = format!("{}{}", *field_name, args);
+                let field_key = Self::field_key(*field_name, args);
                 self.write_record(optimistic_key, entity_key, field_key, Some(value));
                 return Ok(());
             }
@@ -321,7 +330,7 @@ impl Store {
             }
         };
 
-        let field_key = format!("{}{}", field_name, args);
+        let field_key = Self::field_key(field_name, args);
 
         if value.is_null() {
             self.write_link(optimistic_key, entity_key, field_key, Some(Link::Null));
@@ -397,7 +406,7 @@ impl Store {
                 }
             }
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = format!("{}{}", *field_name, args);
+                let field_key = Self::field_key(*field_name, args);
                 self.write_record(optimistic_key, entity_key, field_key, Some(data));
             }
         }
@@ -442,93 +451,27 @@ impl Store {
     ) -> Option<Q::ResponseData> {
         let root_key = query.meta.operation_type.to_string();
         let selection = Q::selection(&query.query.variables);
-        let value = self.read_entity(&root_key, &selection, dependencies)?;
+        let guard = epoch::pin();
+        let deserializer =
+            ObjectDeserializer::new(&self.data, &selection, &root_key, &guard, dependencies);
+        /*        let value = self.read_entity(root_key, &selection, dependencies)?;
         let data: Q::ResponseData =
-            serde_json::from_value(value).expect("Cache result didn't match type");
-        Some(data)
+            serde_json::from_value(value).expect("Cache result didn't match type");*/
+        let data = Q::ResponseData::deserialize(deserializer);
+        dependencies.remove("Query");
+        match data {
+            Ok(data) => Some(data),
+            Err(e) if e.is_missing() => None,
+            Err(e) => panic!("{}", e)
+        }
     }
 
-    fn read_entity(
-        &self,
-        entity_key: &str,
-        selection: &[FieldSelector],
-        dependencies: &mut HashSet<String>
-    ) -> Option<serde_json::Value> {
-        if entity_key != "Query" {
-            dependencies.insert(entity_key.to_string());
-        }
-
-        let guard = epoch::pin();
-        let mut result = serde_json::Map::new();
-        for field in selection {
-            match field {
-                FieldSelector::Scalar(ref field_name, ref args) => {
-                    let value = self.data.read_record(
-                        entity_key,
-                        &format!("{}{}", field_name, args),
-                        &guard
-                    )?;
-                    result.insert(field_name.to_string(), value.clone());
-                }
-                FieldSelector::Object(ref field_name, ref args, _, ref inner) => {
-                    let link = self.data.read_link(
-                        entity_key,
-                        &format!("{}{}", field_name, args),
-                        &guard
-                    )?;
-                    match link {
-                        Link::Single(ref entity_key) => {
-                            let value = self.read_entity(entity_key, inner, dependencies)?;
-                            result.insert(field_name.to_string(), value);
-                        }
-                        Link::List(ref entity_keys) => {
-                            let values: Option<Vec<_>> = entity_keys
-                                .iter()
-                                .map(|entity_key| self.read_entity(entity_key, inner, dependencies))
-                                .collect();
-                            result.insert(field_name.to_string(), values?.into());
-                        }
-                        Link::Null => {
-                            result.insert(field_name.to_string(), Value::Null);
-                        }
-                    }
-                }
-                FieldSelector::Union(ref field_name, ref args, ref inner) => {
-                    let field_key = format!("{}{}", field_name, args);
-                    let link = self.data.read_link(entity_key, &field_key, &guard)?;
-                    match link {
-                        Link::Single(ref entity_key) => {
-                            let typename = self.data.read_record(entity_key, &field_key, &guard)?;
-                            let typename = typename
-                                .as_str()
-                                .expect("__typename has invalid type! Should be string");
-                            let selection = inner(typename);
-                            let value = self.read_entity(entity_key, &selection, dependencies)?;
-                            result.insert(field_name.to_string(), value);
-                        }
-                        Link::List(ref entity_keys) => {
-                            let values: Option<Vec<_>> = entity_keys
-                                .iter()
-                                .map(|entity_key| {
-                                    let typename =
-                                        self.data.read_record(entity_key, &field_key, &guard)?;
-                                    let typename = typename
-                                        .as_str()
-                                        .expect("__typename has invalid type! Should be string");
-                                    let selection = inner(typename);
-                                    self.read_entity(entity_key, &selection, dependencies)
-                                })
-                                .collect();
-                            result.insert(field_name.to_string(), values?.into());
-                        }
-                        Link::Null => {
-                            result.insert(field_name.to_string(), Value::Null);
-                        }
-                    }
-                }
-            }
-        }
-        Some(result.into())
+    #[inline]
+    fn field_key(field_name: &str, args: &str) -> String {
+        let mut key = String::with_capacity(field_name.len() + args.len());
+        key.push_str(field_name);
+        key.push_str(args);
+        key
     }
 
     fn invalidate_union(
@@ -611,15 +554,13 @@ impl Store {
                     self.write_record(
                         optimistic_key,
                         entity_key.to_string(),
-                        format!("{}{}", field_name, args),
+                        Self::field_key(field_name, args),
                         None
                     );
                 }
                 FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
-                    if let Some(link) =
-                        self.data
-                            .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
-                    {
+                    let field_key = Self::field_key(field_name, args);
+                    if let Some(link) = self.data.read_link(entity_key, &field_key, &guard) {
                         match link {
                             Link::Single(ref entity_key) => self.invalidate_selection(
                                 optimistic_key,
@@ -644,10 +585,8 @@ impl Store {
                     }
                 }
                 FieldSelector::Union(ref field_name, ref args, ref subselection) => {
-                    if let Some(link) =
-                        self.data
-                            .read_link(entity_key, &format!("{}{}", field_name, args), &guard)
-                    {
+                    let field_key = Self::field_key(field_name, args);
+                    if let Some(link) = self.data.read_link(entity_key, &field_key, &guard) {
                         match link {
                             Link::Single(ref entity_key) => self.invalidate_union(
                                 optimistic_key,

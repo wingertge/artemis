@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 artemis = { path = "../artemis" }
-rayon = "1.3"
+artemis-normalized-cache = { path = "../artemis-normalized-cache" }
 rand = "0.7"
 tokio-test = "0.2"
 serde = { version = "1", features = ["derive"] }
