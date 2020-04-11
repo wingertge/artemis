@@ -92,7 +92,7 @@
 //! containing all your queries. This is used for transmitting type data across the WASM
 //! boundary.
 //!
-//! Second, you have to use the [graphql_client! macro](../artemis_codegen_proc_macro/macro.wasm_client!.html)
+//! Second, you have to use the [wasm_client! macro](../artemis_codegen_proc_macro/macro.wasm_client!.html)
 //! to generate a WASM interop client that has hard-coded types for your queries, again, to
 //! eliminate the unsupported generics and transmit type data across the boundary.
 //! The queries type passed to the macro must be the enum generated as mentioned above.
