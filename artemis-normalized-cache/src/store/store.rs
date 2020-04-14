@@ -13,7 +13,7 @@ use serde::de::Deserialize;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     error::Error,
     fmt,
     sync::Arc
@@ -74,7 +74,7 @@ impl QueryStore {
         _query: Q,
         variables: Q::Variables,
         updater_fn: F,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) where
         F: FnOnce(Option<Q::ResponseData>) -> Option<Q::ResponseData> + 'a
     {
@@ -94,7 +94,7 @@ impl Store {
         &self,
         variables: Q::Variables,
         updater_fn: F,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) where
         F: FnOnce(Option<Q::ResponseData>) -> Option<Q::ResponseData> + 'a
     {
@@ -189,7 +189,7 @@ impl Store {
         query: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
         optimistic: bool,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) -> Result<(), QueryError> {
         if query.response.data.is_none() {
             return Ok(());
@@ -238,7 +238,7 @@ impl Store {
         entity_key: String,
         field: &FieldSelector,
         value: serde_json::Value,
-        dependencies: &mut HashSet<String>,
+        dependencies: &mut Vec<String>,
         guard: &Guard
     ) -> Result<(), StoreError> {
         let (field_name, args, typename, inner) = match field {
@@ -270,7 +270,7 @@ impl Store {
                 entity_key, field_name
             ))
         })?;
-        dependencies.insert(key.clone());
+        dependencies.push(key.clone());
         for field in &inner {
             let field_name = self.get_selector_field_key(&field);
             let value = value.get(field_name).unwrap();
@@ -306,7 +306,7 @@ impl Store {
         entity_key: String,
         selector: &FieldSelector,
         value: serde_json::Value,
-        dependencies: &mut HashSet<String>,
+        dependencies: &mut Vec<String>,
         guard: &Guard
     ) -> Result<(), StoreError> {
         let (field_name, args, typename, inner) = match selector {
@@ -347,7 +347,7 @@ impl Store {
                     entity_key, field_key
                 ))
             })?;
-            dependencies.insert(key.clone());
+            dependencies.push(key.clone());
 
             for selector in inner.iter() {
                 let field_name = self.get_selector_field_key(selector);
@@ -380,7 +380,7 @@ impl Store {
         entity_key: String,
         selector: &FieldSelector,
         data: serde_json::Value,
-        dependencies: &mut HashSet<String>,
+        dependencies: &mut Vec<String>,
         guard: &Guard
     ) -> Result<(), StoreError> {
         match selector {
@@ -447,7 +447,7 @@ impl Store {
     pub fn read_query<Q: GraphQLQuery>(
         &self,
         query: &Operation<Q::Variables>,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) -> Option<Q::ResponseData> {
         let root_key = query.meta.operation_type.to_string();
         let selection = Q::selection(&query.query.variables);
@@ -458,7 +458,6 @@ impl Store {
         let data: Q::ResponseData =
             serde_json::from_value(value).expect("Cache result didn't match type");*/
         let data = Q::ResponseData::deserialize(deserializer);
-        dependencies.remove("Query");
         match data {
             Ok(data) => Some(data),
             Err(e) if e.is_missing() => None,
@@ -479,7 +478,7 @@ impl Store {
         optimistic_key: Option<u64>,
         entity_key: &str,
         subselection: &dyn Fn(&str) -> Vec<FieldSelector>,
-        invalidated: &mut HashSet<String>,
+        invalidated: &mut Vec<String>,
         guard: &Guard
     ) {
         let typename = self
@@ -502,7 +501,7 @@ impl Store {
         result: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
         optimistic: bool,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) {
         if result.response.data.is_none() {
             return;
@@ -522,18 +521,26 @@ impl Store {
 
     pub fn rerun_queries<C: Client>(
         &self,
-        entities: HashSet<String>,
+        mut entities: Vec<String>,
         originating_query: u64,
         client: &C
     ) {
-        let queries: HashSet<_> = entities
+        entities.sort_unstable();
+        entities.dedup();
+        //println!("Rerun dependencies: {:?}", entities);
+
+        let mut queries: Vec<_> = entities
             .iter()
+            .filter(|it| *it != "Query")
             .flat_map(|entity| self.data.get_dependencies(entity))
+            .filter(|it| *it != originating_query)
             .collect();
+
+        queries.sort_unstable();
+        queries.dedup();
+
         for query in queries {
-            if query != originating_query {
-                client.rerun_query(query);
-            }
+            client.rerun_query(query);
         }
     }
 
@@ -542,11 +549,11 @@ impl Store {
         optimistic_key: Option<u64>,
         entity_key: &str,
         selection: &[FieldSelector],
-        invalidated: &mut HashSet<String>,
+        invalidated: &mut Vec<String>,
         guard: &Guard
     ) {
         if entity_key != "Mutation" {
-            invalidated.insert(entity_key.to_string());
+            invalidated.push(entity_key.to_string());
         }
         for field in selection {
             match field {

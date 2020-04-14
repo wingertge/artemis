@@ -10,7 +10,10 @@ use serde::{
     forward_to_deserialize_any, Deserializer
 };
 use serde_json::Value;
-use std::{collections::HashSet, fmt, fmt::Display};
+use std::{fmt, fmt::Display};
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug)]
 pub struct SerializerError {
@@ -97,232 +100,15 @@ fn selector_field_name(selector: &FieldSelector) -> &str {
     }
 }
 
-struct SelectorDeserializer<'a> {
-    data: &'a InMemoryData,
+struct SelectorDeserializer<'a, 'de> {
+    data: &'de InMemoryData,
+    guard: &'de Guard,
     selector: &'a FieldSelector,
     entity_key: &'a str,
-    guard: &'a Guard,
-    dependencies: &'a mut HashSet<String>
+    dependencies: &'a mut Vec<String>
 }
 
-impl<'a> ObjectDeserializer<'a> {
-    pub(crate) fn new(
-        data: &'a InMemoryData,
-        selection: &'a [FieldSelector],
-        entity_key: &'a str,
-        guard: &'a Guard,
-        dependencies: &'a mut HashSet<String>
-    ) -> Self {
-        Self {
-            data,
-            selection: selection.into_iter(),
-            entity_key,
-            guard,
-            dependencies: Some(dependencies),
-            value: None
-        }
-    }
-}
-
-struct UnionSeqDeserializer<'a> {
-    data: &'a InMemoryData,
-    keys: <Vec<String> as IntoIterator>::IntoIter,
-    guard: &'a Guard,
-    selection: &'a dyn Fn(&str) -> Vec<FieldSelector>,
-    dependencies: &'a mut HashSet<String>
-}
-
-impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a> {
-    type Error = SerializerError;
-
-    fn next_element_seed<T: DeserializeSeed<'de>>(
-        &mut self,
-        seed: T
-    ) -> Result<Option<T::Value>, Self::Error> {
-        match self.keys.next() {
-            Some(ref key) => {
-                let typename = self
-                    .data
-                    .read_record(key, "__typename", self.guard)
-                    .ok_or_else(|| SerializerError::custom("missing typename"))?;
-                let typename = typename
-                    .as_str()
-                    .ok_or_else(|| SerializerError::custom("typename isn't a string"))?;
-                let selection = (self.selection)(typename);
-                let deserializer = ObjectDeserializer::new(
-                    self.data,
-                    &selection,
-                    key,
-                    self.guard,
-                    self.dependencies
-                );
-                seed.deserialize(deserializer).map(Some)
-            }
-            None => Ok(None)
-        }
-    }
-
-    fn size_hint(&self) -> Option<usize> {
-        match self.keys.size_hint() {
-            (lower, Some(upper)) if lower == upper => Some(upper),
-            _ => None
-        }
-    }
-}
-
-struct SeqDeserializer<'a> {
-    data: &'a InMemoryData,
-    keys: <Vec<String> as IntoIterator>::IntoIter,
-    guard: &'a Guard,
-    selection: &'a [FieldSelector],
-    dependencies: &'a mut HashSet<String>
-}
-
-impl<'a, 'de> SeqAccess<'de> for SeqDeserializer<'a> {
-    type Error = SerializerError;
-
-    fn next_element_seed<T: DeserializeSeed<'de>>(
-        &mut self,
-        seed: T
-    ) -> Result<Option<T::Value>, Self::Error> {
-        match self.keys.next() {
-            Some(ref key) => {
-                let deserializer = ObjectDeserializer::new(
-                    self.data,
-                    &self.selection,
-                    key,
-                    self.guard,
-                    self.dependencies
-                );
-                seed.deserialize(deserializer).map(Some)
-            }
-            None => Ok(None)
-        }
-    }
-
-    fn size_hint(&self) -> Option<usize> {
-        match self.keys.size_hint() {
-            (lower, Some(upper)) if lower == upper => Some(upper),
-            _ => None
-        }
-    }
-}
-
-impl<'a, 'de> Deserializer<'de> for UnionSeqDeserializer<'a> {
-    type Error = SerializerError;
-
-    #[inline]
-    fn deserialize_any<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value, Self::Error> {
-        visitor.visit_seq(&mut self)
-    }
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum identifier ignored_any
-    }
-}
-
-impl<'a, 'de> Deserializer<'de> for SeqDeserializer<'a> {
-    type Error = SerializerError;
-
-    #[inline]
-    fn deserialize_any<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value, Self::Error> {
-        visitor.visit_seq(&mut self)
-    }
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum identifier ignored_any
-    }
-}
-
-pub(crate) struct ObjectDeserializer<'a> {
-    data: &'a InMemoryData,
-    selection: <&'a [FieldSelector] as IntoIterator>::IntoIter,
-    entity_key: &'a str,
-    guard: &'a Guard,
-    dependencies: Option<&'a mut HashSet<String>>,
-    value: Option<SelectorDeserializer<'a>>
-}
-
-impl<'a, 'de> MapAccess<'de> for ObjectDeserializer<'a> {
-    type Error = SerializerError;
-
-    fn next_key_seed<K: DeserializeSeed<'de>>(
-        &mut self,
-        seed: K
-    ) -> Result<Option<K::Value>, Self::Error> {
-        match self.selection.next() {
-            Some(value) => {
-                let key = selector_field_name(&value);
-                let value = SelectorDeserializer {
-                    data: self.data,
-                    guard: self.guard,
-                    entity_key: self.entity_key,
-                    selector: value,
-                    dependencies: self.dependencies.take().unwrap()
-                };
-                self.value = Some(value);
-                seed.deserialize(key.into_deserializer()).map(Some)
-            }
-            None => Ok(None)
-        }
-    }
-
-    fn next_value_seed<V: DeserializeSeed<'de>>(
-        &mut self,
-        seed: V
-    ) -> Result<V::Value, Self::Error> {
-        match self.value.as_mut() {
-            Some(value) => {
-                let res = seed.deserialize(value.reborrow())?;
-                let value = self.value.take().unwrap();
-                value.dependencies.insert(self.entity_key.to_owned());
-                self.dependencies = Some(value.dependencies);
-                Ok(res)
-            }
-            None => Err(serde::de::Error::custom("value is missing"))
-        }
-    }
-
-    fn size_hint(&self) -> Option<usize> {
-        match self.selection.size_hint() {
-            (lower, Some(upper)) if lower == upper => Some(upper),
-            _ => None
-        }
-    }
-}
-
-impl<'a> SelectorDeserializer<'a> {
-    fn reborrow(&mut self) -> SelectorDeserializer<'_> {
-        SelectorDeserializer {
-            data: self.data,
-            dependencies: self.dependencies,
-            entity_key: self.entity_key,
-            guard: self.guard,
-            selector: self.selector
-        }
-    }
-}
-
-impl<'a, 'de> Deserializer<'de> for ObjectDeserializer<'a> {
-    type Error = SerializerError;
-
-    #[inline]
-    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
-        visitor.visit_map(self)
-    }
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum identifier ignored_any
-    }
-}
-
-impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
+impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
     type Error = SerializerError;
 
     #[inline]
@@ -346,7 +132,7 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                     Link::Null => visitor.visit_unit(),
                     Link::Single(key) => visit_object(
                         self.data,
-                        &key,
+                        key,
                         inner_selection,
                         visitor,
                         self.guard,
@@ -403,8 +189,8 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
 
     #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>
+        where
+            V: Visitor<'de>
     {
         match self.selector {
             FieldSelector::Scalar(field_name, args) => {
@@ -512,8 +298,9 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
                     .read_link(self.entity_key, &field_key, self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
-                    Link::Single(ref key) => {
-                        let typename = self.data.read_record(&key, "__typename", self.guard).ok_or_else(|| SerializerError::custom("missing typename"))?;
+                    Link::Single(key) => {
+                        let typename = self.data.read_record(&key, "__typename", self.guard)
+                            .ok_or_else(|| SerializerError::custom("missing typename"))?;
                         let typename = typename.as_str().ok_or_else(|| SerializerError::custom("typename not a string"))?;
                         let selection = inner_selection(typename);
                         let value = ObjectDeserializer::new(
@@ -544,14 +331,227 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a> {
     }
 }
 
-struct UnionDeserializer<'a> {
-    variant: &'a str,
-    value: ObjectDeserializer<'a>
+struct UnionSeqDeserializer<'a, 'de> {
+    data: &'de InMemoryData,
+    guard: &'de Guard,
+    keys: <&'a [String] as IntoIterator>::IntoIter,
+    selection: &'a dyn Fn(&str) -> Vec<FieldSelector>,
+    dependencies: *mut Vec<String>
 }
 
-impl<'a, 'de> EnumAccess<'de> for UnionDeserializer<'a> {
+impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a, 'de> {
     type Error = SerializerError;
-    type Variant = VariantDeserializer<'a>;
+
+    fn next_element_seed<T: DeserializeSeed<'de>>(
+        &mut self,
+        seed: T
+    ) -> Result<Option<T::Value>, Self::Error> {
+        match self.keys.next() {
+            Some(key) => {
+                let typename = self
+                    .data
+                    .read_record(key, "__typename", self.guard)
+                    .ok_or_else(|| SerializerError::custom("missing typename"))?;
+                let typename = typename
+                    .as_str()
+                    .ok_or_else(|| SerializerError::custom("typename isn't a string"))?;
+                let selection = (self.selection)(typename);
+                let deserializer = ObjectDeserializer::new(
+                    self.data,
+                    &selection,
+                    key,
+                    self.guard,
+                    self.dependencies
+                );
+                seed.deserialize(deserializer).map(Some)
+            }
+            None => Ok(None)
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        match self.keys.size_hint() {
+            (lower, Some(upper)) if lower == upper => Some(upper),
+            _ => None
+        }
+    }
+}
+
+impl<'a, 'de> Deserializer<'de> for UnionSeqDeserializer<'a, 'de> {
+    type Error = SerializerError;
+
+    #[inline]
+    fn deserialize_any<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_seq(&mut self)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
+struct SeqDeserializer<'a, 'de> {
+    data: &'de InMemoryData,
+    guard: &'de Guard,
+    keys: <&'a [String] as IntoIterator>::IntoIter,
+    selection: &'a [FieldSelector],
+    dependencies: *mut Vec<String>
+}
+
+impl<'a, 'de> SeqAccess<'de> for SeqDeserializer<'a, 'de> {
+    type Error = SerializerError;
+
+    fn next_element_seed<T: DeserializeSeed<'de>>(
+        &mut self,
+        seed: T
+    ) -> Result<Option<T::Value>, Self::Error> {
+        match self.keys.next() {
+            Some(key) => {
+                let deserializer = ObjectDeserializer::new(
+                    self.data,
+                    &self.selection,
+                    key,
+                    self.guard,
+                    self.dependencies
+                );
+                seed.deserialize(deserializer).map(Some)
+            }
+            None => Ok(None)
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        match self.keys.size_hint() {
+            (lower, Some(upper)) if lower == upper => Some(upper),
+            _ => None
+        }
+    }
+}
+
+impl<'a, 'de> Deserializer<'de> for SeqDeserializer<'a, 'de> {
+    type Error = SerializerError;
+
+    #[inline]
+    fn deserialize_any<V: Visitor<'de>>(mut self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_seq(&mut self)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
+pub(crate) struct ObjectDeserializer<'a, 'de> {
+    data: &'de InMemoryData,
+    guard: &'de Guard,
+    selection: <&'a [FieldSelector] as IntoIterator>::IntoIter,
+    entity_key: &'a str,
+    dependencies: *mut Vec<String>,
+    value: Option<SelectorDeserializer<'a, 'de>>
+}
+
+impl<'a, 'de> ObjectDeserializer<'a, 'de> {
+    pub(crate) fn new(
+        data: &'de InMemoryData,
+        selection: &'a [FieldSelector],
+        entity_key: &'a str,
+        guard: &'de Guard,
+        dependencies: *mut Vec<String>
+    ) -> Self {
+        Self {
+            data,
+            selection: selection.into_iter(),
+            entity_key,
+            guard,
+            dependencies,
+            value: None
+        }
+    }
+}
+
+impl<'a, 'de> MapAccess<'de> for ObjectDeserializer<'a, 'de> {
+    type Error = SerializerError;
+
+    fn next_key_seed<K: DeserializeSeed<'de>>(
+        &mut self,
+        seed: K
+    ) -> Result<Option<K::Value>, Self::Error> {
+        match self.selection.next() {
+            Some(value) => {
+                let key = selector_field_name(&value);
+                let value = SelectorDeserializer {
+                    data: self.data,
+                    guard: self.guard,
+                    entity_key: self.entity_key,
+                    selector: value,
+                    // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
+                    // to this when there isn't one, so multiple writers are impossible.
+                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // profiling shows this adds about 0.5% overhead for what is basically just
+                    // a typecheck workaround
+                    dependencies: unsafe { &mut *self.dependencies }
+                };
+                self.value = Some(value);
+                seed.deserialize(key.into_deserializer()).map(Some)
+            }
+            None => Ok(None)
+        }
+    }
+
+    fn next_value_seed<V: DeserializeSeed<'de>>(
+        &mut self,
+        seed: V
+    ) -> Result<V::Value, Self::Error> {
+        match self.value.take() {
+            Some(value) => {
+                let res = seed.deserialize(value)?;
+                // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
+                // to this when there isn't one, so multiple writers are impossible.
+                // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                // profiling shows this adds about 0.5% overhead for what is basically just
+                // a typecheck workaround
+                unsafe { &mut *self.dependencies }.push(self.entity_key.to_owned());
+                Ok(res)
+            }
+            None => Err(serde::de::Error::custom("value is missing"))
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        match self.selection.size_hint() {
+            (lower, Some(upper)) if lower == upper => Some(upper),
+            _ => None
+        }
+    }
+}
+
+impl<'a, 'de> Deserializer<'de> for ObjectDeserializer<'a, 'de> {
+    type Error = SerializerError;
+
+    #[inline]
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_map(self)
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
+struct UnionDeserializer<'a, 'de> {
+    variant: &'a str,
+    value: ObjectDeserializer<'a, 'de>
+}
+
+impl<'a, 'de> EnumAccess<'de> for UnionDeserializer<'a, 'de> {
+    type Error = SerializerError;
+    type Variant = VariantDeserializer<'a, 'de>;
 
     fn variant_seed<V: DeserializeSeed<'de>>(
         self,
@@ -563,11 +563,11 @@ impl<'a, 'de> EnumAccess<'de> for UnionDeserializer<'a> {
     }
 }
 
-struct VariantDeserializer<'a> {
-    value: ObjectDeserializer<'a>
+struct VariantDeserializer<'a, 'de> {
+    value: ObjectDeserializer<'a, 'de>
 }
 
-impl<'a, 'de> VariantAccess<'de> for VariantDeserializer<'a> {
+impl<'a, 'de> VariantAccess<'de> for VariantDeserializer<'a, 'de> {
     type Error = SerializerError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -605,12 +605,12 @@ impl<'a, 'de> VariantAccess<'de> for VariantDeserializer<'a> {
 }
 
 fn visit_object<'de, V: Visitor<'de>>(
-    data: &InMemoryData,
+    data: &'de InMemoryData,
     entity_key: &str,
     selection: &[FieldSelector],
     visitor: V,
-    guard: &Guard,
-    dependencies: &mut HashSet<String>
+    guard: &'de Guard,
+    dependencies: *mut Vec<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer =
         ObjectDeserializer::new(data, selection, entity_key, guard, dependencies);
@@ -618,12 +618,12 @@ fn visit_object<'de, V: Visitor<'de>>(
 }
 
 fn visit_array<'de, V: Visitor<'de>>(
-    data: &InMemoryData,
-    entity_keys: Vec<String>,
+    data: &'de InMemoryData,
+    entity_keys: &[String],
     selection: &[FieldSelector],
     visitor: V,
-    guard: &Guard,
-    dependencies: &mut HashSet<String>
+    guard: &'de Guard,
+    dependencies: *mut Vec<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer = SeqDeserializer {
         data,
@@ -636,12 +636,12 @@ fn visit_array<'de, V: Visitor<'de>>(
 }
 
 fn visit_union_array<'de, V: Visitor<'de>>(
-    data: &InMemoryData,
-    entity_keys: Vec<String>,
+    data: &'de InMemoryData,
+    entity_keys: &[String],
     selection: &dyn Fn(&str) -> Vec<FieldSelector>,
     visitor: V,
-    guard: &Guard,
-    dependencies: &mut HashSet<String>
+    guard: &'de Guard,
+    dependencies: *mut Vec<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer = UnionSeqDeserializer {
         data,

@@ -17,7 +17,7 @@ use parking_lot::RwLock;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     sync::Arc
 };
 #[cfg(target_arch = "wasm32")]
@@ -104,14 +104,14 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
     #[cfg(not(target_arch = "wasm32"))]
     fn write_updater<Q: GraphQLQuery>(&self, _operation: &Operation<Q::Variables>) {}
 
-    fn after_query<Q: GraphQLQuery, C: Client>(
+    fn write_query<Q: GraphQLQuery, C: Client>(
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: &Q::Variables,
         client: &C
     ) -> Result<(), QueryError> {
         let query_key = result.key;
-        let mut dependencies = HashSet::new();
+        let mut dependencies = Vec::with_capacity(10);
         if result.response.errors.is_some() {
             self.store.clear_optimistic_layer(query_key);
         } else {
@@ -123,7 +123,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         Ok(())
     }
 
-    fn after_mutation<Q: GraphQLQuery, C: Client>(
+    fn invalidate_and_update<Q: GraphQLQuery, C: Client>(
         &self,
         result: &OperationResult<Q::ResponseData>,
         variables: Q::Variables,
@@ -131,12 +131,9 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         extension: Option<&NormalizedCacheExtension>
     ) {
         let query_key = result.key;
-        let mut dependencies = HashSet::new();
+        let mut dependencies = Vec::with_capacity(10);
         self.store
             .invalidate_query::<Q>(result, &variables, false, &mut dependencies);
-        self.store
-            .write_query::<Q>(result, &variables, false, &mut dependencies)
-            .unwrap();
         if let Some(updater) = extension.and_then(|ext| ext.update.as_ref()) {
             updater(
                 &result.response.data,
@@ -154,7 +151,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         &self,
         extension: Option<&NormalizedCacheExtension>,
         data: Option<&Q::ResponseData>,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) {
         if let Some(updater) = extension.and_then(|ext| ext.update_js) {
             let this = JsValue::NULL;
@@ -183,11 +180,11 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         &self,
         _extension: Option<&NormalizedCacheExtension>,
         _data: Option<&Q::ResponseData>,
-        _dependencies: &mut HashSet<String>
+        _dependencies: &mut Vec<String>
     ) {
     }
 
-    fn on_uncached_query<Q: GraphQLQuery, C: Client>(
+    fn run_optimistic_query<Q: GraphQLQuery, C: Client>(
         &self,
         operation: &Operation<Q::Variables>,
         client: &C,
@@ -214,7 +211,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
 
                 let query_key = operation.key;
 
-                let mut dependencies = HashSet::new();
+                let mut dependencies = Vec::new();
                 self.store
                     .write_query::<Q>(&result, variables, true, &mut dependencies)
                     .unwrap();
@@ -226,7 +223,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         }
     }
 
-    fn on_mutation<Q: GraphQLQuery, C: Client>(
+    fn run_optimistic_mutation<Q: GraphQLQuery, C: Client>(
         &self,
         operation: &Operation<Q::Variables>,
         client: &C,
@@ -254,7 +251,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
                 };
 
                 let query_key = operation.key;
-                let mut dependencies = HashSet::new();
+                let mut dependencies = Vec::with_capacity(10);
                 self.store
                     .invalidate_query::<Q>(&result, variables, true, &mut dependencies);
                 self.store
@@ -273,7 +270,6 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
                         &mut dependencies
                     );
                 }
-                println!("Optimistic dependencies: {:?}", dependencies);
                 self.store.rerun_queries(dependencies, query_key, client);
                 client.push_result(operation.key, Ok(result))
             }
@@ -297,7 +293,7 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
 
         if should_cache::<Q>(&operation) {
             self.write_updater::<Q>(&operation);
-            let mut deps = HashSet::new();
+            let mut deps = Vec::with_capacity(10);
             if let Some(cached) = self.store.read_query::<Q>(&operation, &mut deps) {
                 let response = OperationResult {
                     key: operation.key,
@@ -313,17 +309,17 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
                 };
                 Ok(response)
             } else {
-                self.on_uncached_query::<Q, _>(&operation, &client, extension);
+                self.run_optimistic_query::<Q, _>(&operation, &client, extension);
                 let variables: Q::Variables = operation.query.variables.clone();
                 let res = self.next.run::<Q, _>(operation, client.clone()).await?;
-                self.after_query::<Q, _>(&res, &variables, &client)?;
+                self.write_query::<Q, _>(&res, &variables, &client)?;
                 Ok(res)
             }
         } else {
             let operation_type = operation.meta.operation_type.clone();
 
             if operation_type == OperationType::Mutation {
-                self.on_mutation::<Q, _>(&operation, &client, extension);
+                self.run_optimistic_mutation::<Q, _>(&operation, &client, extension);
             }
 
             let variables = operation.query.variables.clone();
@@ -332,7 +328,7 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
                 .run::<Q, _>(operation.clone(), client.clone())
                 .await?;
             if operation_type == OperationType::Mutation {
-                self.after_mutation::<Q, _>(&res, variables, &client, extension);
+                self.invalidate_and_update::<Q, _>(&res, variables, &client, extension);
             }
             Ok(res)
         }

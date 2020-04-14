@@ -2,7 +2,7 @@ use crate::QueryStore;
 use artemis::{exchange::Extension, GraphQLQuery};
 use std::{
     any::Any,
-    collections::{HashMap, HashSet},
+    collections::{HashMap},
     sync::Arc
 };
 #[cfg(target_arch = "wasm32")]
@@ -26,7 +26,7 @@ pub struct NormalizedCacheExtension {
     pub(crate) optimistic_result:
         Option<Arc<dyn (Fn() -> Option<Box<dyn Any + Send>>) + Send + Sync>>,
     pub(crate) update:
-        Option<Arc<dyn Fn(&(dyn Any + Send), QueryStore, &mut HashSet<String>) + Send + Sync>>,
+        Option<Arc<dyn Fn(&(dyn Any + Send), QueryStore, &mut Vec<String>) + Send + Sync>>,
     #[cfg(target_arch = "wasm32")]
     pub(crate) update_js: Option<js_sys::Function>
 }
@@ -101,7 +101,7 @@ impl NormalizedCacheExtension {
     /// ```
     pub fn update<Q: GraphQLQuery, F>(mut self, update: F) -> Self
     where
-        F: Fn(&Option<Q::ResponseData>, QueryStore, &mut HashSet<String>) + Send + Sync + 'static
+        F: Fn(&Option<Q::ResponseData>, QueryStore, &mut Vec<String>) + Send + Sync + 'static
     {
         self.update = Some(Arc::new(move |data, store, dependencies| {
             let data = data.downcast_ref::<Option<Q::ResponseData>>().unwrap();

@@ -17,6 +17,7 @@ use std::{
     thread,
     time::Duration
 };
+use tokio::runtime::Runtime;
 
 mod queries;
 
@@ -111,6 +112,7 @@ fn main() {
         let client = client.clone();
         let variable_set = variable_set.clone();
         let query_count = query_count.clone();
+        let mut runtime = Runtime::new().unwrap();
         thread::spawn(move || loop {
             let futs = (0..100).map(|_| {
                 let var_id = rand::thread_rng().gen_range(0, n);
@@ -123,7 +125,7 @@ fn main() {
                 }
             });
 
-            tokio_test::block_on(futures::future::join_all(futs));
+            runtime.block_on(futures::future::join_all(futs));
             query_count.fetch_add(100, Ordering::SeqCst);
         });
     }

@@ -71,6 +71,7 @@ impl<'query, 'schema> QueryContext<'query, 'schema> {
                 Ident::new("Clone", Span::call_site()),
             ],
             response_derives: vec![
+                Ident::new("Serialize", Span::call_site()),
                 Ident::new("Deserialize", Span::call_site()),
                 Ident::new("Clone", Span::call_site()),
             ],

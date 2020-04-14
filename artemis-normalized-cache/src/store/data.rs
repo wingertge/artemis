@@ -8,6 +8,8 @@ use std::{
         Arc
     }
 };
+use crossbeam_epoch::Atomic;
+use serde_json::Value;
 
 type FlurryMap<K, V> = flurry::HashMap<K, V>;
 type CacheMap<V> = Arc<FlurryMap<String, Mutex<HashMap<String, V>>>>;
@@ -25,8 +27,8 @@ impl<V: 'static + Send> Default for OptimisticMap<V> {
     }
 }
 
-type Records = OptimisticMap<serde_json::Value>;
-type Links = OptimisticMap<Link>;
+type Records = OptimisticMap<Atomic<serde_json::Value>>;
+type Links = OptimisticMap<Atomic<Link>>;
 type Dependents = Arc<Mutex<HashMap<String, HashSet<u64>>>>;
 type RefCounts = FlurryMap<String, AtomicIsize>;
 
@@ -58,9 +60,12 @@ impl InMemoryData {
         Self::default()
     }
 
-    pub fn set_dependencies(&self, query_key: u64, dependencies: HashSet<String>) {
+    pub fn set_dependencies(&self, query_key: u64, mut dependencies: Vec<String>) {
         let mut dependents = self.dependencies.lock();
+        dependencies.sort_unstable();
+        dependencies.dedup();
         for dependency in dependencies {
+            if &dependency == "Query" { continue; }
             let depending_queries = dependents.get_mut(&dependency);
             if let Some(dependency_set) = depending_queries {
                 dependency_set.insert(query_key.clone());
@@ -81,12 +86,13 @@ impl InMemoryData {
             .unwrap_or_else(Vec::new)
     }
 
+    /// Return reference
     pub fn read_record<'g>(
         &'g self,
         entity_key: &str,
         field_key: &str,
         guard: &'g Guard
-    ) -> Option<serde_json::Value> {
+    ) -> Option<&'g Value> {
         self.records
             .optimistic
             .values(guard)
@@ -95,13 +101,21 @@ impl InMemoryData {
                     // Need to get the field itself to check if it exists on this layer
                     // If it exists but is none, this will cause the function to return None to reflect deletions
                     .get(entity_key, guard)
-                    .and_then(|entity| entity.lock().get(field_key).cloned())
+                    .and_then(|entity|
+                        entity.lock().get(field_key)
+                            .map(|record| record.as_ref()
+                                .map(|val| load_value(&val, guard))
+                            )
+                    )
             })
             .or_else(|| {
                 self.records
                     .base
                     .get(entity_key, guard)
-                    .and_then(|entity| entity.lock().get(field_key).cloned())
+                    .and_then(|entity| {
+                        entity.lock().get(field_key)
+                            .map(|val| load_value(val, guard))
+                    })
                     .map(Option::Some)
             })
             .and_then(|res| res)
@@ -112,20 +126,27 @@ impl InMemoryData {
         entity_key: &str,
         field_key: &str,
         guard: &'g Guard
-    ) -> Option<Link> {
+    ) -> Option<&'g Link> {
         self.links
             .optimistic
             .values(guard)
             .find_map(|layer| {
                 layer
                     .get(entity_key, guard)
-                    .and_then(|entity| entity.lock().get(field_key).cloned())
+                    .and_then(|entity| {
+                        entity.lock().get(field_key)
+                            .map(|field| field.as_ref()
+                                .map(|val| load_link(val, guard)))
+                    })
             })
             .or_else(|| {
                 self.links
                     .base
                     .get(entity_key, guard)
-                    .and_then(|entity| entity.lock().get(field_key).cloned())
+                    .and_then(|entity| {
+                        entity.lock().get(field_key)
+                            .map(|val| load_link(val, guard))
+                    })
                     .map(Option::Some)
             })
             .and_then(|res| res)
@@ -143,14 +164,14 @@ impl InMemoryData {
         if let Some(entity) = entity {
             let mut entity = entity.lock();
             if let Some(value) = value {
-                entity.insert(field_key, value);
+                entity.insert(field_key, Atomic::new(value));
             } else {
                 entity.remove(&field_key);
                 self.remove_link(&entity_key, &field_key);
             }
         } else if let Some(value) = value {
             let mut entity = HashMap::new();
-            entity.insert(field_key, value);
+            entity.insert(field_key, Atomic::new(value));
             self.records
                 .base
                 .insert(entity_key, Mutex::new(entity), &guard);
@@ -175,16 +196,16 @@ impl InMemoryData {
         if let Some(layer) = layer {
             if let Some(entity) = layer.get(&entity_key, &guard) {
                 let mut entity = entity.lock();
-                entity.insert(field_key, value);
+                entity.insert(field_key, value.map(Atomic::new));
             } else {
                 let mut entity = HashMap::new();
-                entity.insert(field_key, value);
+                entity.insert(field_key, value.map(Atomic::new));
                 layer.insert(entity_key, Mutex::new(entity), &guard);
             }
         } else {
             let layer = CacheMap::default();
             let mut entity = HashMap::new();
-            entity.insert(field_key, value);
+            entity.insert(field_key, value.map(Atomic::new));
             layer.insert(entity_key, Mutex::new(entity), &guard);
             self.records
                 .optimistic
@@ -206,13 +227,13 @@ impl InMemoryData {
 
         if let Some(entity) = entity {
             let mut entity = entity.lock();
-            self.update_link_ref_count(entity.get(&field_key), -1, &guard);
+            self.update_link_ref_count(entity.get(&field_key).map(|link| load_link(link, &guard)), -1, &guard);
             self.update_link_ref_count(Some(&link), 1, &guard);
-            entity.insert(field_key, link);
+            entity.insert(field_key, Atomic::new(link));
         } else {
             let mut entity_links = HashMap::new();
             self.update_link_ref_count(Some(&link), 1, &guard);
-            entity_links.insert(field_key, link);
+            entity_links.insert(field_key, Atomic::new(link));
             self.links
                 .base
                 .insert(entity_key, Mutex::new(entity_links), &guard);
@@ -276,10 +297,11 @@ impl InMemoryData {
             if let Some(entity) = layer.get(&entity_key, &guard) {
                 let mut entity = entity.lock();
                 if let Some(field) = entity.get(&field_key) {
+                    let field = field.as_ref().map(|field| load_link(field, &guard));
                     self.update_link_ref_count_optimistic(
                         &entity_key,
                         &field_key,
-                        field.as_ref(),
+                        field,
                         -1,
                         &guard
                     );
@@ -291,7 +313,7 @@ impl InMemoryData {
                     1,
                     &guard
                 );
-                entity.insert(field_key, link);
+                entity.insert(field_key, link.map(Atomic::new));
             } else {
                 let mut entity = HashMap::new();
                 self.update_link_ref_count_optimistic(
@@ -301,7 +323,7 @@ impl InMemoryData {
                     1,
                     &guard
                 );
-                entity.insert(field_key, link);
+                entity.insert(field_key, link.map(Atomic::new));
                 layer.insert(entity_key, Mutex::new(entity), &guard);
             }
         } else {
@@ -314,7 +336,7 @@ impl InMemoryData {
                 1,
                 &guard
             );
-            entity.insert(field_key, link);
+            entity.insert(field_key, link.map(Atomic::new));
             layer.insert(entity_key, Mutex::new(entity), &guard);
             self.links
                 .optimistic
@@ -362,11 +384,17 @@ impl InMemoryData {
 
         let records = FlurryMap::new();
         for (key, value) in state.records {
+            let value = value.into_iter()
+                .map(|(k, v)| (k, Atomic::new(v)))
+                .collect();
             records.insert(key, Mutex::new(value), &guard);
         }
 
         let links = FlurryMap::new();
         for (key, value) in state.links {
+            let value = value.into_iter()
+                .map(|(k, v)| (k, Atomic::new(v)))
+                .collect();
             links.insert(key, Mutex::new(value), &guard);
         }
 
@@ -382,4 +410,26 @@ impl InMemoryData {
         self.records = records;
         self.links = links;
     }
+}
+
+fn load_link<'g>(link: &Atomic<Link>, guard: &'g Guard) -> &'g Link {
+    let val = link.load(Ordering::SeqCst, guard);
+
+    assert!(!val.is_null());
+
+    // safety: the lifetime of the reference is bound to the guard
+    // supplied which means that the memory will not be modified
+    // until at least after the guard goes out of scope
+    unsafe { val.as_ref() }.unwrap()
+}
+
+fn load_value<'g>(value: &Atomic<Value>, guard: &'g Guard) -> &'g Value {
+    let val = value.load(Ordering::SeqCst, guard);
+
+    assert!(!val.is_null());
+
+    // safety: the lifetime of the reference is bound to the guard
+    // supplied which means that the memory will not be modified
+    // until at least after the guard goes out of scope
+    unsafe { val.as_ref() }.unwrap()
 }

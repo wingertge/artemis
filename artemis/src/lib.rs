@@ -123,6 +123,7 @@ mod error;
 pub(crate) mod types;
 pub mod utils;
 
+#[doc(inline)]
 pub use artemis_codegen_proc_macro::wasm_client;
 pub use client::{Client, ClientBuilder};
 pub use error::QueryError;

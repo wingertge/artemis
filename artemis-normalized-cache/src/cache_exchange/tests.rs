@@ -19,7 +19,7 @@ use artemis_test::{
 };
 use racetrack::{track_with, Tracker};
 use serde::de::DeserializeOwned;
-use std::{any::Any, collections::HashSet, sync::Arc};
+use std::{any::Any, sync::Arc};
 
 fn make_op_with_key<Q: GraphQLQuery>(
     _query: Q,
@@ -418,7 +418,7 @@ async fn correctly_clears_on_error() {
     fn update(
         data: &Option<add_conference::ResponseData>,
         store: QueryStore,
-        dependencies: &mut HashSet<String>
+        dependencies: &mut Vec<String>
     ) {
         println!("Update Data: {:?}", data);
         if let Some(conference) = data.as_ref().and_then(|data| data.add_conference.as_ref()) {
