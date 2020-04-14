@@ -20,6 +20,7 @@ use std::{
 };
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+use crate::store::data::{FieldKey, RefFieldKey};
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
@@ -40,9 +41,7 @@ impl fmt::Display for StoreError {
     }
 }
 
-lazy_static! {
-    static ref TYPENAME: String = String::from("__typename");
-}
+const TYPENAME: FieldKey = FieldKey("__typename", String::new());
 
 pub fn is_root(typename: &str) -> bool {
     typename == "Query" || typename == "Mutation" || typename == "Subscription"
@@ -248,7 +247,7 @@ impl Store {
             FieldSelector::Union(name, args, inner) => {
                 let typename = self
                     .data
-                    .read_record(&entity_key, &TYPENAME, guard)
+                    .read_record(&entity_key, (&TYPENAME).into(), guard)
                     .expect("Missing typename from union type. This is a codegen error.");
                 let typename = typename
                     .as_str()
@@ -258,7 +257,7 @@ impl Store {
             _ => unreachable!()
         };
 
-        let field_key = Self::field_key(field_name, args);
+        let field_key = FieldKey(field_name, args.to_owned());
         if value.is_null() {
             self.data.write_link(entity_key, field_key, Link::Null);
             return Ok(());
@@ -286,7 +285,7 @@ impl Store {
         self.write_link(
             optimistic_key,
             entity_key,
-            Self::field_key(field_name, args),
+            FieldKey(field_name, args.to_owned()),
             Some(Link::Single(key))
         );
         Ok(())
@@ -311,7 +310,7 @@ impl Store {
     ) -> Result<(), StoreError> {
         let (field_name, args, typename, inner) = match selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = Self::field_key(*field_name, args);
+                let field_key = FieldKey(*field_name, args.to_owned());
                 self.write_record(optimistic_key, entity_key, field_key, Some(value));
                 return Ok(());
             }
@@ -321,7 +320,7 @@ impl Store {
             FieldSelector::Union(field_name, args, inner) => {
                 let typename = self
                     .data
-                    .read_record(&entity_key, &TYPENAME, guard)
+                    .read_record(&entity_key, (&TYPENAME).into(), guard)
                     .expect("Missing typename from union type. This is a codegen error.");
                 let typename = typename
                     .as_str()
@@ -330,7 +329,7 @@ impl Store {
             }
         };
 
-        let field_key = Self::field_key(field_name, args);
+        let field_key = FieldKey(field_name, args.to_owned());
 
         if value.is_null() {
             self.write_link(optimistic_key, entity_key, field_key, Some(Link::Null));
@@ -406,8 +405,7 @@ impl Store {
                 }
             }
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = Self::field_key(*field_name, args);
-                self.write_record(optimistic_key, entity_key, field_key, Some(data));
+                self.write_record(optimistic_key, entity_key, FieldKey(*field_name, args.to_owned()), Some(data));
             }
         }
         Ok(())
@@ -417,7 +415,7 @@ impl Store {
         &self,
         optimistic_key: Option<u64>,
         entity_key: String,
-        field_key: String,
+        field_key: FieldKey,
         value: Option<serde_json::Value>
     ) {
         if let Some(optimistic_key) = optimistic_key {
@@ -432,7 +430,7 @@ impl Store {
         &self,
         optimistic_key: Option<u64>,
         entity_key: String,
-        field_key: String,
+        field_key: FieldKey,
         value: Option<Link>
     ) {
         if let Some(optimistic_key) = optimistic_key {
@@ -466,11 +464,8 @@ impl Store {
     }
 
     #[inline]
-    fn field_key(field_name: &str, args: &str) -> String {
-        let mut key = String::with_capacity(field_name.len() + args.len());
-        key.push_str(field_name);
-        key.push_str(args);
-        key
+    fn field_key<'a>(field_name: &'static str, args: &'a String) -> RefFieldKey<'a> {
+        RefFieldKey(field_name, args)
     }
 
     fn invalidate_union(
@@ -483,7 +478,7 @@ impl Store {
     ) {
         let typename = self
             .data
-            .read_record(entity_key, &TYPENAME, guard)
+            .read_record(entity_key, (&TYPENAME).into(), guard)
             .expect("Missing typename from union type. This is a codegen error.");
         let typename = typename.as_str().unwrap();
         let subselection = subselection(typename);
@@ -557,17 +552,17 @@ impl Store {
         }
         for field in selection {
             match field {
-                FieldSelector::Scalar(ref field_name, ref args) => {
+                FieldSelector::Scalar(field_name, args) => {
                     self.write_record(
                         optimistic_key,
                         entity_key.to_string(),
-                        Self::field_key(field_name, args),
+                        FieldKey(*field_name, args.to_owned()),
                         None
                     );
                 }
-                FieldSelector::Object(ref field_name, ref args, _, ref subselection) => {
-                    let field_key = Self::field_key(field_name, args);
-                    if let Some(link) = self.data.read_link(entity_key, &field_key, &guard) {
+                FieldSelector::Object(field_name, args, _, subselection) => {
+                    let field_key = Self::field_key(*field_name, args);
+                    if let Some(link) = self.data.read_link(entity_key, field_key, &guard) {
                         match link {
                             Link::Single(ref entity_key) => self.invalidate_selection(
                                 optimistic_key,
@@ -591,9 +586,9 @@ impl Store {
                         }
                     }
                 }
-                FieldSelector::Union(ref field_name, ref args, ref subselection) => {
-                    let field_key = Self::field_key(field_name, args);
-                    if let Some(link) = self.data.read_link(entity_key, &field_key, &guard) {
+                FieldSelector::Union(field_name, args, subselection) => {
+                    let field_key = Self::field_key(*field_name, args);
+                    if let Some(link) = self.data.read_link(entity_key, field_key, &guard) {
                         match link {
                             Link::Single(ref entity_key) => self.invalidate_union(
                                 optimistic_key,

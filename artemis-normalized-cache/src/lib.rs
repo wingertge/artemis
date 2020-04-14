@@ -36,6 +36,8 @@
 
 #[macro_use]
 extern crate async_trait;
+
+#[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
 

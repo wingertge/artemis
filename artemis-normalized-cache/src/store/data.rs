@@ -1,18 +1,44 @@
 use flurry::{epoch, epoch::Guard};
 use parking_lot::Mutex;
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-    sync::{
-        atomic::{AtomicIsize, Ordering},
-        Arc
-    }
-};
+use std::{collections::{HashMap, HashSet}, hash::Hash, sync::{
+    atomic::{AtomicIsize, Ordering},
+    Arc
+}, fmt};
 use crossbeam_epoch::Atomic;
 use serde_json::Value;
+use std::ptr;
+use std::mem::ManuallyDrop;
+use fnv::FnvBuildHasher;
 
-type FlurryMap<K, V> = flurry::HashMap<K, V>;
-type CacheMap<V> = Arc<FlurryMap<String, Mutex<HashMap<String, V>>>>;
+#[derive(Hash, Eq, PartialEq)]
+pub struct FieldKey(pub &'static str, pub String);
+pub struct RefFieldKey<'a>(pub &'static str, pub &'a String);
+
+impl<'a> From<&'a FieldKey> for RefFieldKey<'a> {
+    fn from(key: &'a FieldKey) -> Self {
+        RefFieldKey(key.0, &key.1)
+    }
+}
+
+fn deref_field_key(key: &RefFieldKey<'_>) -> ManuallyDrop<FieldKey> {
+    // The 24-byte string headers of `a` and `b` may not be adjacent in
+    // memory. Copy them (just the headers) so that they are adjacent. This
+    // makes a `(String, String)` backed by the same data as `a` and `b`.
+    let k = unsafe { FieldKey(key.0, ptr::read(key.1)) };
+
+    // Make sure not to drop the strings, even if `get` panics. The caller
+    // or whoever owns `a` and `b` will drop them.
+    ManuallyDrop::new(k)
+}
+
+impl fmt::Display for FieldKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.0, self.1)
+    }
+}
+
+type FlurryMap<K, V> = flurry::HashMap<K, V, FnvBuildHasher>;
+type CacheMap<V> = Arc<FlurryMap<String, Mutex<HashMap<FieldKey, V, FnvBuildHasher>>>>;
 struct OptimisticMap<V: 'static + Send> {
     base: CacheMap<V>,
     optimistic: FlurryMap<u64, CacheMap<Option<V>>>
@@ -41,9 +67,9 @@ pub enum Link {
 
 pub struct SerializedData {
     // Entities map
-    records: HashMap<String, HashMap<String, serde_json::Value>>,
+    records: HashMap<String, HashMap<FieldKey, serde_json::Value>>,
     // Connection keys
-    links: HashMap<String, HashMap<String, Link>>
+    links: HashMap<String, HashMap<FieldKey, Link>>
 }
 
 #[derive(Default)]
@@ -90,7 +116,7 @@ impl InMemoryData {
     pub fn read_record<'g>(
         &'g self,
         entity_key: &str,
-        field_key: &str,
+        field_key: RefFieldKey,
         guard: &'g Guard
     ) -> Option<&'g Value> {
         self.records
@@ -102,7 +128,7 @@ impl InMemoryData {
                     // If it exists but is none, this will cause the function to return None to reflect deletions
                     .get(entity_key, guard)
                     .and_then(|entity|
-                        entity.lock().get(field_key)
+                        entity.lock().get(&deref_field_key(&field_key))
                             .map(|record| record.as_ref()
                                 .map(|val| load_value(&val, guard))
                             )
@@ -113,7 +139,7 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| {
-                        entity.lock().get(field_key)
+                        entity.lock().get(&deref_field_key(&field_key))
                             .map(|val| load_value(val, guard))
                     })
                     .map(Option::Some)
@@ -124,7 +150,7 @@ impl InMemoryData {
     pub fn read_link<'g>(
         &'g self,
         entity_key: &str,
-        field_key: &str,
+        field_key: RefFieldKey,
         guard: &'g Guard
     ) -> Option<&'g Link> {
         self.links
@@ -134,7 +160,7 @@ impl InMemoryData {
                 layer
                     .get(entity_key, guard)
                     .and_then(|entity| {
-                        entity.lock().get(field_key)
+                        entity.lock().get(&deref_field_key(&field_key))
                             .map(|field| field.as_ref()
                                 .map(|val| load_link(val, guard)))
                     })
@@ -144,7 +170,7 @@ impl InMemoryData {
                     .base
                     .get(entity_key, guard)
                     .and_then(|entity| {
-                        entity.lock().get(field_key)
+                        entity.lock().get(&deref_field_key(&field_key))
                             .map(|val| load_link(val, guard))
                     })
                     .map(Option::Some)
@@ -155,7 +181,7 @@ impl InMemoryData {
     pub fn write_record(
         &self,
         entity_key: String,
-        field_key: String,
+        field_key: FieldKey,
         value: Option<serde_json::Value>
     ) {
         let guard = epoch::pin();
@@ -167,10 +193,10 @@ impl InMemoryData {
                 entity.insert(field_key, Atomic::new(value));
             } else {
                 entity.remove(&field_key);
-                self.remove_link(&entity_key, &field_key);
+                self.remove_link(&entity_key, (&field_key).into());
             }
         } else if let Some(value) = value {
-            let mut entity = HashMap::new();
+            let mut entity = HashMap::default();
             entity.insert(field_key, Atomic::new(value));
             self.records
                 .base
@@ -188,7 +214,7 @@ impl InMemoryData {
         &self,
         optimistic_key: u64,
         entity_key: String,
-        field_key: String,
+        field_key: FieldKey,
         value: Option<serde_json::Value>
     ) {
         let guard = epoch::pin();
@@ -198,13 +224,13 @@ impl InMemoryData {
                 let mut entity = entity.lock();
                 entity.insert(field_key, value.map(Atomic::new));
             } else {
-                let mut entity = HashMap::new();
+                let mut entity = HashMap::default();
                 entity.insert(field_key, value.map(Atomic::new));
                 layer.insert(entity_key, Mutex::new(entity), &guard);
             }
         } else {
             let layer = CacheMap::default();
-            let mut entity = HashMap::new();
+            let mut entity = HashMap::default();
             entity.insert(field_key, value.map(Atomic::new));
             layer.insert(entity_key, Mutex::new(entity), &guard);
             self.records
@@ -221,7 +247,7 @@ impl InMemoryData {
     }
     */
 
-    pub fn write_link(&self, entity_key: String, field_key: String, link: Link) {
+    pub fn write_link(&self, entity_key: String, field_key: FieldKey, link: Link) {
         let guard = epoch::pin();
         let entity = self.links.base.get(&entity_key, &guard);
 
@@ -231,7 +257,7 @@ impl InMemoryData {
             self.update_link_ref_count(Some(&link), 1, &guard);
             entity.insert(field_key, Atomic::new(link));
         } else {
-            let mut entity_links = HashMap::new();
+            let mut entity_links = HashMap::default();
             self.update_link_ref_count(Some(&link), 1, &guard);
             entity_links.insert(field_key, Atomic::new(link));
             self.links
@@ -255,7 +281,7 @@ impl InMemoryData {
     fn update_link_ref_count_optimistic<'g>(
         &self,
         entity_key: &str,
-        field_key: &str,
+        field_key: &FieldKey,
         link: Option<&'g Link>,
         by: isize,
         guard: &'g Guard
@@ -271,7 +297,7 @@ impl InMemoryData {
                 _ => {}
             }
         } else {
-            let existing = self.read_link(entity_key, field_key, guard);
+            let existing = self.read_link(entity_key, field_key.into(), guard);
             match existing {
                 Some(Link::Single(entity)) => self.update_ref_count(&entity, -by, guard),
                 Some(Link::List(entities)) => {
@@ -288,7 +314,7 @@ impl InMemoryData {
         &self,
         optimistic_key: u64,
         entity_key: String,
-        field_key: String,
+        field_key: FieldKey,
         link: Option<Link>
     ) {
         let guard = epoch::pin();
@@ -315,7 +341,7 @@ impl InMemoryData {
                 );
                 entity.insert(field_key, link.map(Atomic::new));
             } else {
-                let mut entity = HashMap::new();
+                let mut entity = HashMap::default();
                 self.update_link_ref_count_optimistic(
                     &entity_key,
                     &field_key,
@@ -327,8 +353,8 @@ impl InMemoryData {
                 layer.insert(entity_key, Mutex::new(entity), &guard);
             }
         } else {
-            let layer = FlurryMap::new();
-            let mut entity = HashMap::new();
+            let layer = FlurryMap::default();
+            let mut entity = HashMap::default();
             self.update_link_ref_count_optimistic(
                 &entity_key,
                 &field_key,
@@ -344,11 +370,11 @@ impl InMemoryData {
         }
     }
 
-    pub fn remove_link(&self, entity_key: &str, field_key: &str) {
+    pub fn remove_link(&self, entity_key: &str, field_key: RefFieldKey) {
         let guard = epoch::pin();
         if let Some(entity_links) = self.links.base.get(entity_key, &guard) {
             let mut entity_links = entity_links.lock();
-            if entity_links.remove(field_key).is_some() {
+            if entity_links.remove(&deref_field_key(&field_key)).is_some() {
                 self.update_ref_count(entity_key, -1, &guard);
             }
         }
@@ -382,7 +408,7 @@ impl InMemoryData {
     pub fn hydrate_data(&mut self, state: SerializedData) {
         let guard = epoch::pin();
 
-        let records = FlurryMap::new();
+        let records = FlurryMap::default();
         for (key, value) in state.records {
             let value = value.into_iter()
                 .map(|(k, v)| (k, Atomic::new(v)))
@@ -390,7 +416,7 @@ impl InMemoryData {
             records.insert(key, Mutex::new(value), &guard);
         }
 
-        let links = FlurryMap::new();
+        let links = FlurryMap::default();
         for (key, value) in state.links {
             let value = value.into_iter()
                 .map(|(k, v)| (k, Atomic::new(v)))
@@ -400,11 +426,11 @@ impl InMemoryData {
 
         let links = Links {
             base: Arc::new(links),
-            optimistic: FlurryMap::new()
+            optimistic: FlurryMap::default()
         };
         let records = Records {
             base: Arc::new(records),
-            optimistic: FlurryMap::new()
+            optimistic: FlurryMap::default()
         };
 
         self.records = records;

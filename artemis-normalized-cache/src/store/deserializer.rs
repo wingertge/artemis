@@ -1,4 +1,4 @@
-use crate::store::data::{InMemoryData, Link};
+use crate::store::data::{InMemoryData, Link, FieldKey, RefFieldKey};
 use artemis::codegen::FieldSelector;
 use flurry::epoch::Guard;
 use serde::{
@@ -83,12 +83,11 @@ impl fmt::Display for SerializerError {
     }
 }
 
+const TYPENAME: FieldKey = FieldKey("__typename", String::new());
+
 #[inline]
-fn field_key(field_name: &str, args: &str) -> String {
-    let mut key = String::with_capacity(field_name.len() + args.len());
-    key.push_str(field_name);
-    key.push_str(args);
-    key
+fn field_key<'a>(field_name: &'static str, args: &'a String) -> RefFieldKey<'a> {
+    RefFieldKey(field_name, args)
 }
 
 #[inline]
@@ -115,18 +114,16 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
     fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self.selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = field_key(*field_name, args);
                 let scalar = self
                     .data
-                    .read_record(self.entity_key, &field_key, self.guard)
+                    .read_record(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 Ok(scalar.deserialize_any(visitor)?)
             }
             FieldSelector::Object(field_name, args, _, inner_selection) => {
-                let field_key = field_key(*field_name, args);
                 let link = self
                     .data
-                    .read_link(self.entity_key, &field_key, self.guard)
+                    .read_link(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_unit(),
@@ -149,17 +146,16 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
                 }
             }
             FieldSelector::Union(field_name, args, inner_selection) => {
-                let field_key = field_key(*field_name, args);
                 let link = self
                     .data
-                    .read_link(self.entity_key, &field_key, self.guard)
+                    .read_link(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_unit(),
                     Link::Single(key) => {
                         let typename = self
                             .data
-                            .read_record(&key, "__typename", self.guard)
+                            .read_record(&key, (&TYPENAME).into(), self.guard)
                             .ok_or_else(|| SerializerError::missing())?;
                         let typename = typename
                             .as_str()
@@ -194,10 +190,9 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
     {
         match self.selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = field_key(*field_name, args);
                 let value = self
                     .data
-                    .read_record(self.entity_key, &field_key, self.guard)
+                    .read_record(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match value {
                     Value::Null => visitor.visit_none(),
@@ -205,10 +200,9 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
                 }
             }
             FieldSelector::Object(field_name, args, _, inner_selector) => {
-                let field_key = field_key(*field_name, args);
                 let link = self
                     .data
-                    .read_link(self.entity_key, &field_key, self.guard)
+                    .read_link(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_none(),
@@ -235,17 +229,16 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
                 }
             }
             FieldSelector::Union(field_name, args, inner_selector) => {
-                let field_key = field_key(*field_name, args);
                 let link = self
                     .data
-                    .read_link(self.entity_key, &field_key, self.guard)
+                    .read_link(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Null => visitor.visit_none(),
                     Link::Single(key) => {
                         let typename = self
                             .data
-                            .read_record(&key, "__typename", self.guard)
+                            .read_record(&key, (&TYPENAME).into(), self.guard)
                             .ok_or_else(|| SerializerError::custom("typename missing"))?;
                         let typename = typename
                             .as_str()
@@ -284,22 +277,20 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
     ) -> Result<V::Value, Self::Error> {
         match self.selector {
             FieldSelector::Scalar(field_name, args) => {
-                let field_key = field_key(*field_name, args);
                 let value = self
                     .data
-                    .read_record(self.entity_key, &field_key, self.guard)
+                    .read_record(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 Ok(value.deserialize_enum(name, variants, visitor)?)
             }
             FieldSelector::Union(field_name, args, inner_selection) => {
-                let field_key = field_key(*field_name, args);
                 let link = self
                     .data
-                    .read_link(self.entity_key, &field_key, self.guard)
+                    .read_link(self.entity_key, field_key(*field_name, args), self.guard)
                     .ok_or_else(|| SerializerError::missing())?;
                 match link {
                     Link::Single(key) => {
-                        let typename = self.data.read_record(&key, "__typename", self.guard)
+                        let typename = self.data.read_record(&key, (&TYPENAME).into(), self.guard)
                             .ok_or_else(|| SerializerError::custom("missing typename"))?;
                         let typename = typename.as_str().ok_or_else(|| SerializerError::custom("typename not a string"))?;
                         let selection = inner_selection(typename);
@@ -350,7 +341,7 @@ impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a, 'de> {
             Some(key) => {
                 let typename = self
                     .data
-                    .read_record(key, "__typename", self.guard)
+                    .read_record(key, (&TYPENAME).into(), self.guard)
                     .ok_or_else(|| SerializerError::custom("missing typename"))?;
                 let typename = typename
                     .as_str()
