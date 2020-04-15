@@ -3,7 +3,7 @@
 specified deadline has been reached.</p>
 <h1 id="usage" class="section-header"><a href="#usage">Usage</a></h1>
 <p>Elements are inserted into <code>DelayQueue</code> using the <a href="#method.insert"><code>insert</code></a> or
-<a href="#method.insert_at"><code>insert_at</code></a> methods. A deadline is provided with the item and a <a href="struct.Key.html"><code>Key</code></a> is
+<a href="#method.insert_at"><code>insert_at</code></a> methods. A deadline is provided with the item and a <a href="../../../tokio/time/delay_queue/struct.Key.html"><code>Key</code></a> is
 returned. The key is used to remove the entry or to change the deadline at
 which it should be yielded back.</p>
 <p>Once delays have been configured, the <code>DelayQueue</code> is used via its
@@ -107,10 +107,10 @@ of a <code>Duration</code>.</p>
 <code>value</code> will be returned from <a href="#method.poll"><code>poll</code></a>. If <code>when</code> has already been
 reached, then <code>value</code> is immediately made available to poll.</p>
 <p>The return value represents the insertion and is used at an argument to
-<a href="#method.remove"><code>remove</code></a> and <a href="#method.reset"><code>reset</code></a>. Note that <a href="struct.Key.html"><code>Key</code></a> is token and is reused once
+<a href="#method.remove"><code>remove</code></a> and <a href="#method.reset"><code>reset</code></a>. Note that <a href="../../../tokio/time/delay_queue/struct.Key.html"><code>Key</code></a> is token and is reused once
 <code>value</code> is removed from the queue either by calling <a href="#method.poll"><code>poll</code></a> after
 <code>when</code> is reached or by calling <a href="#method.remove"><code>remove</code></a>. At this point, the caller
-must take care to not use the returned <a href="struct.Key.html"><code>Key</code></a> again as it may reference
+must take care to not use the returned <a href="../../../tokio/time/delay_queue/struct.Key.html"><code>Key</code></a> again as it may reference
 a different item in the queue.</p>
 <p>See <a href="#">type</a> level documentation for more details.</p>
 <h1 id="panics" class="section-header"><a href="#panics">Panics</a></h1>
@@ -139,10 +139,10 @@ instead of an <code>Instant</code>.</p>
 <code>value</code> will be returned from <a href="#method.poll"><code>poll</code></a>. If <code>when</code> has already been
 reached, then <code>value</code> is immediately made available to poll.</p>
 <p>The return value represents the insertion and is used at an argument to
-<a href="#method.remove"><code>remove</code></a> and <a href="#method.reset"><code>reset</code></a>. Note that <a href="struct.Key.html"><code>Key</code></a> is token and is reused once
+<a href="#method.remove"><code>remove</code></a> and <a href="#method.reset"><code>reset</code></a>. Note that <a href="../../../tokio/time/delay_queue/struct.Key.html"><code>Key</code></a> is token and is reused once
 <code>value</code> is removed from the queue either by calling <a href="#method.poll"><code>poll</code></a> after
 <code>when</code> is reached or by calling <a href="#method.remove"><code>remove</code></a>. At this point, the caller
-must take care to not use the returned <a href="struct.Key.html"><code>Key</code></a> again as it may reference
+must take care to not use the returned <a href="../../../tokio/time/delay_queue/struct.Key.html"><code>Key</code></a> again as it may reference
 a different item in the queue.</p>
 <p>See <a href="#">type</a> level documentation for more details.</p>
 <h1 id="panics-1" class="section-header"><a href="#panics-1">Panics</a></h1>

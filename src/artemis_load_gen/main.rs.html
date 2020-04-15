@@ -135,6 +135,16 @@
 <span id="135">135</span>
 <span id="136">136</span>
 <span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#[<span class="ident">macro_use</span>]</span>
 <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">async_trait</span>;
@@ -155,6 +165,7 @@
     <span class="ident">thread</span>,
     <span class="ident">time</span>::<span class="ident">Duration</span>
 };
+<span class="kw">use</span> <span class="ident">tokio</span>::<span class="ident">runtime</span>::<span class="ident">Runtime</span>;
 
 <span class="kw">mod</span> <span class="ident">queries</span>;
 
@@ -249,6 +260,7 @@
         <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="ident">variable_set</span> <span class="op">=</span> <span class="ident">variable_set</span>.<span class="ident">clone</span>();
         <span class="kw">let</span> <span class="ident">query_count</span> <span class="op">=</span> <span class="ident">query_count</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">runtime</span> <span class="op">=</span> <span class="ident">Runtime</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
         <span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="kw">loop</span> {
             <span class="kw">let</span> <span class="ident">futs</span> <span class="op">=</span> (<span class="number">0</span>..<span class="number">100</span>).<span class="ident">map</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">var_id</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">gen_range</span>(<span class="number">0</span>, <span class="ident">n</span>);
@@ -261,14 +273,22 @@
                 }
             });
 
-            <span class="ident">tokio_test</span>::<span class="ident">block_on</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">futs</span>));
+            <span class="ident">runtime</span>.<span class="ident">block_on</span>(<span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">join_all</span>(<span class="ident">futs</span>));
             <span class="ident">query_count</span>.<span class="ident">fetch_add</span>(<span class="number">100</span>, <span class="ident">Ordering</span>::<span class="ident">SeqCst</span>);
         });
     }
 
-    <span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="kw">loop</span> {
-        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Query Count: {}&quot;</span>, <span class="ident">query_count</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>));
-        <span class="ident">thread</span>::<span class="ident">sleep</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>));
+    <span class="ident">thread</span>::<span class="ident">spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">seconds</span> <span class="op">=</span> <span class="number">0</span>;
+        <span class="kw">loop</span> {
+            <span class="macro">println</span><span class="macro">!</span>(
+                <span class="string">&quot;Query Count: {} at {}s&quot;</span>,
+                <span class="ident">query_count</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">SeqCst</span>),
+                <span class="ident">seconds</span>
+            );
+            <span class="ident">thread</span>::<span class="ident">sleep</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">1</span>));
+            <span class="ident">seconds</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        }
     })
     .<span class="ident">join</span>()
     .<span class="ident">unwrap</span>();

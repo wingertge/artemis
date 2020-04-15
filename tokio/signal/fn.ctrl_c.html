@@ -2,9 +2,9 @@
 <p>While signals are handled very differently between Unix and Windows, both
 platforms support receiving a signal on &quot;ctrl-c&quot;. This function provides a
 portable API for receiving this notification.</p>
-<p>Once the returned future is polled, a listener a listener is registered. The
-future will complete on the first received <code>ctrl-c</code> <strong>after</strong> the initial
-call to either <code>Future::poll</code> or <code>.await</code>.</p>
+<p>Once the returned future is polled, a listener is registered. The future
+will complete on the first received <code>ctrl-c</code> <strong>after</strong> the initial call to
+either <code>Future::poll</code> or <code>.await</code>.</p>
 <h1 id="caveats" class="section-header"><a href="#caveats">Caveats</a></h1>
 <p>On Unix platforms, the first time that a <code>Signal</code> instance is registered for a
 particular signal kind, an OS signal-handler is installed which replaces the

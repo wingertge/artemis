@@ -3,7 +3,7 @@
 point in time. The write portion of this lock typically allows modification
 of the underlying data (exclusive access) and the read portion of this lock
 typically allows for read-only access (shared access).</p>
-<p>In comparison, a <a href="struct.Mutex.html"><code>Mutex</code></a> does not distinguish between readers or writers
+<p>In comparison, a <a href="../../tokio/sync/struct.Mutex.html"><code>Mutex</code></a> does not distinguish between readers or writers
 that acquire the lock, therefore causing any tasks waiting for the lock to
 become available to yield. An <code>RwLock</code> will allow any number of readers to
 acquire the lock as long as a writer is not holding the lock.</p>

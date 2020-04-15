@@ -284,6 +284,7 @@
 <span id="284">284</span>
 <span id="285">285</span>
 <span id="286">286</span>
+<span id="287">287</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">deprecation</span>::<span class="ident">DeprecationStrategy</span>,
@@ -358,6 +359,7 @@
                 <span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;Clone&quot;</span>, <span class="ident">Span</span>::<span class="ident">call_site</span>()),
             ],
             <span class="ident">response_derives</span>: <span class="macro">vec</span><span class="macro">!</span>[
+                <span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;Serialize&quot;</span>, <span class="ident">Span</span>::<span class="ident">call_site</span>()),
                 <span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;Deserialize&quot;</span>, <span class="ident">Span</span>::<span class="ident">call_site</span>()),
                 <span class="ident">Ident</span>::<span class="ident">new</span>(<span class="string">&quot;Clone&quot;</span>, <span class="ident">Span</span>::<span class="ident">call_site</span>()),
             ],

@@ -381,6 +381,7 @@
 <span id="381">381</span>
 <span id="382">382</span>
 <span id="383">383</span>
+<span id="384">384</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A modern GraphQL Client with common built-in features</span>
 <span class="doccomment">//! as well as the ability to extend its functionality through exchanges</span>
@@ -507,6 +508,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">types</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">inline</span>)]</span>
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">artemis_codegen_proc_macro</span>::<span class="ident">wasm_client</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client</span>::{<span class="ident">Client</span>, <span class="ident">ClientBuilder</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">error</span>::<span class="ident">QueryError</span>;

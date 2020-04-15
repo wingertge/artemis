@@ -1,25 +1,25 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `io` mod in crate `tokio`."><meta name="keywords" content="rust, rustlang, rust-lang, io"><title>tokio::io - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../tokio/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a><p class='location'>Module io</p><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'><a href='../index.html'>tokio</a></p><script>window.sidebarCurrent = {name: 'io', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../../src/tokio/io/mod.rs.html#1-229' title='goto source code'>[src]</a></span><span class='in-band'>Module <a href='../index.html'>tokio</a>::<wbr><a class="mod" href=''>io</a></span></h1><div class='docblock'><p>Traits, helpers, and type definitions for asynchronous I/O functionality.</p>
 <p>This module is the asynchronous version of <code>std::io</code>. Primarily, it
-defines two traits, <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a>, which are asynchronous
+defines two traits, <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>, which are asynchronous
 versions of the <a href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html"><code>Read</code></a> and <a href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html"><code>Write</code></a> traits in the standard library.</p>
 <h1 id="asyncread-and-asyncwrite" class="section-header"><a href="#asyncread-and-asyncwrite">AsyncRead and AsyncWrite</a></h1>
-<p>Like the standard library's <a href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html"><code>Read</code></a> and <a href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html"><code>Write</code></a> traits, <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and
-<a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a> provide the most general interface for reading and writing
+<p>Like the standard library's <a href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html"><code>Read</code></a> and <a href="https://doc.rust-lang.org/nightly/std/io/trait.Write.html"><code>Write</code></a> traits, <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and
+<a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> provide the most general interface for reading and writing
 input and output. Unlike the standard library's traits, however, they are
 <em>asynchronous</em> — meaning that reading from or writing to a <code>tokio::io</code>
 type will <em>yield</em> to the Tokio scheduler when IO is not ready, rather than
 blocking. This allows other tasks to run while waiting on IO.</p>
-<p>Another difference is that <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a> only contain
+<p>Another difference is that <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> only contain
 core methods needed to provide asynchronous reading and writing
 functionality. Instead, utility methods are defined in the <a href="../../tokio/io/trait.AsyncReadExt.html" title="`AsyncReadExt`"><code>AsyncReadExt</code></a>
 and <a href="../../tokio/io/trait.AsyncWriteExt.html" title="`AsyncWriteExt`"><code>AsyncWriteExt</code></a> extension traits. These traits are automatically
-implemented for all values that implement <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a>
+implemented for all values that implement <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>
 respectively.</p>
-<p>End users will rarely interact directly with <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and
-<a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a>. Instead, they will use the async functions defined in the
-extension traits. Library authors are expected to implement <a href="trait.AsyncRead.html"><code>AsyncRead</code></a>
-and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a> in order to provide types that behave like byte streams.</p>
-<p>Even with these differences, Tokio's <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a> traits
+<p>End users will rarely interact directly with <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and
+<a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>. Instead, they will use the async functions defined in the
+extension traits. Library authors are expected to implement <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a>
+and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> in order to provide types that behave like byte streams.</p>
+<p>Even with these differences, Tokio's <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> traits
 can be used in almost exactly the same manner as the standard library's
 <code>Read</code> and <code>Write</code>. Most types in the standard library that implement <code>Read</code>
 and <code>Write</code> have asynchronous equivalents in <code>tokio</code> that implement
@@ -98,14 +98,14 @@ non-blocking I/O types that integrate with the futures type system. In
 other words, these types must never block the thread, and instead the
 current task is notified when the I/O resource is ready.</p>
 <h1 id="standard-input-and-output" class="section-header"><a href="#standard-input-and-output">Standard input and output</a></h1>
-<p>Tokio provides asynchronous APIs to standard <a href="fn.stdin.html">input</a>, <a href="fn.stdout.html">output</a>, and <a href="fn.stderr.html">error</a>.
+<p>Tokio provides asynchronous APIs to standard <a href="../../tokio/io/fn.stdin.html">input</a>, <a href="../../tokio/io/fn.stdout.html">output</a>, and <a href="../../tokio/io/fn.stderr.html">error</a>.
 These APIs are very similar to the ones provided by <code>std</code>, but they also
-implement <a href="trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="trait.AsyncWrite.html"><code>AsyncWrite</code></a>.</p>
+implement <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>.</p>
 <p>Note that the standard input / output APIs  <strong>must</strong> be used from the
 context of the Tokio runtime, as they require Tokio-specific features to
 function. Calling these functions outside of a Tokio runtime will panic.</p>
 <h1 id="std-re-exports" class="section-header"><a href="#std-re-exports"><code>std</code> re-exports</a></h1>
-<p>Additionally, <a href="struct.Error.html"><code>Error</code></a>, <a href="enum.ErrorKind.html"><code>ErrorKind</code></a>, and <a href="type.Result.html"><code>Result</code></a> are re-exported
+<p>Additionally, <a href="../../tokio/io/struct.Error.html"><code>Error</code></a>, <a href="../../tokio/io/enum.ErrorKind.html"><code>ErrorKind</code></a>, and <a href="../../tokio/io/type.Result.html"><code>Result</code></a> are re-exported
 from <code>std::io</code> for ease of use.</p>
 </div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
 <table><tr class='module-item'><td><a class="struct" href="struct.BufReader.html" title='tokio::io::BufReader struct'>BufReader</a></td><td class='docblock-short'><p>The <code>BufReader</code> struct adds buffering to any reader.</p>
