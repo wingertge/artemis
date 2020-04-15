@@ -16,3 +16,7 @@ Well, the badges will tell you actually, now that CI is set up.
 **v0.1.0-alpha.1**:  
 * Improved read performance by approximately a factor of 4. We're now almost three times as fast as
 `@urql/exchange-graphcache` on reads! *The write path is unaffected pending later optimizations.*
+
+**v0.1.0-alpha.2**:  
+* Further improved read performance, now approximately 5 times as fast as `@urql/exchange-graphcache`.
+ *The write path is unaffected pending later optimizations.*
