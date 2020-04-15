@@ -1,4 +1,4 @@
-use crate::store::data::{InMemoryData, Link, FieldKey, RefFieldKey};
+use crate::store::data::{FieldKey, InMemoryData, Link, RefFieldKey};
 use artemis::codegen::FieldSelector;
 use flurry::epoch::Guard;
 use serde::{
@@ -104,7 +104,7 @@ struct SelectorDeserializer<'a, 'de> {
     guard: &'de Guard,
     selector: &'a FieldSelector,
     entity_key: &'a str,
-    dependencies: &'a mut Vec<String>
+    dependencies: *mut Vec<String>
 }
 
 impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
@@ -185,8 +185,8 @@ impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
 
     #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-        where
-            V: Visitor<'de>
+    where
+        V: Visitor<'de>
     {
         match self.selector {
             FieldSelector::Scalar(field_name, args) => {
@@ -354,6 +354,14 @@ impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a, 'de> {
                     self.guard,
                     self.dependencies
                 );
+                if !self.dependencies.is_null() {
+                    // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
+                    // to this when there isn't one, so multiple writers are impossible.
+                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // profiling shows this adds about 0.5% overhead for what is basically just
+                    // a typecheck workaround
+                    unsafe { &mut *self.dependencies }.push(key.to_owned());
+                }
                 seed.deserialize(deserializer).map(Some)
             }
             None => Ok(None)
@@ -407,6 +415,14 @@ impl<'a, 'de> SeqAccess<'de> for SeqDeserializer<'a, 'de> {
                     self.guard,
                     self.dependencies
                 );
+                if !self.dependencies.is_null() {
+                    // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
+                    // to this when there isn't one, so multiple writers are impossible.
+                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // profiling shows this adds about 0.5% overhead for what is basically just
+                    // a typecheck workaround
+                    unsafe { &mut *self.dependencies }.push(key.to_owned());
+                }
                 seed.deserialize(deserializer).map(Some)
             }
             None => Ok(None)
@@ -500,12 +516,6 @@ impl<'a, 'de> MapAccess<'de> for ObjectDeserializer<'a, 'de> {
         match self.value.take() {
             Some(value) => {
                 let res = seed.deserialize(value)?;
-                // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
-                // to this when there isn't one, so multiple writers are impossible.
-                // Note: This can also be done with `Option<&mut Vec<String>>`, however
-                // profiling shows this adds about 0.5% overhead for what is basically just
-                // a typecheck workaround
-                unsafe { &mut *self.dependencies }.push(self.entity_key.to_owned());
                 Ok(res)
             }
             None => Err(serde::de::Error::custom("value is missing"))
@@ -605,6 +615,14 @@ fn visit_object<'de, V: Visitor<'de>>(
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer =
         ObjectDeserializer::new(data, selection, entity_key, guard, dependencies);
+    if !dependencies.is_null() {
+        // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
+        // to this when there isn't one, so multiple writers are impossible.
+        // Note: This can also be done with `Option<&mut Vec<String>>`, however
+        // profiling shows this adds about 0.5% overhead for what is basically just
+        // a typecheck workaround
+        unsafe { &mut *dependencies }.push(entity_key.to_owned());
+    }
     visitor.visit_map(&mut deserializer)
 }
 

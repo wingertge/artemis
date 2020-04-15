@@ -1,5 +1,5 @@
 use crate::store::{
-    data::{InMemoryData, Link},
+    data::{FieldKey, InMemoryData, Link, RefFieldKey},
     deserializer::ObjectDeserializer
 };
 use artemis::{
@@ -12,15 +12,9 @@ use flurry::{epoch, epoch::Guard};
 use serde::de::Deserialize;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
-use std::{
-    collections::{HashMap},
-    error::Error,
-    fmt,
-    sync::Arc
-};
+use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
-use crate::store::data::{FieldKey, RefFieldKey};
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
@@ -405,7 +399,12 @@ impl Store {
                 }
             }
             FieldSelector::Scalar(field_name, args) => {
-                self.write_record(optimistic_key, entity_key, FieldKey(*field_name, args.to_owned()), Some(data));
+                self.write_record(
+                    optimistic_key,
+                    entity_key,
+                    FieldKey(*field_name, args.to_owned()),
+                    Some(data)
+                );
             }
         }
         Ok(())
@@ -445,7 +444,7 @@ impl Store {
     pub fn read_query<Q: GraphQLQuery>(
         &self,
         query: &Operation<Q::Variables>,
-        dependencies: &mut Vec<String>
+        dependencies: *mut Vec<String>
     ) -> Option<Q::ResponseData> {
         let root_key = query.meta.operation_type.to_string();
         let selection = Q::selection(&query.query.variables);

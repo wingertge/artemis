@@ -1,10 +1,6 @@
 use crate::QueryStore;
 use artemis::{exchange::Extension, GraphQLQuery};
-use std::{
-    any::Any,
-    collections::{HashMap},
-    sync::Arc
-};
+use std::{any::Any, collections::HashMap, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::{JsCast, JsValue};
 

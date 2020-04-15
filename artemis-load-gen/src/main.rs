@@ -104,7 +104,7 @@ fn main() {
     let n = 25;
     let variable_set: Vec<Variables> = (0..n).map(|i| Variables { id: i.to_string() }).collect();
 
-    let thread_count = 8;
+    let thread_count = 1;
 
     let query_count = Arc::new(AtomicU32::new(0));
 
@@ -130,9 +130,17 @@ fn main() {
         });
     }
 
-    thread::spawn(move || loop {
-        println!("Query Count: {}", query_count.load(Ordering::SeqCst));
-        thread::sleep(Duration::from_secs(1));
+    thread::spawn(move || {
+        let mut seconds = 0;
+        loop {
+            println!(
+                "Query Count: {} at {}s",
+                query_count.load(Ordering::SeqCst),
+                seconds
+            );
+            thread::sleep(Duration::from_secs(1));
+            seconds += 1;
+        }
     })
     .join()
     .unwrap();

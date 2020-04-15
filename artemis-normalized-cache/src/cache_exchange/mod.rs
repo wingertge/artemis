@@ -16,10 +16,7 @@ use artemis::{
 use parking_lot::RwLock;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
-use std::{
-    collections::{HashMap},
-    sync::Arc
-};
+use std::{collections::HashMap, ptr, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
 
@@ -293,8 +290,8 @@ impl<TNext: Exchange> Exchange for NormalizedCacheImpl<TNext> {
 
         if should_cache::<Q>(&operation) {
             self.write_updater::<Q>(&operation);
-            let mut deps = Vec::with_capacity(10);
-            if let Some(cached) = self.store.read_query::<Q>(&operation, &mut deps) {
+            let cached = self.store.read_query::<Q>(&operation, ptr::null_mut());
+            if let Some(cached) = cached {
                 let response = OperationResult {
                     key: operation.key,
                     response: Response {
