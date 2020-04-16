@@ -46,5 +46,10 @@ mod store;
 mod types;
 
 pub use cache_exchange::NormalizedCacheExchange;
+use fnv::FnvBuildHasher;
 pub use store::QueryStore;
+#[doc(hidden)]
+pub use store::Store;
 pub use types::{NormalizedCacheExtension, NormalizedCacheOptions};
+
+pub type HashSet<V> = std::collections::HashSet<V, FnvBuildHasher>;

@@ -2,5 +2,7 @@ query GetConferences {
     conferences {
         id
         name
+        city
+        talks { id }
     }
 }

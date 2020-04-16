@@ -1,10 +1,10 @@
+use crate::HashSet;
 use crossbeam_epoch::Atomic;
 use flurry::{epoch, epoch::Guard};
 use fnv::FnvBuildHasher;
 use parking_lot::Mutex;
 use serde_json::Value;
 use std::{
-    collections::HashSet,
     fmt,
     hash::Hash,
     mem::ManuallyDrop,
@@ -95,24 +95,22 @@ impl InMemoryData {
         Self::default()
     }
 
-    pub fn set_dependencies(&self, query_key: u64, mut dependencies: Vec<String>) {
+    pub fn set_dependencies(&self, query_key: u64, dependencies: &HashSet<String>) {
         let mut dependents = self.dependencies.lock();
-        dependencies.sort_unstable();
-        dependencies.dedup();
-        for dependency in dependencies {
-            if &dependency == "Query" {
-                continue;
-            }
-            let depending_queries = dependents.get_mut(&dependency);
-            if let Some(dependency_set) = depending_queries {
-                dependency_set.insert(query_key.clone());
-            } else {
-                let mut deps = HashSet::new();
-                deps.insert(query_key);
 
-                dependents.insert(dependency, deps);
-            }
-        }
+        dependencies
+            .iter()
+            .filter(|s| *s != "Query")
+            .for_each(|dependency| {
+                let depending_queries = dependents.get_mut(dependency);
+                if let Some(dependency_set) = depending_queries {
+                    dependency_set.insert(query_key);
+                } else {
+                    let mut deps = HashSet::default();
+                    deps.insert(query_key);
+                    dependents.insert(dependency.to_owned(), deps);
+                }
+            });
     }
 
     pub fn get_dependencies(&self, entity_key: &str) -> Vec<u64> {

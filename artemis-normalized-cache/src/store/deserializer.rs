@@ -1,4 +1,7 @@
-use crate::store::data::{FieldKey, InMemoryData, Link, RefFieldKey};
+use crate::{
+    store::data::{FieldKey, InMemoryData, Link, RefFieldKey},
+    HashSet
+};
 use artemis::codegen::FieldSelector;
 use flurry::epoch::Guard;
 use serde::{
@@ -104,7 +107,7 @@ struct SelectorDeserializer<'a, 'de> {
     guard: &'de Guard,
     selector: &'a FieldSelector,
     entity_key: &'a str,
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 }
 
 impl<'a, 'de> Deserializer<'de> for SelectorDeserializer<'a, 'de> {
@@ -327,7 +330,7 @@ struct UnionSeqDeserializer<'a, 'de> {
     guard: &'de Guard,
     keys: <&'a [String] as IntoIterator>::IntoIter,
     selection: &'a dyn Fn(&str) -> Vec<FieldSelector>,
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 }
 
 impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a, 'de> {
@@ -357,10 +360,10 @@ impl<'a, 'de> SeqAccess<'de> for UnionSeqDeserializer<'a, 'de> {
                 if !self.dependencies.is_null() {
                     // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
                     // to this when there isn't one, so multiple writers are impossible.
-                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // Note: This can also be done with `Option<&mut HashSet<String>>`, however
                     // profiling shows this adds about 0.5% overhead for what is basically just
                     // a typecheck workaround
-                    unsafe { &mut *self.dependencies }.push(key.to_owned());
+                    unsafe { &mut *self.dependencies }.insert(key.to_owned());
                 }
                 seed.deserialize(deserializer).map(Some)
             }
@@ -396,7 +399,7 @@ struct SeqDeserializer<'a, 'de> {
     guard: &'de Guard,
     keys: <&'a [String] as IntoIterator>::IntoIter,
     selection: &'a [FieldSelector],
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 }
 
 impl<'a, 'de> SeqAccess<'de> for SeqDeserializer<'a, 'de> {
@@ -418,10 +421,10 @@ impl<'a, 'de> SeqAccess<'de> for SeqDeserializer<'a, 'de> {
                 if !self.dependencies.is_null() {
                     // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
                     // to this when there isn't one, so multiple writers are impossible.
-                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // Note: This can also be done with `Option<&mut HashSet<String>>`, however
                     // profiling shows this adds about 0.5% overhead for what is basically just
                     // a typecheck workaround
-                    unsafe { &mut *self.dependencies }.push(key.to_owned());
+                    unsafe { &mut *self.dependencies }.insert(key.to_owned());
                 }
                 seed.deserialize(deserializer).map(Some)
             }
@@ -457,7 +460,7 @@ pub(crate) struct ObjectDeserializer<'a, 'de> {
     guard: &'de Guard,
     selection: <&'a [FieldSelector] as IntoIterator>::IntoIter,
     entity_key: &'a str,
-    dependencies: *mut Vec<String>,
+    dependencies: *mut HashSet<String>,
     value: Option<SelectorDeserializer<'a, 'de>>
 }
 
@@ -467,7 +470,7 @@ impl<'a, 'de> ObjectDeserializer<'a, 'de> {
         selection: &'a [FieldSelector],
         entity_key: &'a str,
         guard: &'de Guard,
-        dependencies: *mut Vec<String>
+        dependencies: *mut HashSet<String>
     ) -> Self {
         Self {
             data,
@@ -497,7 +500,7 @@ impl<'a, 'de> MapAccess<'de> for ObjectDeserializer<'a, 'de> {
                     selector: value,
                     // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
                     // to this when there isn't one, so multiple writers are impossible.
-                    // Note: This can also be done with `Option<&mut Vec<String>>`, however
+                    // Note: This can also be done with `Option<&mut HashSet<String>>`, however
                     // profiling shows this adds about 0.5% overhead for what is basically just
                     // a typecheck workaround
                     dependencies: unsafe { &mut *self.dependencies }
@@ -611,17 +614,17 @@ fn visit_object<'de, V: Visitor<'de>>(
     selection: &[FieldSelector],
     visitor: V,
     guard: &'de Guard,
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer =
         ObjectDeserializer::new(data, selection, entity_key, guard, dependencies);
     if !dependencies.is_null() {
         // SAFETY: Only one child can exist at once and ObjectDeserializer only writes
         // to this when there isn't one, so multiple writers are impossible.
-        // Note: This can also be done with `Option<&mut Vec<String>>`, however
+        // Note: This can also be done with `Option<&mut HashSet<String>>`, however
         // profiling shows this adds about 0.5% overhead for what is basically just
         // a typecheck workaround
-        unsafe { &mut *dependencies }.push(entity_key.to_owned());
+        unsafe { &mut *dependencies }.insert(entity_key.to_owned());
     }
     visitor.visit_map(&mut deserializer)
 }
@@ -632,7 +635,7 @@ fn visit_array<'de, V: Visitor<'de>>(
     selection: &[FieldSelector],
     visitor: V,
     guard: &'de Guard,
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer = SeqDeserializer {
         data,
@@ -650,7 +653,7 @@ fn visit_union_array<'de, V: Visitor<'de>>(
     selection: &dyn Fn(&str) -> Vec<FieldSelector>,
     visitor: V,
     guard: &'de Guard,
-    dependencies: *mut Vec<String>
+    dependencies: *mut HashSet<String>
 ) -> Result<V::Value, SerializerError> {
     let mut deserializer = UnionSeqDeserializer {
         data,

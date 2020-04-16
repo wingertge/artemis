@@ -17,7 +17,7 @@ pub mod wasm {
     #[repr(u32)]
     pub enum Queries {
         GetConference = 1354603040u32,
-        GetConferences = 804021858u32,
+        GetConferences = 2299573645u32,
         AddConference = 1424555866u32
     }
     impl QueryCollection for Queries {

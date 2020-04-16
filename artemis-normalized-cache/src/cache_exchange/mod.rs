@@ -3,7 +3,8 @@
 
 use crate::{
     store::Store,
-    types::{NormalizedCacheExtension, NormalizedCacheOptions}
+    types::{NormalizedCacheExtension, NormalizedCacheOptions},
+    HashSet
 };
 use artemis::{
     exchange::{
@@ -108,7 +109,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         client: &C
     ) -> Result<(), QueryError> {
         let query_key = result.key;
-        let mut dependencies = Vec::with_capacity(10);
+        let mut dependencies = HashSet::default();
         if result.response.errors.is_some() {
             self.store.clear_optimistic_layer(query_key);
         } else {
@@ -128,7 +129,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         extension: Option<&NormalizedCacheExtension>
     ) {
         let query_key = result.key;
-        let mut dependencies = Vec::with_capacity(10);
+        let mut dependencies = HashSet::default();
         self.store
             .invalidate_query::<Q>(result, &variables, false, &mut dependencies);
         if let Some(updater) = extension.and_then(|ext| ext.update.as_ref()) {
@@ -177,7 +178,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         &self,
         _extension: Option<&NormalizedCacheExtension>,
         _data: Option<&Q::ResponseData>,
-        _dependencies: &mut Vec<String>
+        _dependencies: &mut HashSet<String>
     ) {
     }
 
@@ -208,7 +209,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
 
                 let query_key = operation.key;
 
-                let mut dependencies = Vec::new();
+                let mut dependencies = HashSet::default();
                 self.store
                     .write_query::<Q>(&result, variables, true, &mut dependencies)
                     .unwrap();
@@ -248,7 +249,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
                 };
 
                 let query_key = operation.key;
-                let mut dependencies = Vec::with_capacity(10);
+                let mut dependencies = HashSet::default();
                 self.store
                     .invalidate_query::<Q>(&result, variables, true, &mut dependencies);
                 self.store

@@ -1,4 +1,6 @@
-use crate::{cache_exchange::NormalizedCacheExchange, NormalizedCacheExtension, QueryStore};
+use crate::{
+    cache_exchange::NormalizedCacheExchange, HashSet, NormalizedCacheExtension, QueryStore
+};
 use artemis::{
     exchange::{
         Client, Exchange, ExchangeFactory, ExchangeResult, Operation, OperationMeta,
@@ -172,7 +174,9 @@ async fn updates_related_queries() {
             let data_multi = get_conferences::ResponseData {
                 conferences: Some(vec![GetConferencesConferences {
                     id: "1".to_string(),
-                    name: "test".to_string()
+                    name: "test".to_string(),
+                    city: None,
+                    talks: None
                 }])
             };
 
@@ -418,7 +422,7 @@ async fn correctly_clears_on_error() {
     fn update(
         data: &Option<add_conference::ResponseData>,
         store: QueryStore,
-        dependencies: &mut Vec<String>
+        dependencies: &mut HashSet<String>
     ) {
         println!("Update Data: {:?}", data);
         if let Some(conference) = data.as_ref().and_then(|data| data.add_conference.as_ref()) {
@@ -432,7 +436,9 @@ async fn correctly_clears_on_error() {
                                 let mut vec: Vec<_> = vec.iter().cloned().collect();
                                 vec.push(GetConferencesConferences {
                                     id: conference.id.clone(),
-                                    name: conference.name.clone()
+                                    name: conference.name.clone(),
+                                    city: None,
+                                    talks: None
                                 });
                                 vec
                             })
@@ -501,7 +507,9 @@ async fn correctly_clears_on_error() {
             let data_one = get_conferences::ResponseData {
                 conferences: Some(vec![GetConferencesConferences {
                     id: "1".to_string(),
-                    name: "test".to_string()
+                    name: "test".to_string(),
+                    city: None,
+                    talks: None
                 }])
             };
 
