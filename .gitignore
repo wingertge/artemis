@@ -7,4 +7,5 @@ stacks.folded
 node_modules
 package-lock.json
 
-!*/**/report/*
+!*.html
+!*.svg
