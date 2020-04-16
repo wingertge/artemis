@@ -331,13 +331,15 @@
 <span id="331">331</span>
 <span id="332">332</span>
 <span id="333">333</span>
+<span id="334">334</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Contains the exchange factory and implementation. The factory is the only thing needed for most</span>
 <span class="doccomment">//! users and is reexported from the root.</span>
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">store</span>::<span class="ident">Store</span>,
-    <span class="ident">types</span>::{<span class="ident">NormalizedCacheExtension</span>, <span class="ident">NormalizedCacheOptions</span>}
+    <span class="ident">types</span>::{<span class="ident">NormalizedCacheExtension</span>, <span class="ident">NormalizedCacheOptions</span>},
+    <span class="ident">HashSet</span>
 };
 <span class="kw">use</span> <span class="ident">artemis</span>::{
     <span class="ident">exchange</span>::{
@@ -442,7 +444,7 @@
         <span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="ident">C</span>
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">QueryError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">query_key</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">key</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">10</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">default</span>();
         <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">response</span>.<span class="ident">errors</span>.<span class="ident">is_some</span>() {
             <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">clear_optimistic_layer</span>(<span class="ident">query_key</span>);
         } <span class="kw">else</span> {
@@ -462,7 +464,7 @@
         <span class="ident">extension</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">NormalizedCacheExtension</span><span class="op">&gt;</span>
     ) {
         <span class="kw">let</span> <span class="ident">query_key</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">key</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">10</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">default</span>();
         <span class="self">self</span>.<span class="ident">store</span>
             .<span class="ident">invalidate_query</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="ident">result</span>, <span class="kw-2">&amp;</span><span class="ident">variables</span>, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">updater</span>) <span class="op">=</span> <span class="ident">extension</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">ext</span><span class="op">|</span> <span class="ident">ext</span>.<span class="ident">update</span>.<span class="ident">as_ref</span>()) {
@@ -511,7 +513,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">_extension</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">NormalizedCacheExtension</span><span class="op">&gt;</span>,
         <span class="ident">_data</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Q</span>::<span class="ident">ResponseData</span><span class="op">&gt;</span>,
-        <span class="ident">_dependencies</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>
+        <span class="ident">_dependencies</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>
     ) {
     }
 
@@ -542,7 +544,7 @@
 
                 <span class="kw">let</span> <span class="ident">query_key</span> <span class="op">=</span> <span class="ident">operation</span>.<span class="ident">key</span>;
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">default</span>();
                 <span class="self">self</span>.<span class="ident">store</span>
                     .<span class="ident">write_query</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">result</span>, <span class="ident">variables</span>, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>)
                     .<span class="ident">unwrap</span>();
@@ -582,7 +584,7 @@
                 };
 
                 <span class="kw">let</span> <span class="ident">query_key</span> <span class="op">=</span> <span class="ident">operation</span>.<span class="ident">key</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">10</span>);
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">default</span>();
                 <span class="self">self</span>.<span class="ident">store</span>
                     .<span class="ident">invalidate_query</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">result</span>, <span class="ident">variables</span>, <span class="bool-val">true</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>);
                 <span class="self">self</span>.<span class="ident">store</span>
