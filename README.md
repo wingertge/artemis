@@ -20,3 +20,8 @@ Well, the badges will tell you actually, now that CI is set up.
 **v0.1.0-alpha.2**:  
 * Further improved read performance, now approximately 5 times as fast as `@urql/exchange-graphcache`.
  *The write path is unaffected pending later optimizations.*
+ 
+ **v0.1.0-alpha.3**:
+ * Improve write performance by approximately a factor of 9, now 3.5 times as fast as `urql`. After improved
+ measurements it seems read performance is actually just 1.5 times as fast as `urql` in read performance, but an apples
+ to apples comparison between Rust and  JavaScript is impossible so these numbers aren't perfect.
