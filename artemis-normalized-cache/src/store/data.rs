@@ -192,12 +192,12 @@ impl InMemoryData {
 
     pub fn write_record(
         &self,
-        entity_key: String,
+        entity_key: &str,
         field_key: FieldKey,
-        value: Option<serde_json::Value>
+        value: Option<serde_json::Value>,
+        guard: &Guard
     ) {
-        let guard = epoch::pin();
-        let entity = self.records.base.get(&entity_key, &guard);
+        let entity = self.records.base.get(entity_key, guard);
 
         if let Some(entity) = entity {
             let mut entity = entity.lock();
@@ -205,14 +205,14 @@ impl InMemoryData {
                 entity.insert(field_key, Atomic::new(value));
             } else {
                 entity.remove(&field_key);
-                self.remove_link(&entity_key, (&field_key).into());
+                self.remove_link(entity_key, (&field_key).into());
             }
         } else if let Some(value) = value {
             let mut entity = HashMap::default();
             entity.insert(field_key, Atomic::new(value));
             self.records
                 .base
-                .insert(entity_key, Mutex::new(entity), &guard);
+                .insert(entity_key.to_owned(), Mutex::new(entity), guard);
         }
     }
 
@@ -225,29 +225,29 @@ impl InMemoryData {
     pub fn write_record_optimistic(
         &self,
         optimistic_key: u64,
-        entity_key: String,
+        entity_key: &str,
         field_key: FieldKey,
-        value: Option<serde_json::Value>
+        value: Option<Value>,
+        guard: &Guard
     ) {
-        let guard = epoch::pin();
-        let layer = self.records.optimistic.get(&optimistic_key, &guard);
+        let layer = self.records.optimistic.get(&optimistic_key, guard);
         if let Some(layer) = layer {
-            if let Some(entity) = layer.get(&entity_key, &guard) {
+            if let Some(entity) = layer.get(entity_key, guard) {
                 let mut entity = entity.lock();
                 entity.insert(field_key, value.map(Atomic::new));
             } else {
                 let mut entity = HashMap::default();
                 entity.insert(field_key, value.map(Atomic::new));
-                layer.insert(entity_key, Mutex::new(entity), &guard);
+                layer.insert(entity_key.to_owned(), Mutex::new(entity), guard);
             }
         } else {
             let layer = CacheMap::default();
             let mut entity = HashMap::default();
             entity.insert(field_key, value.map(Atomic::new));
-            layer.insert(entity_key, Mutex::new(entity), &guard);
+            layer.insert(entity_key.to_owned(), Mutex::new(entity), guard);
             self.records
                 .optimistic
-                .insert(optimistic_key, layer, &guard);
+                .insert(optimistic_key, layer, guard);
         }
     }
 
@@ -259,26 +259,25 @@ impl InMemoryData {
     }
     */
 
-    pub fn write_link(&self, entity_key: String, field_key: FieldKey, link: Link) {
-        let guard = epoch::pin();
-        let entity = self.links.base.get(&entity_key, &guard);
+    pub fn write_link(&self, entity_key: &str, field_key: FieldKey, link: Link, guard: &Guard) {
+        let entity = self.links.base.get(entity_key, guard);
 
         if let Some(entity) = entity {
             let mut entity = entity.lock();
             self.update_link_ref_count(
-                entity.get(&field_key).map(|link| load_link(link, &guard)),
+                entity.get(&field_key).map(|link| load_link(link, guard)),
                 -1,
-                &guard
+                guard
             );
-            self.update_link_ref_count(Some(&link), 1, &guard);
+            self.update_link_ref_count(Some(&link), 1, guard);
             entity.insert(field_key, Atomic::new(link));
         } else {
             let mut entity_links = HashMap::default();
-            self.update_link_ref_count(Some(&link), 1, &guard);
+            self.update_link_ref_count(Some(&link), 1, guard);
             entity_links.insert(field_key, Atomic::new(link));
             self.links
                 .base
-                .insert(entity_key, Mutex::new(entity_links), &guard);
+                .insert(entity_key.to_owned(), Mutex::new(entity_links), guard);
         }
     }
 
@@ -329,60 +328,50 @@ impl InMemoryData {
     pub fn write_link_optimistic(
         &self,
         optimistic_key: u64,
-        entity_key: String,
+        entity_key: &str,
         field_key: FieldKey,
-        link: Option<Link>
+        link: Option<Link>,
+        guard: &Guard
     ) {
-        let guard = epoch::pin();
-        let layer = self.links.optimistic.get(&optimistic_key, &guard);
+        let layer = self.links.optimistic.get(&optimistic_key, guard);
         if let Some(layer) = layer {
-            if let Some(entity) = layer.get(&entity_key, &guard) {
+            if let Some(entity) = layer.get(entity_key, guard) {
                 let mut entity = entity.lock();
                 if let Some(field) = entity.get(&field_key) {
-                    let field = field.as_ref().map(|field| load_link(field, &guard));
+                    let field = field.as_ref().map(|field| load_link(field, guard));
                     self.update_link_ref_count_optimistic(
-                        &entity_key,
-                        &field_key,
-                        field,
-                        -1,
-                        &guard
+                        entity_key, &field_key, field, -1, guard
                     );
                 }
                 self.update_link_ref_count_optimistic(
-                    &entity_key,
+                    entity_key,
                     &field_key,
                     link.as_ref(),
                     1,
-                    &guard
+                    guard
                 );
                 entity.insert(field_key, link.map(Atomic::new));
             } else {
                 let mut entity = HashMap::default();
                 self.update_link_ref_count_optimistic(
-                    &entity_key,
+                    entity_key,
                     &field_key,
                     link.as_ref(),
                     1,
-                    &guard
+                    guard
                 );
                 entity.insert(field_key, link.map(Atomic::new));
-                layer.insert(entity_key, Mutex::new(entity), &guard);
+                layer.insert(entity_key.to_owned(), Mutex::new(entity), guard);
             }
         } else {
             let layer = FlurryMap::default();
             let mut entity = HashMap::default();
-            self.update_link_ref_count_optimistic(
-                &entity_key,
-                &field_key,
-                link.as_ref(),
-                1,
-                &guard
-            );
+            self.update_link_ref_count_optimistic(entity_key, &field_key, link.as_ref(), 1, guard);
             entity.insert(field_key, link.map(Atomic::new));
-            layer.insert(entity_key, Mutex::new(entity), &guard);
+            layer.insert(entity_key.to_owned(), Mutex::new(entity), guard);
             self.links
                 .optimistic
-                .insert(optimistic_key, Arc::new(layer), &guard);
+                .insert(optimistic_key, Arc::new(layer), guard);
         }
     }
 

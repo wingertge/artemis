@@ -12,13 +12,15 @@ use artemis::{
     GraphQLQuery, QueryError, RequestPolicy, Response
 };
 use flurry::{epoch, epoch::Guard};
-use serde::de::Deserialize;
 #[cfg(target_arch = "wasm32")]
 use serde::de::DeserializeOwned;
+use serde::{de::Deserialize, Serialize};
 use serde_json::Value;
-use std::{borrow::Cow, collections::HashMap, error::Error, fmt, sync::Arc};
+use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+use crate::store::serializer::ObjectSerializer;
+use std::borrow::Cow;
 
 pub struct Store {
     custom_keys: HashMap<&'static str, String>,
@@ -192,13 +194,29 @@ impl Store {
             return Ok(());
         }
 
-        let data: Q::ResponseData = query.response.data.as_ref().unwrap().clone();
+        let data: &Q::ResponseData = query.response.data.as_ref().unwrap();
         let selection = Q::selection(variables);
-        let data = serde_json::to_value(data)?;
-        if !data.is_object() {
+        let guard = epoch::pin();
+        let optimistic_key = if optimistic { Some(query.key) } else { None };
+
+        let serializer = ObjectSerializer::new(
+            &self.data,
+            &guard,
+            &selection,
+            "Query".into(),
+            Some("Query".into()),
+            dependencies,
+            optimistic_key
+        );
+
+        data.serialize(serializer)?;
+/*        if !data.is_object() {
             return Ok(());
         }
-        let data = data.as_object().unwrap();
+        let mut data = match data {
+            Value::Object(data) => data,
+            _ => unreachable!("Top level query result must be an object")
+        };
         let key = query.meta.operation_type.to_string();
 
         let guard = epoch::pin();
@@ -206,16 +224,9 @@ impl Store {
 
         for field in selection {
             let field_name = self.get_selector_field_key(&field);
-            let value = data.get(field_name).unwrap();
-            self.store_data(
-                optimistic_key,
-                key.clone(),
-                &field,
-                value.clone(),
-                dependencies,
-                &guard
-            )?;
-        }
+            let value = data.remove(field_name).unwrap();
+            self.store_data(optimistic_key, &key, &field, value, dependencies, &guard)?;
+        }*/
 
         if !optimistic {
             self.data.set_dependencies(query.key, dependencies);
@@ -232,7 +243,7 @@ impl Store {
     fn store_object(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: String,
+        entity_key: &str,
         field: &FieldSelector,
         value: Value,
         dependencies: &mut HashSet<String>,
@@ -257,7 +268,7 @@ impl Store {
 
         let field_key = FieldKey(field_name, args.to_owned());
         if value.is_null() {
-            self.data.write_link(entity_key, field_key, Link::Null);
+            self.data.write_link(entity_key, field_key, Link::Null, guard);
             return Ok(());
         }
         let value = value.as_object().unwrap();
@@ -274,7 +285,7 @@ impl Store {
             let value = value.get(field_name).unwrap();
             self.store_data(
                 optimistic_key.clone(),
-                key.clone(),
+                &key,
                 &field,
                 value.clone(),
                 dependencies,
@@ -302,7 +313,7 @@ impl Store {
     fn store_array(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: String,
+        entity_key: &str,
         selector: &FieldSelector,
         value: Value,
         dependencies: &mut HashSet<String>,
@@ -359,10 +370,10 @@ impl Store {
 
             for selector in inner.iter() {
                 let field_name = self.get_selector_field_key(selector);
-                let value = value.remove(field_name).unwrap();
+                let value = value.remove(field_name).expect("field not found");
                 self.store_data(
                     optimistic_key.clone(),
-                    key.clone(),
+                    &key,
                     selector,
                     value,
                     dependencies,
@@ -385,7 +396,7 @@ impl Store {
     fn store_data(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: String,
+        entity_key: &str,
         selector: &FieldSelector,
         data: serde_json::Value,
         dependencies: &mut HashSet<String>,
@@ -428,31 +439,33 @@ impl Store {
     fn write_record(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: String,
+        entity_key: &str,
         field_key: FieldKey,
         value: Option<serde_json::Value>
     ) {
+        let guard = epoch::pin();
         if let Some(optimistic_key) = optimistic_key {
             self.data
-                .write_record_optimistic(optimistic_key, entity_key, field_key, value);
+                .write_record_optimistic(optimistic_key, entity_key, field_key, value, &guard);
         } else {
-            self.data.write_record(entity_key, field_key, value);
+            self.data.write_record(entity_key, field_key, value, &guard);
         }
     }
 
     fn write_link(
         &self,
         optimistic_key: Option<u64>,
-        entity_key: String,
+        entity_key: &str,
         field_key: FieldKey,
         value: Option<Link>
     ) {
+        let guard = epoch::pin();
         if let Some(optimistic_key) = optimistic_key {
             self.data
-                .write_link_optimistic(optimistic_key, entity_key, field_key, value);
+                .write_link_optimistic(optimistic_key, entity_key, field_key, value, &guard);
         } else if let Some(value) = value {
             // Non-optimistic writes only support insertion
-            self.data.write_link(entity_key, field_key, value);
+            self.data.write_link(entity_key, field_key, value, &guard);
         }
     }
 
@@ -562,7 +575,7 @@ impl Store {
                 FieldSelector::Scalar(field_name, args) => {
                     self.write_record(
                         optimistic_key,
-                        entity_key.to_owned(),
+                        entity_key,
                         FieldKey(*field_name, args.to_owned()),
                         None
                     );
