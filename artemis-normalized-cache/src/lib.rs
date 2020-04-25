@@ -53,3 +53,4 @@ pub use store::Store;
 pub use types::{NormalizedCacheExtension, NormalizedCacheOptions};
 
 pub type HashSet<V> = std::collections::HashSet<V, FnvBuildHasher>;
+pub type Dependencies = HashSet<String>;
