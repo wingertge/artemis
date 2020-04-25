@@ -1,5 +1,6 @@
 use crate::{HashSet, QueryStore};
 use artemis::{exchange::Extension, GraphQLQuery};
+use fnv::FnvBuildHasher;
 use std::{any::Any, collections::HashMap, sync::Arc};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::{JsCast, JsValue};
@@ -12,7 +13,7 @@ pub struct NormalizedCacheOptions {
     /// So if your `User` has a unique ID called `ident`, you should
     /// set `"User" => "ident"`.
     /// The default ID keys are `id` and `_id`, so those don't need to be mapped.
-    pub custom_keys: Option<HashMap<&'static str, String>>
+    pub custom_keys: Option<HashMap<&'static str, String, FnvBuildHasher>>
 }
 
 /// A query extension that lets you pass additional logic into the cache.

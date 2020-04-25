@@ -51,7 +51,7 @@ impl<TNext: Exchange> ExchangeFactory<TNext> for NormalizedCacheExchange {
 
     fn build(self, next: TNext) -> NormalizedCacheImpl<TNext> {
         let options = self.options.unwrap_or_else(NormalizedCacheOptions::default);
-        let store = Store::new(options.custom_keys.unwrap_or_else(HashMap::new));
+        let store = Store::new(options.custom_keys.unwrap_or_else(HashMap::default));
         NormalizedCacheImpl {
             next,
             store: Arc::new(store),
@@ -131,6 +131,9 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         let query_key = result.key;
         let mut dependencies = HashSet::default();
         self.store
+            .write_query::<Q>(result, &variables, false, &mut dependencies)
+            .unwrap();
+        self.store
             .invalidate_query::<Q>(result, &variables, false, &mut dependencies);
         if let Some(updater) = extension.and_then(|ext| ext.update.as_ref()) {
             updater(
@@ -141,6 +144,7 @@ impl<TNext: Exchange> NormalizedCacheImpl<TNext> {
         } else {
             self.update_js::<Q>(extension, result.response.data.as_ref(), &mut dependencies);
         }
+        println!("Invalidated dependencies {:?}", dependencies);
         self.store.rerun_queries(dependencies, query_key, client);
     }
 

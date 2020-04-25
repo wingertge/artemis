@@ -118,7 +118,7 @@ fn make_read_op<Q: GraphQLQuery>(
 fn benchmark_reads(group: &mut BenchmarkGroup<WallTime>, n: usize) {
     use todos_query::{Variables, QUERY};
 
-    let store = Store::new(HashMap::new());
+    let store = Store::new(HashMap::default());
     let data = make_todos(n);
 
     let mut deps = HashSet::default();
@@ -146,7 +146,7 @@ fn benchmark_reads(group: &mut BenchmarkGroup<WallTime>, n: usize) {
 fn benchmark_writes(group: &mut BenchmarkGroup<WallTime>, n: usize) {
     use todos_query::Variables;
 
-    let store = Store::new(HashMap::new());
+    let store = Store::new(HashMap::default());
     let data = make_todos(n);
 
     group.throughput(Throughput::Elements(n as u64));
@@ -220,7 +220,7 @@ fn make_employees(n: usize) -> OperationResult<employees::ResponseData> {
 }
 
 fn benchmark_write_five_entities(group: &mut BenchmarkGroup<WallTime>, n: usize) {
-    let store = Store::new(HashMap::new());
+    let store = Store::new(HashMap::default());
 
     let books = make_books(n);
     let employees = make_employees(n);
@@ -287,7 +287,7 @@ fn make_authors(n: usize) -> OperationResult<complex_author::ResponseData> {
 fn benchmark_write_complex(group: &mut BenchmarkGroup<WallTime>, n: usize) {
     use complex_author::Variables;
 
-    let store = Store::new(HashMap::new());
+    let store = Store::new(HashMap::default());
     let data = make_authors(n);
 
     group.throughput(Throughput::Elements(n as u64));

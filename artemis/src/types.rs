@@ -5,6 +5,7 @@ use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
+    fmt,
     pin::Pin,
     sync::Arc,
     task::Poll
@@ -69,6 +70,16 @@ pub enum OperationType {
     Query,
     Mutation,
     Subscription
+}
+
+impl OperationType {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            OperationType::Query => "Query",
+            OperationType::Mutation => "Mutation",
+            OperationType::Subscription => "Subscription"
+        }
+    }
 }
 
 impl From<u8> for OperationType {
@@ -143,6 +154,24 @@ pub enum FieldSelector {
         String,
         Arc<dyn Fn(&str) -> Vec<FieldSelector>>
     )
+}
+
+impl fmt::Debug for FieldSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FieldSelector::Scalar(field_name, args) => {
+                write!(f, "Scalar(field name: {}, args: {})", field_name, args)
+            }
+            FieldSelector::Object(field_name, args, typename, _) => write!(
+                f,
+                "Object(field name: {}, args: {}, typename: {})",
+                field_name, args, typename
+            ),
+            FieldSelector::Union(field_name, args, _) => {
+                write!(f, "Union(field name: {}, args: {})", field_name, args)
+            }
+        }
+    }
 }
 
 /// Metadata for an operation

@@ -15,8 +15,9 @@ use std::{
     }
 };
 
-#[derive(Hash, Eq, PartialEq)]
+#[derive(Hash, Eq, PartialEq, Debug)]
 pub struct FieldKey(pub &'static str, pub String);
+#[derive(Debug)]
 pub struct RefFieldKey<'a>(pub &'static str, pub &'a String);
 
 impl<'a> From<&'a FieldKey> for RefFieldKey<'a> {
@@ -67,7 +68,7 @@ type Links = OptimisticMap<Atomic<Link>>;
 type Dependents = Arc<Mutex<HashMap<String, HashSet<u64>>>>;
 type RefCounts = FlurryMap<String, AtomicIsize>;
 
-#[derive(Hash, PartialEq, Eq, Clone)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum Link {
     Single(String),
     List(Vec<String>),
@@ -87,12 +88,16 @@ pub struct InMemoryData {
     links: Links,
     dependencies: Dependents,
     ref_counts: RefCounts,
-    gc_queue: FlurryMap<String, ()>
+    gc_queue: FlurryMap<String, ()>,
+    pub(crate) custom_keys: HashMap<&'static str, String>
 }
 
 impl InMemoryData {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(custom_keys: HashMap<&'static str, String>) -> Self {
+        Self {
+            custom_keys,
+            ..Self::default()
+        }
     }
 
     pub fn set_dependencies(&self, query_key: u64, dependencies: &HashSet<String>) {
@@ -245,9 +250,7 @@ impl InMemoryData {
             let mut entity = HashMap::default();
             entity.insert(field_key, value.map(Atomic::new));
             layer.insert(entity_key.to_owned(), Mutex::new(entity), guard);
-            self.records
-                .optimistic
-                .insert(optimistic_key, layer, guard);
+            self.records.optimistic.insert(optimistic_key, layer, guard);
         }
     }
 
@@ -339,9 +342,7 @@ impl InMemoryData {
                 let mut entity = entity.lock();
                 if let Some(field) = entity.get(&field_key) {
                     let field = field.as_ref().map(|field| load_link(field, guard));
-                    self.update_link_ref_count_optimistic(
-                        entity_key, &field_key, field, -1, guard
-                    );
+                    self.update_link_ref_count_optimistic(entity_key, &field_key, field, -1, guard);
                 }
                 self.update_link_ref_count_optimistic(
                     entity_key,
