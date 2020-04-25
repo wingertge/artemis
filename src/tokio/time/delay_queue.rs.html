@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.18/src/time/delay_queue.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>delay_queue.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.19/src/time/delay_queue.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>delay_queue.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -938,13 +938,12 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// # Implementation</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// The `DelayQueue` is backed by the same hashed timing wheel implementation as</span>
-<span class="doccomment">/// [`Timer`] as such, it offers the same performance benefits. See [`Timer`]</span>
-<span class="doccomment">/// for further implementation notes.</span>
+<span class="doccomment">/// The [`DelayQueue`] is backed by a separate instance of the same timer wheel used internally by</span>
+<span class="doccomment">/// Tokio&#39;s standalone timer utilities such as [`delay_for`]. Because of this, it offers the same</span>
+<span class="doccomment">/// performance and scalability benefits.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// State associated with each entry is stored in a [`slab`]. This allows</span>
-<span class="doccomment">/// amortizing the cost of allocation. Space created for expired entries is</span>
-<span class="doccomment">/// reused when inserting new entries.</span>
+<span class="doccomment">/// State associated with each entry is stored in a [`slab`]. This amortizes the cost of allocation,</span>
+<span class="doccomment">/// and allows reuse of the memory allocated for expired entires.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Capacity can be checked using [`capacity`] and allocated preemptively by using</span>
 <span class="doccomment">/// the [`reserve`] method.</span>
@@ -1006,7 +1005,8 @@
 <span class="doccomment">/// [`Stream`]: https://docs.rs/futures/0.1/futures/stream/trait.Stream.html</span>
 <span class="doccomment">/// [`poll`]: #method.poll</span>
 <span class="doccomment">/// [`Stream::poll`]: #method.poll</span>
-<span class="doccomment">/// [`Timer`]: ../struct.Timer.html</span>
+<span class="doccomment">/// [`DelayQueue`]: struct@DelayQueue</span>
+<span class="doccomment">/// [`delay_for`]: fn@super::delay_for</span>
 <span class="doccomment">/// [`slab`]: https://docs.rs/slab</span>
 <span class="doccomment">/// [`capacity`]: #method.capacity</span>
 <span class="doccomment">/// [`reserve`]: #method.reserve</span>

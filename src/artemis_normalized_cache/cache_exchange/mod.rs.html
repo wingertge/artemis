@@ -332,6 +332,10 @@
 <span id="332">332</span>
 <span id="333">333</span>
 <span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Contains the exchange factory and implementation. The factory is the only thing needed for most</span>
 <span class="doccomment">//! users and is reexported from the root.</span>
@@ -386,7 +390,7 @@
 
     <span class="kw">fn</span> <span class="ident">build</span>(<span class="self">self</span>, <span class="ident">next</span>: <span class="ident">TNext</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NormalizedCacheImpl</span><span class="op">&lt;</span><span class="ident">TNext</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">options</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">unwrap_or_else</span>(<span class="ident">NormalizedCacheOptions</span>::<span class="ident">default</span>);
-        <span class="kw">let</span> <span class="ident">store</span> <span class="op">=</span> <span class="ident">Store</span>::<span class="ident">new</span>(<span class="ident">options</span>.<span class="ident">custom_keys</span>.<span class="ident">unwrap_or_else</span>(<span class="ident">HashMap</span>::<span class="ident">new</span>));
+        <span class="kw">let</span> <span class="ident">store</span> <span class="op">=</span> <span class="ident">Store</span>::<span class="ident">new</span>(<span class="ident">options</span>.<span class="ident">custom_keys</span>.<span class="ident">unwrap_or_else</span>(<span class="ident">HashMap</span>::<span class="ident">default</span>));
         <span class="ident">NormalizedCacheImpl</span> {
             <span class="ident">next</span>,
             <span class="ident">store</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">store</span>),
@@ -466,6 +470,9 @@
         <span class="kw">let</span> <span class="ident">query_key</span> <span class="op">=</span> <span class="ident">result</span>.<span class="ident">key</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dependencies</span> <span class="op">=</span> <span class="ident">HashSet</span>::<span class="ident">default</span>();
         <span class="self">self</span>.<span class="ident">store</span>
+            .<span class="ident">write_query</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="ident">result</span>, <span class="kw-2">&amp;</span><span class="ident">variables</span>, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>)
+            .<span class="ident">unwrap</span>();
+        <span class="self">self</span>.<span class="ident">store</span>
             .<span class="ident">invalidate_query</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="ident">result</span>, <span class="kw-2">&amp;</span><span class="ident">variables</span>, <span class="bool-val">false</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">updater</span>) <span class="op">=</span> <span class="ident">extension</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">ext</span><span class="op">|</span> <span class="ident">ext</span>.<span class="ident">update</span>.<span class="ident">as_ref</span>()) {
             <span class="ident">updater</span>(
@@ -476,6 +483,7 @@
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">update_js</span>::<span class="op">&lt;</span><span class="ident">Q</span><span class="op">&gt;</span>(<span class="ident">extension</span>, <span class="ident">result</span>.<span class="ident">response</span>.<span class="ident">data</span>.<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">dependencies</span>);
         }
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;Invalidated dependencies {:?}&quot;</span>, <span class="ident">dependencies</span>);
         <span class="self">self</span>.<span class="ident">store</span>.<span class="ident">rerun_queries</span>(<span class="ident">dependencies</span>, <span class="ident">query_key</span>, <span class="ident">client</span>);
     }
 

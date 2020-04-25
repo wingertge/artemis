@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.18/src/sync/semaphore.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>semaphore.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.19/src/sync/semaphore.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>semaphore.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -103,9 +103,70 @@
 <span id="103">103</span>
 <span id="104">104</span>
 <span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">batch_semaphore</span> <span class="kw">as</span> <span class="ident">ll</span>; <span class="comment">// low level implementation</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">coop</span>::<span class="ident">CoopFutureExt</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 
 <span class="doccomment">/// Counting semaphore performing asynchronous permit aquisition.</span>
 <span class="doccomment">///</span>
@@ -124,11 +185,27 @@
     <span class="ident">ll_sem</span>: <span class="ident">ll</span>::<span class="ident">Semaphore</span>,
 }
 
-<span class="doccomment">/// A permit from the semaphore</span>
+<span class="doccomment">/// A permit from the semaphore.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This type is created by the [`acquire`] method.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [`acquire`]: crate::sync::Semaphore::acquire()</span>
 <span class="attribute">#[<span class="ident">must_use</span>]</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SemaphorePermit</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
     <span class="ident">sem</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Semaphore</span>,
+    <span class="ident">permits</span>: <span class="ident">u16</span>,
+}
+
+<span class="doccomment">/// An owned permit from the semaphore.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// This type is created by the [`acquire_owned`] method.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [`acquire_owned`]: crate::sync::Semaphore::acquire_owned()</span>
+<span class="attribute">#[<span class="ident">must_use</span>]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">OwnedSemaphorePermit</span> {
+    <span class="ident">sem</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Semaphore</span><span class="op">&gt;</span>,
     <span class="ident">permits</span>: <span class="ident">u16</span>,
 }
 
@@ -157,14 +234,14 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Semaphore</span> {
-    <span class="doccomment">/// Creates a new semaphore with the initial number of permits</span>
+    <span class="doccomment">/// Creates a new semaphore with the initial number of permits.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">permits</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">ll_sem</span>: <span class="ident">ll</span>::<span class="ident">Semaphore</span>::<span class="ident">new</span>(<span class="ident">permits</span>),
         }
     }
 
-    <span class="doccomment">/// Returns the current number of available permits</span>
+    <span class="doccomment">/// Returns the current number of available permits.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">available_permits</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">available_permits</span>()
     }
@@ -174,7 +251,7 @@
         <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">release</span>(<span class="ident">n</span>);
     }
 
-    <span class="doccomment">/// Acquires permit from the semaphore</span>
+    <span class="doccomment">/// Acquires permit from the semaphore.</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">acquire</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SemaphorePermit</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">acquire</span>(<span class="number">1</span>).<span class="ident">cooperate</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
         <span class="ident">SemaphorePermit</span> {
@@ -183,11 +260,39 @@
         }
     }
 
-    <span class="doccomment">/// Tries to acquire a permit form the semaphore</span>
+    <span class="doccomment">/// Tries to acquire a permit from the semaphore.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_acquire</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SemaphorePermit</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>, <span class="ident">TryAcquireError</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">try_acquire</span>(<span class="number">1</span>) {
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">SemaphorePermit</span> {
                 <span class="ident">sem</span>: <span class="self">self</span>,
+                <span class="ident">permits</span>: <span class="number">1</span>,
+            }),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">TryAcquireError</span>(())),
+        }
+    }
+
+    <span class="doccomment">/// Acquires permit from the semaphore.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The semaphore must be wrapped in an [`Arc`] to call this method.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`Arc`]: std::sync::Arc</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">acquire_owned</span>(<span class="self">self</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">OwnedSemaphorePermit</span> {
+        <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">acquire</span>(<span class="number">1</span>).<span class="ident">cooperate</span>().<span class="kw">await</span>.<span class="ident">unwrap</span>();
+        <span class="ident">OwnedSemaphorePermit</span> {
+            <span class="ident">sem</span>: <span class="self">self</span>.<span class="ident">clone</span>(),
+            <span class="ident">permits</span>: <span class="number">1</span>,
+        }
+    }
+
+    <span class="doccomment">/// Tries to acquire a permit from the semaphore.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The semaphore must be wrapped in an [`Arc`] to call this method.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`Arc`]: std::sync::Arc</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_acquire_owned</span>(<span class="self">self</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OwnedSemaphorePermit</span>, <span class="ident">TryAcquireError</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ll_sem</span>.<span class="ident">try_acquire</span>(<span class="number">1</span>) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">OwnedSemaphorePermit</span> {
+                <span class="ident">sem</span>: <span class="self">self</span>.<span class="ident">clone</span>(),
                 <span class="ident">permits</span>: <span class="number">1</span>,
             }),
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">TryAcquireError</span>(())),
@@ -204,7 +309,22 @@
     }
 }
 
+<span class="kw">impl</span> <span class="ident">OwnedSemaphorePermit</span> {
+    <span class="doccomment">/// Forgets the permit **without** releasing it back to the semaphore.</span>
+    <span class="doccomment">/// This can be used to reduce the amount of permits available from a</span>
+    <span class="doccomment">/// semaphore.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">forget</span>(<span class="kw-2">mut</span> <span class="self">self</span>) {
+        <span class="self">self</span>.<span class="ident">permits</span> <span class="op">=</span> <span class="number">0</span>;
+    }
+}
+
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">SemaphorePermit</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+        <span class="self">self</span>.<span class="ident">sem</span>.<span class="ident">add_permits</span>(<span class="self">self</span>.<span class="ident">permits</span> <span class="kw">as</span> <span class="ident">usize</span>);
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">OwnedSemaphorePermit</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">sem</span>.<span class="ident">add_permits</span>(<span class="self">self</span>.<span class="ident">permits</span> <span class="kw">as</span> <span class="ident">usize</span>);
     }

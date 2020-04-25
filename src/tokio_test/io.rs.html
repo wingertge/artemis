@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-test-0.2.0/src/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../tokio_test/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-test-0.2.1/src/io.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>io.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../tokio_test/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -412,6 +412,68 @@
 <span id="412">412</span>
 <span id="413">413</span>
 <span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">loom</span>))]</span>
 
@@ -442,6 +504,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">collections</span>::<span class="ident">VecDeque</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">pin</span>::<span class="ident">Pin</span>;
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">Arc</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">task</span>::{<span class="self">self</span>, <span class="ident">Poll</span>, <span class="ident">Waker</span>};
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">cmp</span>, <span class="ident">io</span>};
 
@@ -472,6 +535,10 @@
     <span class="ident">Read</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
     <span class="ident">Write</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
     <span class="ident">Wait</span>(<span class="ident">Duration</span>),
+    <span class="comment">// Wrapped in Arc so that Builder can be cloned and Send.</span>
+    <span class="comment">// Mock is not cloned as does not need to check Rc for ref counts.</span>
+    <span class="ident">ReadError</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>),
+    <span class="ident">WriteError</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">io</span>::<span class="ident">Error</span><span class="op">&gt;</span><span class="op">&gt;</span>),
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
@@ -498,12 +565,32 @@
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Sequence a `read` operation that produces an error.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `read` call</span>
+    <span class="doccomment">/// and return `error`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">error</span>: <span class="ident">io</span>::<span class="ident">Error</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">error</span>.<span class="ident">into</span>());
+        <span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">push_back</span>(<span class="ident">Action</span>::<span class="ident">ReadError</span>(<span class="ident">error</span>));
+        <span class="self">self</span>
+    }
+
     <span class="doccomment">/// Sequence a `write` operation.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `write`</span>
     <span class="doccomment">/// call.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">push_back</span>(<span class="ident">Action</span>::<span class="ident">Write</span>(<span class="ident">buf</span>.<span class="ident">into</span>()));
+        <span class="self">self</span>
+    }
+
+    <span class="doccomment">/// Sequence a `write` operation that produces an error.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `write`</span>
+    <span class="doccomment">/// call that provides `error`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">error</span>: <span class="ident">io</span>::<span class="ident">Error</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">error</span>.<span class="ident">into</span>());
+        <span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">push_back</span>(<span class="ident">Action</span>::<span class="ident">WriteError</span>(<span class="ident">error</span>));
         <span class="self">self</span>
     }
 
@@ -543,12 +630,32 @@
         <span class="self">self</span>
     }
 
+    <span class="doccomment">/// Sequence a `read` operation error.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `read` call</span>
+    <span class="doccomment">/// and return `error`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">read_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">error</span>: <span class="ident">io</span>::<span class="ident">Error</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">error</span>.<span class="ident">into</span>());
+        <span class="self">self</span>.<span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">Action</span>::<span class="ident">ReadError</span>(<span class="ident">error</span>)).<span class="ident">unwrap</span>();
+        <span class="self">self</span>
+    }
+
     <span class="doccomment">/// Sequence a `write` operation.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `write`</span>
     <span class="doccomment">/// call.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
         <span class="self">self</span>.<span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">Action</span>::<span class="ident">Write</span>(<span class="ident">buf</span>.<span class="ident">into</span>())).<span class="ident">unwrap</span>();
+        <span class="self">self</span>
+    }
+
+    <span class="doccomment">/// Sequence a `write` operation error.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The next operation in the mock&#39;s script will be to expect a `write`</span>
+    <span class="doccomment">/// call error.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">write_error</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">error</span>: <span class="ident">io</span>::<span class="ident">Error</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">error</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">error</span>.<span class="ident">into</span>());
+        <span class="self">self</span>.<span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">Action</span>::<span class="ident">WriteError</span>(<span class="ident">error</span>)).<span class="ident">unwrap</span>();
         <span class="self">self</span>
     }
 }
@@ -589,6 +696,12 @@
                 <span class="comment">// Return the number of bytes read</span>
                 <span class="prelude-val">Ok</span>(<span class="ident">n</span>)
             }
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Action</span>::<span class="ident">ReadError</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">err</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="comment">// As the</span>
+                <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">err</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Should have been removed from actions.&quot;</span>);
+                <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">try_unwrap</span>(<span class="ident">err</span>).<span class="ident">expect</span>(<span class="string">&quot;There are no other references.&quot;</span>);
+                <span class="prelude-val">Err</span>(<span class="ident">err</span>)
+            }
             <span class="prelude-val">Some</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// Either waiting or expecting a write</span>
                 <span class="prelude-val">Err</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">WouldBlock</span>.<span class="ident">into</span>())
@@ -608,6 +721,12 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">WouldBlock</span>.<span class="ident">into</span>());
         }
 
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Action</span>::<span class="ident">WriteError</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">err</span>)) <span class="op">=</span> <span class="self">self</span>.<span class="ident">action</span>() {
+            <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">err</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Should have been removed from actions.&quot;</span>);
+            <span class="kw">let</span> <span class="ident">err</span> <span class="op">=</span> <span class="ident">Arc</span>::<span class="ident">try_unwrap</span>(<span class="ident">err</span>).<span class="ident">expect</span>(<span class="string">&quot;There are no other references.&quot;</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">err</span>);
+        }
+
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">len</span>() {
             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">actions</span>[<span class="ident">i</span>] {
                 <span class="ident">Action</span>::<span class="ident">Write</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">expect</span>) <span class="op">=</span><span class="op">&gt;</span> {
@@ -625,7 +744,7 @@
                         <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">ret</span>);
                     }
                 }
-                <span class="ident">Action</span>::<span class="ident">Wait</span>(..) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">Action</span>::<span class="ident">Wait</span>(..) <span class="op">|</span> <span class="ident">Action</span>::<span class="ident">WriteError</span>(..) <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">break</span>;
                 }
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {}
@@ -673,6 +792,11 @@
                         <span class="kw">break</span>;
                     }
                 }
+                <span class="ident">Action</span>::<span class="ident">ReadError</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">error</span>) <span class="op">|</span> <span class="ident">Action</span>::<span class="ident">WriteError</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">error</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="kw">if</span> <span class="ident">error</span>.<span class="ident">is_some</span>() {
+                        <span class="kw">break</span>;
+                    }
+                }
             }
 
             <span class="kw">let</span> <span class="ident">_action</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">actions</span>.<span class="ident">pop_front</span>();
@@ -687,7 +811,7 @@
 <span class="kw">impl</span> <span class="ident">Mock</span> {
     <span class="kw">fn</span> <span class="ident">maybe_wakeup_reader</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">action</span>() {
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Action</span>::<span class="ident">Read</span>(<span class="kw">_</span>)) <span class="op">|</span> <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Action</span>::<span class="ident">Read</span>(<span class="kw">_</span>)) <span class="op">|</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Action</span>::<span class="ident">ReadError</span>(<span class="kw">_</span>)) <span class="op">|</span> <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">waker</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">read_wait</span>.<span class="ident">take</span>() {
                     <span class="ident">waker</span>.<span class="ident">wake</span>();
                 }

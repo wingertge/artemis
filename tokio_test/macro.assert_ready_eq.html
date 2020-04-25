@@ -3,7 +3,7 @@
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">expect</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> { ... };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">expect</span>:<span class="ident">expr</span>, $(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">msg</span>:<span class="ident">tt</span>)<span class="op">+</span>) <span class="op">=</span><span class="op">&gt;</span> { ... };
 }</pre></div>
-</div><div class='docblock'><p>Assert if a poll is ready and check for equality on the value</p>
+</div><div class='docblock'><p>Asserts if a poll is ready and check for equality on the value</p>
 <p>This will invoke <code>panic!</code> if the provided <code>Poll</code> does not evaluate to <code>Poll::Ready</code> at
 runtime and the value produced does not partially equal the expected value.</p>
 <h1 id="custom-messages" class="section-header"><a href="#custom-messages">Custom Messages</a></h1>

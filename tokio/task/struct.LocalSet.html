@@ -24,7 +24,7 @@ futures to run together on the same thread.</p>
     }).<span class="kw">await</span>.<span class="ident">unwrap</span>();
 }</pre></div>
 <p>In order to spawn <code>!Send</code> futures, we can use a local task set to
-schedule them on the thread calling <a href="../struct.Runtime.html#method.block_on"><code>Runtime::block_on</code></a>. When running
+schedule them on the thread calling <a href="../../tokio/runtime/struct.Runtime.html#method.block_on"><code>Runtime::block_on</code></a>. When running
 inside of the local task set, we can use <a href="../../tokio/task/fn.spawn_local.html"><code>task::spawn_local</code></a>, which can
 spawn <code>!Send</code> futures. For example:</p>
 
@@ -126,10 +126,10 @@ current thread.</p>
 <p>This function panics if the executor is at capacity, if the provided
 future panics, or if called within an asynchronous execution context.</p>
 <h1 id="notes" class="section-header"><a href="#notes">Notes</a></h1>
-<p>Since this function internally calls <a href="../struct.Runtime.html#method.block_on"><code>Runtime::block_on</code></a>, and drives
+<p>Since this function internally calls <a href="../../tokio/runtime/struct.Runtime.html#method.block_on"><code>Runtime::block_on</code></a>, and drives
 futures in the local task set inside that call to <code>block_on</code>, the local
-futures may not use <a href="../blocking/fn.in_place.html">in-place blocking</a>. If a blocking call needs to be
-issued from a local task, the <a href="../blocking/fn.spawn_blocking.html"><code>spawn_blocking</code></a> API may be used instead.</p>
+futures may not use <a href="../../tokio/task/fn.block_in_place.html">in-place blocking</a>. If a blocking call needs to be
+issued from a local task, the <a href="../../tokio/task/fn.spawn_blocking.html"><code>spawn_blocking</code></a> API may be used instead.</p>
 <p>For example, this will panic:</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered">

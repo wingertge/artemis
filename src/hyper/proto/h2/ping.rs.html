@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/hyper-0.13.4/src/proto/h2/ping.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>ping.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../hyper/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/hyper-0.13.5/src/proto/h2/ping.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>ping.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../../light.css" id="themeStyle"><script src="../../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../../hyper/index.html'><div class='logo-container'><img src='../../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../../settings.html"><img src="../../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -504,9 +504,6 @@
 <span id="504">504</span>
 <span id="505">505</span>
 <span id="506">506</span>
-<span id="507">507</span>
-<span id="508">508</span>
-<span id="509">509</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">/// HTTP2 Ping usage</span>
 <span class="doccomment">///</span>
@@ -560,7 +557,6 @@
     <span class="kw">let</span> <span class="ident">bdp</span> <span class="op">=</span> <span class="ident">config</span>.<span class="ident">bdp_initial_window</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">wnd</span><span class="op">|</span> <span class="ident">Bdp</span> {
         <span class="ident">bdp</span>: <span class="ident">wnd</span>,
         <span class="ident">max_bandwidth</span>: <span class="number">0.0</span>,
-        <span class="ident">samples</span>: <span class="number">0</span>,
         <span class="ident">rtt</span>: <span class="number">0.0</span>,
     });
 
@@ -652,8 +648,6 @@
     <span class="ident">bdp</span>: <span class="ident">u32</span>,
     <span class="doccomment">/// Largest bandwidth we&#39;ve seen so far.</span>
     <span class="ident">max_bandwidth</span>: <span class="ident">f64</span>,
-    <span class="doccomment">/// Count of samples made (ping sent and received)</span>
-    <span class="ident">samples</span>: <span class="ident">usize</span>,
     <span class="doccomment">/// Round trip time in seconds</span>
     <span class="ident">rtt</span>: <span class="ident">f64</span>,
 }
@@ -811,10 +805,9 @@
                     }
                 }
 
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">bdp</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">bdp</span> {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">bdp</span>.<span class="ident">is_some</span>() {
                     <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="ident">locked</span>.<span class="ident">bytes</span>.<span class="ident">expect</span>(<span class="string">&quot;bdp enabled implies bytes&quot;</span>);
                     <span class="ident">locked</span>.<span class="ident">bytes</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="number">0</span>); <span class="comment">// reset</span>
-                    <span class="ident">bdp</span>.<span class="ident">samples</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
                     <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;received BDP ack; bytes = {}, rtt = {:?}&quot;</span>, <span class="ident">bytes</span>, <span class="ident">rtt</span>);
                     (<span class="ident">bytes</span>, <span class="ident">rtt</span>)
                 } <span class="kw">else</span> {
@@ -904,11 +897,12 @@
 
         <span class="comment">// average the rtt</span>
         <span class="kw">let</span> <span class="ident">rtt</span> <span class="op">=</span> <span class="ident">seconds</span>(<span class="ident">rtt</span>);
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">samples</span> <span class="op">&lt;</span> <span class="number">10</span> {
-            <span class="comment">// Average the first 10 samples</span>
-            <span class="self">self</span>.<span class="ident">rtt</span> <span class="op">+</span><span class="op">=</span> (<span class="ident">rtt</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">rtt</span>) <span class="op">/</span> (<span class="self">self</span>.<span class="ident">samples</span> <span class="kw">as</span> <span class="ident">f64</span>);
+        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">rtt</span> <span class="op">=</span><span class="op">=</span> <span class="number">0.0</span> {
+            <span class="comment">// First sample means rtt is first rtt.</span>
+            <span class="self">self</span>.<span class="ident">rtt</span> <span class="op">=</span> <span class="ident">rtt</span>;
         } <span class="kw">else</span> {
-            <span class="self">self</span>.<span class="ident">rtt</span> <span class="op">+</span><span class="op">=</span> (<span class="ident">rtt</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">rtt</span>) <span class="op">/</span> <span class="number">0.9</span>;
+            <span class="comment">// Weigh this rtt as 1/8 for a moving average.</span>
+            <span class="self">self</span>.<span class="ident">rtt</span> <span class="op">+</span><span class="op">=</span> (<span class="ident">rtt</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">rtt</span>) <span class="op">*</span> <span class="number">0.125</span>;
         }
 
         <span class="comment">// calculate the current bandwidth</span>
@@ -924,7 +918,7 @@
 
         <span class="comment">// if the current `bytes` sample is at least 2/3 the previous</span>
         <span class="comment">// bdp, increase to double the current sample.</span>
-        <span class="kw">if</span> (<span class="ident">bytes</span> <span class="kw">as</span> <span class="ident">f64</span>) <span class="op">&gt;</span><span class="op">=</span> (<span class="self">self</span>.<span class="ident">bdp</span> <span class="kw">as</span> <span class="ident">f64</span>) <span class="op">*</span> <span class="number">0.66</span> {
+        <span class="kw">if</span> <span class="ident">bytes</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">bdp</span> <span class="kw">as</span> <span class="ident">usize</span> <span class="op">*</span> <span class="number">2</span> <span class="op">/</span> <span class="number">3</span> {
             <span class="self">self</span>.<span class="ident">bdp</span> <span class="op">=</span> (<span class="ident">bytes</span> <span class="op">*</span> <span class="number">2</span>).<span class="ident">min</span>(<span class="ident">BDP_LIMIT</span>) <span class="kw">as</span> <span class="ident">WindowSize</span>;
             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;BDP increased to {}&quot;</span>, <span class="self">self</span>.<span class="ident">bdp</span>);
             <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">bdp</span>)

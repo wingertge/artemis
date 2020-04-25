@@ -24,12 +24,11 @@ to expire first will be returned first. There are no ordering guarantees
 for items configured to expire the same instant. Also note that delays are
 rounded to the closest millisecond.</p>
 <h1 id="implementation" class="section-header"><a href="#implementation">Implementation</a></h1>
-<p>The <code>DelayQueue</code> is backed by the same hashed timing wheel implementation as
-<a href="../struct.Timer.html"><code>Timer</code></a> as such, it offers the same performance benefits. See <a href="../struct.Timer.html"><code>Timer</code></a>
-for further implementation notes.</p>
-<p>State associated with each entry is stored in a <a href="https://docs.rs/slab"><code>slab</code></a>. This allows
-amortizing the cost of allocation. Space created for expired entries is
-reused when inserting new entries.</p>
+<p>The <a href="../../tokio/time/delay_queue/struct.DelayQueue.html"><code>DelayQueue</code></a> is backed by a separate instance of the same timer wheel used internally by
+Tokio's standalone timer utilities such as <a href="../../tokio/time/fn.delay_for.html"><code>delay_for</code></a>. Because of this, it offers the same
+performance and scalability benefits.</p>
+<p>State associated with each entry is stored in a <a href="https://docs.rs/slab"><code>slab</code></a>. This amortizes the cost of allocation,
+and allows reuse of the memory allocated for expired entires.</p>
 <p>Capacity can be checked using <a href="#method.capacity"><code>capacity</code></a> and allocated preemptively by using
 the <a href="#method.reserve"><code>reserve</code></a> method.</p>
 <h1 id="usage-1" class="section-header"><a href="#usage-1">Usage</a></h1>

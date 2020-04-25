@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.18/src/fs/file.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>file.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.19/src/fs/file.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>file.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -737,6 +737,52 @@
 <span id="737">737</span>
 <span id="738">738</span>
 <span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! Types for working with [`File`].</span>
 <span class="doccomment">//!</span>
@@ -764,12 +810,28 @@
 <span class="doccomment">/// Tokio runtime.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// An instance of a `File` can be read and/or written depending on what options</span>
-<span class="doccomment">/// it was opened with. Files also implement Seek to alter the logical cursor</span>
-<span class="doccomment">/// that the file contains internally.</span>
+<span class="doccomment">/// it was opened with. Files also implement [`AsyncSeek`] to alter the logical</span>
+<span class="doccomment">/// cursor that the file contains internally.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Files are automatically closed when they go out of scope.</span>
+<span class="doccomment">/// A file will not be closed immediately when it goes out of scope if there</span>
+<span class="doccomment">/// are any IO operations that have not yet completed. To ensure that a file is</span>
+<span class="doccomment">/// closed immediately when it is dropped, you should call [`flush`] before</span>
+<span class="doccomment">/// dropping it. Note that this does not ensure that the file has been fully</span>
+<span class="doccomment">/// written to disk; the operating system might keep the changes around in an</span>
+<span class="doccomment">/// in-memory buffer. See the [`sync_all`] method for telling the OS to write</span>
+<span class="doccomment">/// the data to disk.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// [std]: std::fs::File</span>
+<span class="doccomment">/// Reading and writing to a `File` is usually done using the convenience</span>
+<span class="doccomment">/// methods found on the [`AsyncReadExt`] and [`AsyncWriteExt`] traits. Examples</span>
+<span class="doccomment">/// import these traits through [the prelude].</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [std]: struct@std::fs::File</span>
+<span class="doccomment">/// [`AsyncSeek`]: trait@crate::io::AsyncSeek</span>
+<span class="doccomment">/// [`flush`]: fn@crate::io::AsyncWriteExt::flush</span>
+<span class="doccomment">/// [`sync_all`]: fn@crate::fs::File::sync_all</span>
+<span class="doccomment">/// [`AsyncReadExt`]: trait@crate::io::AsyncReadExt</span>
+<span class="doccomment">/// [`AsyncWriteExt`]: trait@crate::io::AsyncWriteExt</span>
+<span class="doccomment">/// [the prelude]: crate::prelude</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # Examples</span>
 <span class="doccomment">///</span>
@@ -777,7 +839,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```no_run</span>
 <span class="doccomment">/// use tokio::fs::File;</span>
-<span class="doccomment">/// use tokio::prelude::*;</span>
+<span class="doccomment">/// use tokio::prelude::*; // for write_all()</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # async fn dox() -&gt; std::io::Result&lt;()&gt; {</span>
 <span class="doccomment">/// let mut file = File::create(&quot;foo.txt&quot;).await?;</span>
@@ -790,7 +852,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```no_run</span>
 <span class="doccomment">/// use tokio::fs::File;</span>
-<span class="doccomment">/// use tokio::prelude::*;</span>
+<span class="doccomment">/// use tokio::prelude::*; // for read_to_end()</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// # async fn dox() -&gt; std::io::Result&lt;()&gt; {</span>
 <span class="doccomment">/// let mut file = File::open(&quot;foo.txt&quot;).await?;</span>
@@ -854,6 +916,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`read_to_end`] method is defined on the [`AsyncReadExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`read_to_end`]: fn@crate::io::AsyncReadExt::read_to_end</span>
+    <span class="doccomment">/// [`AsyncReadExt`]: trait@crate::io::AsyncReadExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">open</span>(<span class="ident">path</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">as_ref</span>().<span class="ident">to_owned</span>();
         <span class="kw">let</span> <span class="ident">std</span> <span class="op">=</span> <span class="ident">asyncify</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">sys</span>::<span class="ident">File</span>::<span class="ident">open</span>(<span class="ident">path</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -889,6 +956,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`write_all`] method is defined on the [`AsyncWriteExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`write_all`]: fn@crate::io::AsyncWriteExt::write_all</span>
+    <span class="doccomment">/// [`AsyncWriteExt`]: trait@crate::io::AsyncWriteExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">create</span>(<span class="ident">path</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">Path</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">File</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">path</span>.<span class="ident">as_ref</span>().<span class="ident">to_owned</span>();
         <span class="kw">let</span> <span class="ident">std_file</span> <span class="op">=</span> <span class="ident">asyncify</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">sys</span>::<span class="ident">File</span>::<span class="ident">create</span>(<span class="ident">path</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -935,6 +1007,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`read_exact`] method is defined on the [`AsyncReadExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`read_exact`]: fn@crate::io::AsyncReadExt::read_exact</span>
+    <span class="doccomment">/// [`AsyncReadExt`]: trait@crate::io::AsyncReadExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">seek</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">pos</span>: <span class="ident">SeekFrom</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">complete_inflight</span>().<span class="kw">await</span>;
 
@@ -991,6 +1068,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`write_all`] method is defined on the [`AsyncWriteExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`write_all`]: fn@crate::io::AsyncWriteExt::write_all</span>
+    <span class="doccomment">/// [`AsyncWriteExt`]: trait@crate::io::AsyncWriteExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">sync_all</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">complete_inflight</span>().<span class="kw">await</span>;
 
@@ -1020,6 +1102,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`write_all`] method is defined on the [`AsyncWriteExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`write_all`]: fn@crate::io::AsyncWriteExt::write_all</span>
+    <span class="doccomment">/// [`AsyncWriteExt`]: trait@crate::io::AsyncWriteExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">sync_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">complete_inflight</span>().<span class="kw">await</span>;
 
@@ -1052,6 +1139,11 @@
     <span class="doccomment">/// # Ok(())</span>
     <span class="doccomment">/// # }</span>
     <span class="doccomment">/// ```</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// The [`write_all`] method is defined on the [`AsyncWriteExt`] trait.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`write_all`]: fn@crate::io::AsyncWriteExt::write_all</span>
+    <span class="doccomment">/// [`AsyncWriteExt`]: trait@crate::io::AsyncWriteExt</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">set_len</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">io</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">complete_inflight</span>().<span class="kw">await</span>;
 

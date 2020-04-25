@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.18/src/sync/mutex.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mutex.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/tokio-0.2.19/src/sync/mutex.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>mutex.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css"><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script src="../../../storage.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="shortcut icon" href="../../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../../tokio/index.html'><div class='logo-container'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -226,87 +226,65 @@
 <span id="226">226</span>
 <span id="227">227</span>
 <span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="doccomment">//! An asynchronous `Mutex`-like type.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! This module provides [`Mutex`], a type that acts similarly to an asynchronous `Mutex`, with one</span>
-<span class="doccomment">//! major difference: the [`MutexGuard`] returned by `lock` is not tied to the lifetime of the</span>
-<span class="doccomment">//! `Mutex`. This enables you to acquire a lock, and then pass that guard into a future, and then</span>
-<span class="doccomment">//! release it at some later point in time.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! This allows you to do something along the lines of:</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! ```rust,no_run</span>
-<span class="doccomment">//! use tokio::sync::Mutex;</span>
-<span class="doccomment">//! use std::sync::Arc;</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[tokio::main]</span>
-<span class="doccomment">//! async fn main() {</span>
-<span class="doccomment">//!     let data1 = Arc::new(Mutex::new(0));</span>
-<span class="doccomment">//!     let data2 = Arc::clone(&amp;data1);</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!     tokio::spawn(async move {</span>
-<span class="doccomment">//!         let mut lock = data2.lock().await;</span>
-<span class="doccomment">//!         *lock += 1;</span>
-<span class="doccomment">//!     });</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!     let mut lock = data1.lock().await;</span>
-<span class="doccomment">//!     *lock += 1;</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Another example</span>
-<span class="doccomment">//! ```rust,no_run</span>
-<span class="doccomment">//! #![warn(rust_2018_idioms)]</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! use tokio::sync::Mutex;</span>
-<span class="doccomment">//! use std::sync::Arc;</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! #[tokio::main]</span>
-<span class="doccomment">//! async fn main() {</span>
-<span class="doccomment">//!    let count = Arc::new(Mutex::new(0));</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!    for _ in 0..5 {</span>
-<span class="doccomment">//!        let my_count = Arc::clone(&amp;count);</span>
-<span class="doccomment">//!        tokio::spawn(async move {</span>
-<span class="doccomment">//!            for _ in 0..10 {</span>
-<span class="doccomment">//!                let mut lock = my_count.lock().await;</span>
-<span class="doccomment">//!                *lock += 1;</span>
-<span class="doccomment">//!                println!(&quot;{}&quot;, lock);</span>
-<span class="doccomment">//!            }</span>
-<span class="doccomment">//!        });</span>
-<span class="doccomment">//!    }</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//!    loop {</span>
-<span class="doccomment">//!        if *count.lock().await &gt;= 50 {</span>
-<span class="doccomment">//!            break;</span>
-<span class="doccomment">//!        }</span>
-<span class="doccomment">//!    }</span>
-<span class="doccomment">//!   println!(&quot;Count hit 50.&quot;);</span>
-<span class="doccomment">//! }</span>
-<span class="doccomment">//! ```</span>
-<span class="doccomment">//! There are a few things of note here to pay attention to in this example.</span>
-<span class="doccomment">//! 1. The mutex is wrapped in an [`std::sync::Arc`] to allow it to be shared across threads.</span>
-<span class="doccomment">//! 2. Each spawned task obtains a lock and releases it on every iteration.</span>
-<span class="doccomment">//! 3. Mutation of the data the Mutex is protecting is done by de-referencing the the obtained lock</span>
-<span class="doccomment">//!    as seen on lines 23 and 30.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Tokio&#39;s Mutex works in a simple FIFO (first in, first out) style where as requests for a lock are</span>
-<span class="doccomment">//! made Tokio will queue them up and provide a lock when it is that requester&#39;s turn. In that way</span>
-<span class="doccomment">//! the Mutex is &quot;fair&quot; and predictable in how it distributes the locks to inner data. This is why</span>
-<span class="doccomment">//! the output of this program is an in-order count to 50. Locks are released and reacquired</span>
-<span class="doccomment">//! after every iteration, so basically, each thread goes to the back of the line after it increments</span>
-<span class="doccomment">//! the value once. Also, since there is only a single valid lock at any given time there is no</span>
-<span class="doccomment">//! possibility of a race condition when mutating the inner value.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! Note that in contrast to `std::sync::Mutex`, this implementation does not</span>
-<span class="doccomment">//! poison the mutex when a thread holding the `MutexGuard` panics. In such a</span>
-<span class="doccomment">//! case, the mutex will be unlocked. If the panic is caught, this might leave</span>
-<span class="doccomment">//! the data protected by the mutex in an inconsistent state.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! [`Mutex`]: struct@Mutex</span>
-<span class="doccomment">//! [`MutexGuard`]: struct@MutexGuard</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">coop</span>::<span class="ident">CoopFutureExt</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">sync</span>::<span class="ident">batch_semaphore</span> <span class="kw">as</span> <span class="ident">semaphore</span>;
 
@@ -315,11 +293,96 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>};
 
-<span class="doccomment">/// An asynchronous mutual exclusion primitive useful for protecting shared data</span>
+<span class="doccomment">/// An asynchronous `Mutex`-like type.</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// Each mutex has a type parameter (`T`) which represents the data that it is protecting. The data</span>
-<span class="doccomment">/// can only be accessed through the RAII guards returned from `lock`, which</span>
-<span class="doccomment">/// guarantees that the data is only ever accessed when the mutex is locked.</span>
+<span class="doccomment">/// This type acts similarly to an asynchronous [`std::sync::Mutex`], with one</span>
+<span class="doccomment">/// major difference: [`lock`] does not block. Another difference is that the</span>
+<span class="doccomment">/// lock guard can be held across await points.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// There are some situations where you should prefer the mutex from the</span>
+<span class="doccomment">/// standard library. Generally this is the case if:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///  1. The lock does not need to be held across await points.</span>
+<span class="doccomment">///  2. The duration of any single lock is near-instant.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// On the other hand, the Tokio mutex is for the situation where the lock needs</span>
+<span class="doccomment">/// to be held for longer periods of time, or across await points.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// # Examples:</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// ```rust,no_run</span>
+<span class="doccomment">/// use tokio::sync::Mutex;</span>
+<span class="doccomment">/// use std::sync::Arc;</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// #[tokio::main]</span>
+<span class="doccomment">/// async fn main() {</span>
+<span class="doccomment">///     let data1 = Arc::new(Mutex::new(0));</span>
+<span class="doccomment">///     let data2 = Arc::clone(&amp;data1);</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///     tokio::spawn(async move {</span>
+<span class="doccomment">///         let mut lock = data2.lock().await;</span>
+<span class="doccomment">///         *lock += 1;</span>
+<span class="doccomment">///     });</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///     let mut lock = data1.lock().await;</span>
+<span class="doccomment">///     *lock += 1;</span>
+<span class="doccomment">/// }</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// ```rust,no_run</span>
+<span class="doccomment">/// use tokio::sync::Mutex;</span>
+<span class="doccomment">/// use std::sync::Arc;</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// #[tokio::main]</span>
+<span class="doccomment">/// async fn main() {</span>
+<span class="doccomment">///     let count = Arc::new(Mutex::new(0));</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///     for _ in 0..5 {</span>
+<span class="doccomment">///         let my_count = Arc::clone(&amp;count);</span>
+<span class="doccomment">///         tokio::spawn(async move {</span>
+<span class="doccomment">///             for _ in 0..10 {</span>
+<span class="doccomment">///                 let mut lock = my_count.lock().await;</span>
+<span class="doccomment">///                 *lock += 1;</span>
+<span class="doccomment">///                 println!(&quot;{}&quot;, lock);</span>
+<span class="doccomment">///             }</span>
+<span class="doccomment">///         });</span>
+<span class="doccomment">///     }</span>
+<span class="doccomment">///</span>
+<span class="doccomment">///     loop {</span>
+<span class="doccomment">///         if *count.lock().await &gt;= 50 {</span>
+<span class="doccomment">///             break;</span>
+<span class="doccomment">///         }</span>
+<span class="doccomment">///     }</span>
+<span class="doccomment">///     println!(&quot;Count hit 50.&quot;);</span>
+<span class="doccomment">/// }</span>
+<span class="doccomment">/// ```</span>
+<span class="doccomment">/// There are a few things of note here to pay attention to in this example.</span>
+<span class="doccomment">/// 1. The mutex is wrapped in an [`Arc`] to allow it to be shared across threads.</span>
+<span class="doccomment">/// 2. Each spawned task obtains a lock and releases it on every iteration.</span>
+<span class="doccomment">/// 3. Mutation of the data protected by the Mutex is done by de-referencing the obtained lock</span>
+<span class="doccomment">///    as seen on lines 12 and 19.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Tokio&#39;s Mutex works in a simple FIFO (first in, first out) style where all calls</span>
+<span class="doccomment">/// to [`lock`] complete in the order they were performed. In that way</span>
+<span class="doccomment">/// the Mutex is &quot;fair&quot; and predictable in how it distributes the locks to inner data. This is why</span>
+<span class="doccomment">/// the output of the program above is an in-order count to 50. Locks are released and reacquired</span>
+<span class="doccomment">/// after every iteration, so basically, each thread goes to the back of the line after it increments</span>
+<span class="doccomment">/// the value once. Finally, since there is only a single valid lock at any given time, there is no</span>
+<span class="doccomment">/// possibility of a race condition when mutating the inner value.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Note that in contrast to [`std::sync::Mutex`], this implementation does not</span>
+<span class="doccomment">/// poison the mutex when a thread holding the [`MutexGuard`] panics. In such a</span>
+<span class="doccomment">/// case, the mutex will be unlocked. If the panic is caught, this might leave</span>
+<span class="doccomment">/// the data protected by the mutex in an inconsistent state.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// [`Mutex`]: struct@Mutex</span>
+<span class="doccomment">/// [`MutexGuard`]: struct@MutexGuard</span>
+<span class="doccomment">/// [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html</span>
+<span class="doccomment">/// [`std::sync::Mutex`]: https://doc.rust-lang.org/std/sync/struct.Mutex.html</span>
+<span class="doccomment">/// [`Send`]: https://doc.rust-lang.org/std/marker/trait.Send.html</span>
+<span class="doccomment">/// [`lock`]: method@Mutex::lock</span>
+
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="ident">c</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -379,6 +442,14 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Mutex</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Creates a new lock in an unlocked state ready for use.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// use tokio::sync::Mutex;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// let lock = Mutex::new(5);</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">t</span>: <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">c</span>: <span class="ident">UnsafeCell</span>::<span class="ident">new</span>(<span class="ident">t</span>),
@@ -386,7 +457,23 @@
         }
     }
 
-    <span class="doccomment">/// A future that resolves on acquiring the lock and returns the `MutexGuard`.</span>
+    <span class="doccomment">/// Locks this mutex, causing the current task</span>
+    <span class="doccomment">/// to yield until the lock has been acquired.</span>
+    <span class="doccomment">/// When the lock has been acquired, function returns a [`MutexGuard`].</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// use tokio::sync::Mutex;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// #[tokio::main]</span>
+    <span class="doccomment">/// async fn main() {</span>
+    <span class="doccomment">///     let mutex = Mutex::new(1);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     let mut n = mutex.lock().await;</span>
+    <span class="doccomment">///     *n = 2;</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">s</span>.<span class="ident">acquire</span>(<span class="number">1</span>).<span class="ident">cooperate</span>().<span class="kw">await</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="comment">// The semaphore was closed. but, we never explicitly close it, and we have a</span>
@@ -396,7 +483,23 @@
         <span class="ident">MutexGuard</span> { <span class="ident">lock</span>: <span class="self">self</span> }
     }
 
-    <span class="doccomment">/// Tries to acquire the lock</span>
+    <span class="doccomment">/// Attempts to acquire the lock, and returns [`TryLockError`] if the</span>
+    <span class="doccomment">/// lock is currently held somewhere else.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// [`TryLockError`]: TryLockError</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// use tokio::sync::Mutex;</span>
+    <span class="doccomment">/// # async fn dox() -&gt; Result&lt;(), tokio::sync::TryLockError&gt; {</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// let mutex = Mutex::new(1);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// let n = mutex.try_lock()?;</span>
+    <span class="doccomment">/// assert_eq!(*n, 1);</span>
+    <span class="doccomment">/// # Ok(())</span>
+    <span class="doccomment">/// # }</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">try_lock</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MutexGuard</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">TryLockError</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">s</span>.<span class="ident">try_acquire</span>(<span class="number">1</span>) {
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">MutexGuard</span> { <span class="ident">lock</span>: <span class="self">self</span> }),
@@ -405,6 +508,19 @@
     }
 
     <span class="doccomment">/// Consumes the mutex, returning the underlying data.</span>
+    <span class="doccomment">/// # Examples</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// use tokio::sync::Mutex;</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// #[tokio::main]</span>
+    <span class="doccomment">/// async fn main() {</span>
+    <span class="doccomment">///     let mutex = Mutex::new(1);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">///     let n = mutex.into_inner();</span>
+    <span class="doccomment">///     assert_eq!(n, 1);</span>
+    <span class="doccomment">/// }</span>
+    <span class="doccomment">/// ```</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">into_inner</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> {
         <span class="self">self</span>.<span class="ident">c</span>.<span class="ident">into_inner</span>()
     }

@@ -5,7 +5,7 @@ implements <a href="https://docs.rs/mio/0.6/mio/trait.Evented.html"><code>mio::E
 <a href="https://doc.rust-lang.org/std/io/trait.Write.html"><code>std::io::Write</code></a> and associate it with a reactor that will drive it.</p>
 <p>Once the <a href="https://docs.rs/mio/0.6/mio/trait.Evented.html"><code>mio::Evented</code></a> type is wrapped by <code>PollEvented</code>, it can be
 used from within the future's execution model. As such, the
-<code>PollEvented</code> type provides <a href="../io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>
+<code>PollEvented</code> type provides <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a>
 implementations using the underlying I/O resource as well as readiness
 events provided by the reactor.</p>
 <p><strong>Note</strong>: While <code>PollEvented</code> is <code>Sync</code> (if the underlying I/O type is
@@ -15,7 +15,7 @@ writing. While violating this requirement is &quot;safe&quot; from a Rust memory
 model point of view, it will result in unexpected behavior in the form
 of lost notifications and tasks hanging.</p>
 <h2 id="readiness-events" class="section-header"><a href="#readiness-events">Readiness events</a></h2>
-<p>Besides just providing <a href="../io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> implementations,
+<p>Besides just providing <a href="../../tokio/io/trait.AsyncRead.html"><code>AsyncRead</code></a> and <a href="../../tokio/io/trait.AsyncWrite.html"><code>AsyncWrite</code></a> implementations,
 this type also supports access to the underlying readiness event stream.
 While similar in function to what <a href="../../tokio/io/struct.Registration.html"><code>Registration</code></a> provides, the
 semantics are a bit different.</p>
@@ -29,7 +29,7 @@ resource not being ready, the caller must call <a href="#method.clear_read_ready
 <a href="#method.clear_write_ready"><code>clear_write_ready</code></a>. This clears the readiness state until a new
 readiness event is received.</p>
 <p>This allows the caller to implement additional functions. For example,
-<a href="../net/struct.TcpListener.html"><code>TcpListener</code></a> implements poll_accept by using <a href="#method.poll_read_ready"><code>poll_read_ready</code></a> and
+<a href="../../tokio/net/struct.TcpListener.html"><code>TcpListener</code></a> implements poll_accept by using <a href="#method.poll_read_ready"><code>poll_read_ready</code></a> and
 <a href="#method.clear_read_ready"><code>clear_read_ready</code></a>.</p>
 
 <div class="example-wrap"><pre class="rust rust-example-rendered">
