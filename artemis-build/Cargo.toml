@@ -1,6 +1,6 @@
 [package]
 name = "artemis-build"
-version = "0.1.0-alpha.0"
+version = "0.1.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 description = "Build time tooling for the artemis crate."
@@ -15,7 +15,7 @@ introspect = ["reqwest", "serde", "serde_json", "artemis"]
 fmt-typescript = ["artemis_codegen/fmt-typescript"]
 
 [dependencies]
-artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0-alpha.0" }
+artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0" }
 rustfmt-nightly = { version = "1.4", optional = true }
 syn = "1"
 
@@ -23,7 +23,7 @@ syn = "1"
 reqwest = { version = "0.10", features = ["blocking", "json"], optional = true }
 serde = { version = "1", optional = true }
 serde_json = { version = "1", optional = true }
-artemis = { path = "../artemis", version = "^0.1.0-alpha.0", optional = true }
+artemis = { path = "../artemis", version = "^0.1.0", optional = true }
 
 [dev-dependencies]
 artemis-test = { path = "../artemis-test" }

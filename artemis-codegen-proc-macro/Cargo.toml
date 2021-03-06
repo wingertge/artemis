@@ -1,6 +1,6 @@
 [package]
 name = "artemis-codegen-proc-macro"
-version = "0.1.0-alpha.0"
+version = "0.1.0"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 description = "Proc macros for the artemis crate."
@@ -14,7 +14,7 @@ proc-macro = true
 
 [dependencies]
 syn = "1"
-artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0-alpha.0" }
+artemis_codegen = { path = "../artemis_codegen", version = "^0.1.0" }
 
 [dev-dependencies]
 artemis = { path = "../artemis" }
