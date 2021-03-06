@@ -22,7 +22,7 @@ serde = "1"
 serde_json = "1"
 async-trait = "0.1"
 parking_lot = "0.10"
-flurry = "0.1"
+flurry = "0.3"
 crossbeam-epoch = "0.8"
 fnv = "1"
 
