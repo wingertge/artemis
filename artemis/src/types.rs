@@ -1,7 +1,7 @@
 use crate::{client::ClientImpl, GraphQLQuery, QueryBody, QueryError, Response};
 #[cfg(feature = "observable")]
 use futures::{channel::mpsc::Receiver, task::Context, Stream};
-use serde::{de::DeserializeOwned, export::PhantomData, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
@@ -12,6 +12,7 @@ use std::{
 };
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
+use std::marker::PhantomData;
 
 /// The result type returned by exchanges
 pub type ExchangeResult<R> = Result<OperationResult<R>, QueryError>;

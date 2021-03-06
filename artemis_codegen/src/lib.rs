@@ -49,7 +49,7 @@ pub use crate::codegen_options::{CodegenMode, GraphQLClientCodegenOptions};
 
 use crate::{unions::UnionError, utils::hash};
 use std::{collections::HashMap, error::Error, fmt, io::Read};
-use syn::export::Span;
+use proc_macro2::Span;
 
 type CacheMap<T> = std::sync::Mutex<HashMap<std::path::PathBuf, T>>;
 

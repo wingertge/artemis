@@ -1,3 +1,8 @@
+extern crate jemallocator;
+
+#[global_allocator]
+static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+
 use crate::queries::{
     books::{books, Books},
     complex_author::{
@@ -42,7 +47,6 @@ pub fn write(c: &mut Criterion) {
     let mut group = c.benchmark_group("write");
 
     benchmark_writes(&mut group, 100);
-    /*
     benchmark_writes(&mut group, 1000);
     benchmark_writes(&mut group, 10000);
 
@@ -53,7 +57,6 @@ pub fn write(c: &mut Criterion) {
     benchmark_write_complex(&mut group, 100);
     benchmark_write_complex(&mut group, 1000);
     benchmark_write_complex(&mut group, 10000);
-    */
 
     group.finish();
 }

@@ -1,6 +1,6 @@
 [package]
 name = "artemis-normalized-cache"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 authors = ["Genna Wingert <wingertge@gmail.com>"]
 edition = "2018"
 description = "A graph-based normalized cache exchange for the artemis crate."
@@ -17,7 +17,7 @@ harness = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-artemis = { path = "../artemis", version = "^0.1.0-alpha.0" }
+artemis = { path = "../artemis", version = "^0.1.0-alpha.1" }
 serde = "1"
 serde_json = "1"
 async-trait = "0.1"
@@ -36,6 +36,7 @@ lazy_static = "1.4"
 criterion = "0.3"
 chrono = "0.4"
 rand = "0.7"
+jemallocator = "0.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

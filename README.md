@@ -12,6 +12,10 @@ Well, the badges will tell you actually, now that CI is set up.
 ![Linux (Nightly)](https://github.com/wingertge/artemis/workflows/Linux%20(Nightly)/badge.svg)
 
 #### Changelog
+##### artemis
+**v0.1.0-alpha.1**:
+* Added `to_str` method on `OperationType`. This is for use in `artemis-normalized-cache`, static string slices are
+more efficient than `String`s.
 ##### artemis-normalized-cache
 **v0.1.0-alpha.1**:  
 * Improved read performance by approximately a factor of 4. We're now almost three times as fast as
@@ -25,3 +29,8 @@ Well, the badges will tell you actually, now that CI is set up.
  * Improve write performance by approximately a factor of 9, now 3.5 times as fast as `urql`. After improved
  measurements it seems read performance is actually just 1.5 times as fast as `urql` in read performance, but an apples
  to apples comparison between Rust and  JavaScript is impossible so these numbers aren't perfect.
+ 
+ **v0.1.0-alpha.4**:
+ * There was an off-by-10 error on the last benchmark, we were actually 0.35 times as fast as `urql` on writes.
+ Now we're at least up to 0.7x after another major optimization. Further optimizations will be difficult without a
+ garbage collector.
