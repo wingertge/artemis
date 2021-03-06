@@ -256,7 +256,7 @@ mod tests {
 
         assert_eq!(
             context.response_derives().to_string(),
-            "# [ derive ( Clone , Deserialize , PartialEq , PartialOrd , Serialize ) ]"
+            "# [derive (Clone , Deserialize , PartialEq , PartialOrd , Serialize)]"
         );
     }
 
@@ -266,7 +266,7 @@ mod tests {
         let context = QueryContext::new_empty(&schema);
         assert_eq!(
             context.response_enum_derives().to_string(),
-            "# [ derive ( Eq , PartialEq ) ]"
+            "# [derive (Eq , PartialEq)]"
         );
     }
 
@@ -281,7 +281,7 @@ mod tests {
 
         assert_eq!(
             context.response_enum_derives().to_string(),
-            "# [ derive ( Eq , PartialEq , PartialOrd ) ]"
+            "# [derive (Eq , PartialEq , PartialOrd)]"
         );
     }
 }

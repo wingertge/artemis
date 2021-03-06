@@ -65,8 +65,6 @@ async fn test_cache() {
     // NOT CACHED
     let result = client.query(GetConference, variables.clone()).await;
 
-    assert!(result.is_ok(), "Query returned an error");
-
     let response = result.unwrap();
     assert!(response.errors.is_none(), "Query returned errors");
     assert!(response.data.is_some(), "Query didn't return any data");

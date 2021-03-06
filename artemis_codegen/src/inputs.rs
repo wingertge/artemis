@@ -259,10 +259,10 @@ mod tests {
         };
 
         let expected: String = vec![
-            "# [ derive ( Clone , Serialize ) ] ",
+            "# [derive (Clone , Serialize)] ",
             "pub struct Cat { ",
             "pub offsprings : Vec < Cat > , ",
-            "# [ serde ( rename = \"pawsCount\" ) ] ",
+            "# [serde (rename = \"pawsCount\")] ",
             "pub paws_count : Float , ",
             "pub requirements : Option < CatRequirements > , ",
             "}",
