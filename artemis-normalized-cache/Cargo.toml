@@ -31,7 +31,7 @@ artemis-test = { path = "../artemis-test" }
 racetrack = "0.0.2"
 tokio = { version = "0.2", features = ["full"] }
 futures = "0.3"
-type-map = "0.3"
+type-map = "0.5"
 lazy_static = "1.4"
 criterion = "0.3"
 chrono = "0.4"
