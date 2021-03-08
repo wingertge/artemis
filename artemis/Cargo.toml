@@ -40,7 +40,7 @@ artemis-build = { path = "../artemis-build" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 tokio = { version = "0.2", features = ["full"] }
-tokio-test = "0.2"
+tokio-test = "0.4"
 
 [target.'cfg(any(doc, target_arch = "wasm32"))'.dependencies]
 wasm-bindgen = "0.2"
