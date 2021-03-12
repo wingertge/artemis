@@ -23,7 +23,7 @@ artemis-codegen-proc-macro = { path = "../artemis-codegen-proc-macro", version =
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
-parking_lot = "0.10"
+parking_lot = "0.11"
 bincode = "1"
 
 futures = { version = "0.3", optional = true }
