@@ -115,7 +115,7 @@ fn main() {
         let runtime = Runtime::new().unwrap();
         thread::spawn(move || loop {
             let futs = (0..100).map(|_| {
-                let var_id = rand::thread_rng().gen_range(0, n);
+                let var_id = rand::thread_rng().gen_range(0..n);
                 let variables = variable_set.get(var_id).cloned().unwrap();
                 let client = client.clone();
                 async move {

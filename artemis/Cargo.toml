@@ -34,7 +34,7 @@ artemis-test = { path = "../artemis-test" }
 lazy_static = "1"
 criterion = "0.3"
 criterion-macro = "0.3"
-rand = "0.7"
+rand = "0.8"
 wasm-bindgen-test = "0.3"
 artemis-build = { path = "../artemis-build" }
 
