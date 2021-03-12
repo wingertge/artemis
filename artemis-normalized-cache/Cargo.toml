@@ -23,7 +23,7 @@ serde_json = "1"
 async-trait = "0.1"
 parking_lot = "0.10"
 flurry = "0.3"
-crossbeam-epoch = "0.8"
+crossbeam-epoch = "0.9"
 fnv = "1"
 
 [dev-dependencies]
@@ -31,7 +31,7 @@ artemis-test = { path = "../artemis-test" }
 racetrack = "0.0.2"
 tokio = { version = "0.2", features = ["full"] }
 futures = "0.3"
-type-map = "0.3"
+type-map = "0.5"
 lazy_static = "1.4"
 criterion = "0.3"
 chrono = "0.4"
