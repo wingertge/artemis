@@ -128,7 +128,7 @@ mod test {
     };
     use lazy_static::lazy_static;
     use std::time::Duration;
-    use tokio::time::delay_for;
+    use tokio::time::sleep;
 
     lazy_static! {
         static ref VARIABLES: Variables = Variables {
@@ -159,7 +159,7 @@ mod test {
             operation: Operation<Q::Variables>,
             _client: C
         ) -> ExchangeResult<Q::ResponseData> {
-            delay_for(Duration::from_millis(10)).await;
+            sleep(Duration::from_millis(10)).await;
             let res = OperationResult {
                 key: operation.key,
                 meta: operation.meta,

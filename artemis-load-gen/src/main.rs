@@ -45,7 +45,7 @@ impl Exchange for DummyFetchExchange {
         };
 
         let delay = Duration::from_millis(50);
-        tokio::time::delay_for(delay).await;
+        tokio::time::sleep(delay).await;
         let variables: Box<dyn Any> = Box::new(operation.query.variables);
         let variables = (&variables).downcast_ref::<Variables>().unwrap();
         let data = ResponseData {
@@ -112,7 +112,7 @@ fn main() {
         let client = client.clone();
         let variable_set = variable_set.clone();
         let query_count = query_count.clone();
-        let mut runtime = Runtime::new().unwrap();
+        let runtime = Runtime::new().unwrap();
         thread::spawn(move || loop {
             let futs = (0..100).map(|_| {
                 let var_id = rand::thread_rng().gen_range(0, n);
