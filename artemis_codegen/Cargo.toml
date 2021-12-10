@@ -20,7 +20,7 @@ serde_json = "1"
 proc-macro2 = { version = "1", features = [] }
 syn = { version = "1", features = ["full", "clone-impls"] }
 quote = "1"
-heck = "0.3"
+heck = "0.4"
 dprint-plugin-typescript = { version = "0.58", optional = true }
 
 [dev-dependencies]
