@@ -21,7 +21,7 @@ proc-macro2 = { version = "1", features = [] }
 syn = { version = "1", features = ["full", "clone-impls"] }
 quote = "1"
 heck = "0.3"
-dprint-plugin-typescript = { version = "0.58", optional = true }
+dprint-plugin-typescript = { version = "0.73", optional = true }
 
 [dev-dependencies]
 artemis = { path = "../artemis" }
